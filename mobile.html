@@ -3503,7 +3503,11 @@ function handleScan(rawValue) {
   }
 
   input.value = "";
-  input.focus();
+  // MOBILE: deliberately no .focus() here — same reasoning as
+  // refocusScanInput() above. Re-focusing after every scan (including
+  // camera scans) pops the on-screen keyboard over the screen, which is
+  // exactly what this file was built to avoid. Manual typists can just
+  // tap the field again for the next item.
 }
 
 // Adds a new cart line, or increments qty if that barcode is already in
@@ -4342,27 +4346,63 @@ let lastCameraScanAt = 0;
 const CAMERA_SCAN_DEDUP_MS = 1500; // ignore the same decoded value scanned again within this window
 
 // Minimal Web Audio beep — no external audio file needed.
-function playBeep() {
+//
+// One AudioContext is created (and kept) per camera session, opened from
+// unlockBeepAudio() — called synchronously from the tap that opens the
+// camera modal, which is a real user gesture. Mobile Chrome/Safari both
+// start a freshly-created AudioContext in a "suspended" state unless it
+// is created (or resumed) inside a user-gesture handler, and creating a
+// brand-new context on every single beep (as the first version of this
+// function did) meant every beep after the very first one was fired
+// from inside an async camera callback with no gesture behind it — so
+// it silently produced no sound at all on a real phone. Reusing one
+// already-unlocked context per session, and defensively calling
+// .resume() before every beep, is what actually makes the beep audible.
+let scanBeepCtx = null;
+
+function unlockBeepAudio() {
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    const oscillator = ctx.createOscillator();
-    const gain = ctx.createGain();
-    oscillator.type = "square";
-    oscillator.frequency.value = 1500;
-    gain.gain.value = 0.15;
-    oscillator.connect(gain);
-    gain.connect(ctx.destination);
-    oscillator.start();
-    setTimeout(() => {
-      oscillator.stop();
-      ctx.close();
-    }, 120);
+    if (!scanBeepCtx || scanBeepCtx.state === "closed") {
+      scanBeepCtx = new AudioCtx();
+    }
+    if (scanBeepCtx.state === "suspended") {
+      scanBeepCtx.resume();
+    }
+  } catch (err) {
+    console.error("unlockBeepAudio failed:", err);
+  }
+}
+
+function playBeep() {
+  try {
+    if (!scanBeepCtx) return;
+    if (scanBeepCtx.state === "suspended") {
+      // Belt-and-braces: resume returns a promise, fire the tone once
+      // it's actually running rather than assuming resume() is instant.
+      scanBeepCtx.resume().then(() => playBeepTone_());
+      return;
+    }
+    playBeepTone_();
   } catch (err) {
     // Beep is a nice-to-have — never let it block scanning.
     console.error("playBeep failed:", err);
   }
+}
+
+function playBeepTone_() {
+  const ctx = scanBeepCtx;
+  if (!ctx) return;
+  const oscillator = ctx.createOscillator();
+  const gain = ctx.createGain();
+  oscillator.type = "square";
+  oscillator.frequency.value = 1500;
+  gain.gain.value = 0.15;
+  oscillator.connect(gain);
+  gain.connect(ctx.destination);
+  oscillator.start();
+  oscillator.stop(ctx.currentTime + 0.12);
 }
 
 function setupContinuousScanToggle() {
@@ -4376,6 +4416,7 @@ function setupContinuousScanToggle() {
 }
 
 function openCameraModal() {
+  unlockBeepAudio(); // must run synchronously inside this tap handler — see comment above playBeep()
   document.getElementById("cameraModal").classList.remove("hidden");
   lastCameraScanCode = null;
   lastCameraScanAt = 0;
