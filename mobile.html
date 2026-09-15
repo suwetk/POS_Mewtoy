@@ -3508,6 +3508,18 @@ function handleScan(rawValue) {
   // camera scans) pops the on-screen keyboard over the screen, which is
   // exactly what this file was built to avoid. Manual typists can just
   // tap the field again for the next item.
+  //
+  // Defensive blur: renderCart() (called just above, via
+  // addOrIncrementCartItem) rebuilds the cart cards, including a fresh
+  // "qty" <input> for the item that was just scanned. If the browser has
+  // carried focus onto that new element for any reason (observed on some
+  // Android builds during continuous camera scanning), it would pop the
+  // on-screen keyboard up over the camera view exactly like the bug being
+  // fixed here. Blurring is a no-op if nothing is focused, so this is safe
+  // to call unconditionally after every scan, not just camera scans.
+  if (document.activeElement && typeof document.activeElement.blur === "function") {
+    document.activeElement.blur();
+  }
 }
 
 // Adds a new cart line, or increments qty if that barcode is already in
@@ -4417,6 +4429,16 @@ function setupContinuousScanToggle() {
 
 function openCameraModal() {
   unlockBeepAudio(); // must run synchronously inside this tap handler — see comment above playBeep()
+  // MOBILE: if the scan/search box (or any other field) still had focus —
+  // e.g. the cashier typed part of a search before tapping "Camera Scan" —
+  // the on-screen keyboard stays logically attached to it even though the
+  // camera modal now covers the screen. On many phones, the layout reflow
+  // caused by the camera video stream starting is then enough to make the
+  // OS pop that keyboard back up ON TOP of the camera view. Explicitly
+  // blurring whatever's focused before the modal opens prevents this.
+  if (document.activeElement && typeof document.activeElement.blur === "function") {
+    document.activeElement.blur();
+  }
   document.getElementById("cameraModal").classList.remove("hidden");
   lastCameraScanCode = null;
   lastCameraScanAt = 0;
