@@ -2685,9 +2685,6 @@
   <div class="bg-white rounded-xl p-4 w-full max-w-md">
     <div class="flex justify-between items-center mb-3">
       <h3 class="font-semibold text-gray-700">Scan Barcode with Camera</h3>
-      <button id="closeCameraModal" class="text-gray-400 hover:text-gray-600 text-xl">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
     </div>
     <div id="reader" class="w-full"></div>
 
@@ -2701,7 +2698,21 @@
         <div class="scan-toggle-dot"></div>
       </div>
     </div>
-    <p class="text-xs text-gray-400 mt-1 px-1">🔊 ดัง "ปี๊บ" ทุกครั้งที่ยิงติด 1 ชิ้น — แตะ ✕ เมื่อสแกนเสร็จ</p>
+    <p class="text-xs text-gray-400 mt-1 px-1 mb-3">🔊 ดัง "ปี๊บ" ทุกครั้งที่ยิงติด 1 ชิ้น</p>
+
+    <!-- MOBILE: one full-width bar instead of a small top-right ✕.
+         A camera-scanning cashier is usually holding the phone in ONE
+         hand (the other hand holds the item being scanned), so the
+         close control has to be reachable by that same thumb regardless
+         of whether they're left- or right-handed. A corner button forces
+         a second hand or an awkward stretch; a bar spanning the full
+         width sits under the thumb either way. -->
+    <button id="closeCameraModal"
+            class="w-full py-3.5 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300
+                   text-gray-700 font-semibold text-base flex items-center justify-center gap-2">
+      <i class="fa-solid fa-xmark"></i>
+      ปิดกล้อง
+    </button>
   </div>
 </div>
 
