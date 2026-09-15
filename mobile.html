@@ -4847,12 +4847,14 @@ function applyLogin(staff) {
   populateByRoomBranchSelect();
   document.getElementById("loginOverlay").classList.add("hidden");
 
-  // Now that the login screen is out of the way, hand keyboard focus to
-  // the barcode-scan input (it deliberately did NOT hold focus while the
-  // overlay was up — see setupScanInput — so a physical keyboard could
-  // type the PIN instead).
-  const scanInput = document.getElementById("scanInput");
-  if (scanInput) scanInput.focus();
+  // MOBILE: unlike the PC build, deliberately do NOT auto-focus the
+  // barcode-scan input here. This function also runs on a silent session
+  // restore (restoreSessionIfAny(), e.g. every page reload while already
+  // logged in) — not just on a manual PIN login — so a .focus() call here
+  // would pop the on-screen keyboard up over the screen the instant the
+  // page loads, with no tap from the cashier at all. That's exactly the
+  // behavior this file was built to avoid (see setupScanInput() above).
+  // The field still focuses normally the moment the cashier taps it.
 }
 
 // Restores a session saved earlier in this browser TAB (sessionStorage
