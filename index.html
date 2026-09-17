@@ -847,6 +847,11 @@
               <div id="poItemSuggestions"
                    class="hidden absolute z-20 left-0 right-0 mt-1 bg-white border-2 border-emerald-200 rounded-lg shadow-lg max-h-56 overflow-y-auto"></div>
             </div>
+            <p id="poItemBarcodeWarning"
+               class="hidden text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 leading-relaxed">
+              <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+              <span id="poItemBarcodeWarningText"></span>
+            </p>
             <div class="grid grid-cols-2 gap-1.5">
               <input id="poItemQtyInput" type="number" min="1" step="1" value="1" placeholder="จำนวน"
                      class="w-full border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm
@@ -2086,6 +2091,36 @@
        renderStorewdTab()/loadStorewdTab() below for the branching. -->
   <section id="tab-storewd" class="tab-panel hidden flex flex-col gap-4">
 
+    <!-- ---------------- CONTROL BAR: Master mode toggle + date picker ----------------
+         Added 2026-09 per Wing's request ("ดูย้อนหลังได้ไหม" + a way for her,
+         as Master, to check the Store pick-list or another branch's requests
+         without changing the device's own saved branch code). Mirrors the
+         Reports tab's own-branch/viewBranch + date pattern exactly — see
+         populateReportBranchSelect()/loadDailySummary() above. -->
+    <div class="bg-white rounded-xl shadow p-4 flex flex-col gap-3">
+      <div id="storewdMasterModeRow" class="hidden flex-wrap items-center gap-2">
+        <span class="text-xs font-semibold text-gray-500">มุมมอง:</span>
+        <div class="inline-flex rounded-lg border border-gray-200 overflow-hidden">
+          <button type="button" data-storewd-mode="branch" class="storewd-mode-btn text-xs font-semibold px-3.5 py-2 transition">📦 โหมดสาขา (ยิงเบิกเอง)</button>
+          <button type="button" data-storewd-mode="store" class="storewd-mode-btn text-xs font-semibold px-3.5 py-2 transition border-l border-gray-200">🏬 โหมด Store (หยิบของ)</button>
+        </div>
+        <div id="storewdMasterBranchPickWrap" class="flex items-center gap-1.5">
+          <span class="text-xs text-gray-400">สาขา:</span>
+          <select id="storewdMasterBranchSelect" class="border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white"></select>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-semibold text-gray-500"><i class="fa-regular fa-calendar"></i> วันที่:</span>
+        <input id="storewdDateInput" type="date" class="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs">
+        <button id="storewdJumpTodayBtn" type="button" class="hidden text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1.5 rounded-lg">
+          <i class="fa-solid fa-rotate-left"></i> กลับไปวันนี้
+        </button>
+        <span id="storewdReadOnlyHistoryBadge" class="hidden text-xs font-semibold px-2.5 py-1.5 rounded-full bg-sky-100 text-sky-700 items-center gap-1">
+          <i class="fa-solid fa-clock-rotate-left"></i> กำลังดูย้อนหลัง — อ่านอย่างเดียว
+        </span>
+      </div>
+    </div>
+
     <!-- ---------------- BRANCH VIEW (M1/M4/...) ---------------- -->
     <div id="storewdBranchView" class="hidden flex-col gap-4">
       <div class="bg-white rounded-xl shadow p-5">
@@ -2105,25 +2140,35 @@
           🔒 ปิดรอบเบิกของวันนี้แล้ว เมื่อ <span id="storewdClosedAtLabel" class="font-medium"></span> — ดูผลลัพธ์ด้านล่าง รายการใหม่จะเริ่มนับในรอบถัดไป
         </div>
 
-        <div id="storewdAddFormWrap" class="bg-sky-50 border border-sky-200 rounded-lg p-3.5 mb-4">
+        <div id="storewdAddFormWrap" class="bg-sky-50 border border-sky-200 rounded-lg p-3.5 mb-4 transition-colors duration-200">
+          <!-- Mode toggle — moved ABOVE the scan box (2026-09, per Wing's
+               request) so staff pick the mode ONCE, then rattle off
+               several scans in a row without re-touching this control.
+               Deliberately sticky: unlike the item name/qty/note fields
+               below, storewdSelectedType is NOT reset after a successful
+               add (see submitStorewdRequest_) — it stays whatever it was
+               until she explicitly changes it. -->
+          <p id="storewdModeLabel" class="text-xs font-semibold mb-2 flex items-center gap-1.5 text-sky-800">
+            <i class="fa-solid fa-toggle-on"></i> โหมดตอนนี้ (ค้างไว้จนกว่าจะกดเปลี่ยน):
+          </p>
+          <div class="grid grid-cols-2 gap-2 mb-3">
+            <button type="button" data-req-type="normal" class="storewd-type-btn text-sm font-semibold px-3 py-2.5 rounded-lg border-2 transition">🏬 ปกติ (หยิบของเติม)</button>
+            <button type="button" data-req-type="shopee" class="storewd-type-btn text-sm font-semibold px-3 py-2.5 rounded-lg border-2 transition">🛍️ แพค Shopee</button>
+          </div>
+
           <p class="text-xs font-semibold text-sky-800 mb-2">เพิ่มคำขอ</p>
           <div class="flex flex-wrap gap-2 mb-2.5">
             <div class="relative flex-1 min-w-[220px]">
               <input id="storewdItemNameInput" type="text" autocomplete="off" placeholder="พิมพ์/สแกนชื่อสินค้า..."
-                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
               <div id="storewdItemSuggestions" class="hidden absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto"></div>
             </div>
             <input id="storewdQtyInput" type="number" value="1" min="1"
-                   class="w-20 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center">
+                   class="w-20 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center bg-white">
             <button id="storewdAddBtn" type="button" class="bg-sky-600 text-white text-sm font-medium px-4 rounded-lg hover:bg-sky-700">เพิ่ม</button>
           </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="text-xs text-sky-800/70 mr-1">ประเภท:</span>
-            <button type="button" data-req-type="normal" class="storewd-type-btn text-xs font-semibold px-3 py-1.5 rounded-full border transition">ปกติ</button>
-            <button type="button" data-req-type="shopee" class="storewd-type-btn text-xs font-semibold px-3 py-1.5 rounded-full border transition">🛍️ แพค Shopee</button>
-            <input id="storewdNoteInput" type="text" placeholder="หมายเหตุ เช่น เลขออเดอร์/ชื่อลูกค้า..."
-                   class="flex-1 min-w-[180px] border border-orange-300 rounded-lg px-3 py-1.5 text-xs">
-          </div>
+          <input id="storewdNoteInput" type="text" placeholder="หมายเหตุ เช่น เลขออเดอร์/ชื่อลูกค้า... (เฉพาะโหมด Shopee)"
+                 class="w-full border border-orange-300 rounded-lg px-3 py-1.5 text-xs bg-white">
         </div>
 
         <p class="text-xs font-semibold text-gray-500 mb-2">คำขอที่เพิ่มวันนี้ (<span id="storewdReqCount">0</span> รายการ)</p>
@@ -5932,7 +5977,7 @@ const PO_STATUS_INVOICED_LABEL = "แจ้งยอดแล้ว รอโอ
 const PO_STATUS_DONE_LABEL = "เสร็จสิ้น";
 const PO_STATUS_CANCELLED_LABEL = "ยกเลิก";
 
-let preOrderDraftItems = [];       // [{itemName, qty, agreedTotal, depositAmount, depositMethod, expectedArrivalNote}]
+let preOrderDraftItems = [];       // [{itemName, itemBarcode, qty, agreedTotal, depositAmount, depositMethod, expectedArrivalNote}]
                                     // built up in the "เปิดจองใหม่" form before it's actually submitted
 let lastLoadedPreOrders = [];      // flat list from the last "getPreOrders" fetch — every status included
 let preOrderBankInfoCache = "";    // เลขบัญชี/ชื่อบัญชีร้าน — used to build the "แจ้งยอด" copy-message
@@ -6085,8 +6130,8 @@ function renderPreOrderDraftItems() {
       (item, idx) => `
     <div class="bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-sm flex justify-between items-center">
       <div>
-        <div class="font-semibold text-emerald-800">${escapeHtml(item.itemName)}</div>
-        <div class="text-xs text-gray-400">จำนวน ${item.qty} · ราคาตกลง ${formatMoney(item.agreedTotal)} · มัดจำ ${formatMoney(item.depositAmount)} (${item.depositMethod === "transfer" ? "โอน" : "เงินสด"})</div>
+        <div class="flex items-center flex-wrap gap-y-1">${storewdBarcodeChip_(item.itemBarcode)}<span class="font-semibold text-emerald-800">${escapeHtml(item.itemName)}</span></div>
+        <div class="text-xs text-gray-400 mt-0.5">จำนวน ${item.qty} · ราคาตกลง ${formatMoney(item.agreedTotal)} · มัดจำ ${formatMoney(item.depositAmount)} (${item.depositMethod === "transfer" ? "โอน" : "เงินสด"})</div>
       </div>
       <button type="button" class="po-remove-draft-item text-gray-400 hover:text-red-500 font-bold px-2" data-idx="${idx}">✕</button>
     </div>`
@@ -6124,7 +6169,7 @@ function addPreOrderDraftItem() {
     return;
   }
 
-  preOrderDraftItems.push({ itemName, qty, agreedTotal, depositAmount, depositMethod, expectedArrivalNote });
+  preOrderDraftItems.push({ itemName, itemBarcode: poSelectedBarcode || "", qty, agreedTotal, depositAmount, depositMethod, expectedArrivalNote });
   renderPreOrderDraftItems();
 
   document.getElementById("poItemNameInput").value = "";
@@ -6132,6 +6177,8 @@ function addPreOrderDraftItem() {
   document.getElementById("poItemAgreedTotalInput").value = "";
   document.getElementById("poItemDepositInput").value = "";
   document.getElementById("poItemExpectedArrivalInput").value = "";
+  poSelectedBarcode = null;
+  hidePoItemBarcodeWarning_();
   document.getElementById("poItemNameInput").focus();
 }
 
@@ -6158,6 +6205,13 @@ function addPreOrderDraftItem() {
 // ------------------------------------------------------------------
 let poSuggestionMatches = []; // current dropdown matches for poItemNameInput (name-search path)
 let poHighlightIndex = -1;    // index into poSuggestionMatches highlighted via ↓/↑, -1 = none yet
+let poSelectedBarcode = null; // resolved barcode of the currently-typed item, or null — mirrors
+                               // storewdSelectedBarcode's pattern; cleared whenever staff types
+                               // again so a hand-typed name never carries a stale barcode along.
+
+function hidePoItemBarcodeWarning_() {
+  document.getElementById("poItemBarcodeWarning").classList.add("hidden");
+}
 
 // Combined product + Draft Item search for the "ชื่อสินค้า" box on the
 // เปิดจองใหม่ form ONLY — deliberately a NEW wrapper rather than a change
@@ -6237,6 +6291,8 @@ function hidePoItemSuggestions() {
 function selectPoItemSuggestion(p) {
   if (!p) return;
   document.getElementById("poItemNameInput").value = p.name;
+  poSelectedBarcode = p.barcode || null; // null for a Draft Item (p.isDraft) — no real barcode yet
+  hidePoItemBarcodeWarning_();
   // Suggest a starting "ราคาที่ตกลง" from the product's own price (this
   // is the ราคาจอง Wing already keyed into Products at catalog-creation
   // time) — only if staff hasn't already typed one, and only for the
@@ -6258,9 +6314,15 @@ function selectPoItemSuggestion(p) {
 // Enter-key entry point — a visible dropdown means staff were typing a
 // name, so Enter commits whichever row is highlighted (top row by
 // default). Otherwise treat the value as a scanned barcode: an exact
-// match resolves immediately, same rule as the walk-in cart's scan box;
-// no match at all just moves focus on, leaving the typed text as-is
-// (staff can still name a brand-new item manually).
+// match resolves immediately, same rule as the walk-in cart's scan box.
+// A scan that matches NOTHING (new product, or the local cache hasn't
+// refreshed yet) used to silently leave the raw barcode digits sitting in
+// the name field — they'd then get saved as the item's "name" with no
+// warning at all. Fixed 2026-09 per Wing's "ยิงบาร์โค็ดจองมีแต่บาร์โค็ด
+// ไม่มีชื่อสินค้า" report: now it clears the field and shows a clear
+// warning instead, so a barcode number can never accidentally become an
+// item's name again — staff can still type a brand-new item's name by
+// hand right after.
 function handlePoItemEnter_(rawValue) {
   const value = String(rawValue).trim();
 
@@ -6276,9 +6338,19 @@ function handlePoItemEnter_(rawValue) {
       selectPoItemSuggestion(product);
       return;
     }
+    // Looks like a scan (no dropdown was open) but nothing matched —
+    // warn clearly instead of letting the raw digits become the name.
+    const input = document.getElementById("poItemNameInput");
+    input.value = "";
+    poSelectedBarcode = null;
+    document.getElementById("poItemBarcodeWarningText").textContent =
+      `ไม่พบสินค้าที่บาร์โค้ด "${value}" ในระบบ — พิมพ์ชื่อสินค้าเอง หรือตรวจสอบบาร์โค้ดอีกครั้ง`;
+    document.getElementById("poItemBarcodeWarning").classList.remove("hidden");
+    input.focus();
+    return;
   }
 
-  // Nothing to resolve — leave the typed name alone and just move on.
+  // Nothing typed at all — just move on.
   document.getElementById("poItemQtyInput").focus();
 }
 
@@ -6324,6 +6396,8 @@ function setupPreOrderItemSearch() {
   });
 
   input.addEventListener("input", () => {
+    poSelectedBarcode = null; // typing again invalidates any earlier selection/exact match
+    hidePoItemBarcodeWarning_();
     renderPoItemSuggestions(searchProductsAndDraftItems_(input.value, 8));
   });
   input.addEventListener("blur", () => {
@@ -6691,11 +6765,23 @@ function preOrderDepositSummaryText(line) {
   return "มัดจำรวม " + formatMoney(line.depositAmount) + " (" + parts.join(" · ") + ")";
 }
 
+// Small square icon button (32x32) — replaces the old 3-stacked-full-text
+// buttons (redesigned 2026-09 per Wing's "รายการไม่ตรงกัน...เปลี่ยนเป็น
+// ไอคอนเล็กๆ แถวเดี่ยว" request; approved mockup:
+// mockups/preorder_list_row_alignment_redesign.html). Keeping this at a
+// fixed 32x32px, one row tall, is what lets renderPreOrderPoList below
+// give every line item its own real <tr> without the actions column ever
+// forcing a row taller than the item/status columns next to it.
+function poIconBtn_(cls, icon, title, extraAttrs) {
+  return `<button type="button" title="${escapeHtml(title)}" ${extraAttrs || ""}
+            class="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg ${cls} transition-colors"><i class="fa-solid ${icon}"></i></button>`;
+}
+
 function preOrderLineActionButtons(line) {
   if (line.status === PO_STATUS_CANCELLED_LABEL) {
-    return `<div class="text-[11px] text-red-600">
+    return `<span class="text-[11px] text-red-600 leading-tight">
       ${escapeHtml(line.refundOrForfeit || "")}${line.cancelApprovedBy ? "<br>อนุมัติโดย " + escapeHtml(line.cancelApprovedBy) : ""}
-    </div>`;
+    </span>`;
   }
   if (line.status === PO_STATUS_DONE_LABEL) {
     // A line closed via the normal "ปิดออเดอร์"/fulfill flow always has a
@@ -6705,17 +6791,21 @@ function preOrderLineActionButtons(line) {
     // so show a plain badge instead of a "view bill" button that would
     // otherwise look broken (blank bill number, toast with nothing in it).
     if (!line.fulfilledTransactionId) {
-      return `<div class="text-xs bg-gray-100 text-gray-500 font-semibold px-3 py-1.5 rounded-lg text-center">📋 นำเข้าจากไฟล์เก่า</div>`;
+      return `<span class="text-[11px] text-gray-400">📋 นำเข้าจากไฟล์เก่า</span>`;
     }
-    return `<button type="button" class="po-view-bill-btn text-xs bg-gray-100 hover:bg-gray-200 text-gray-500 font-semibold px-3 py-1.5 rounded-lg"
-              data-transaction-id="${escapeHtml(line.fulfilledTransactionId)}">🔍 ${escapeHtml(line.fulfilledTransactionId)}</button>`;
+    return poIconBtn_(
+      "po-view-bill-btn bg-gray-100 hover:bg-gray-200 text-gray-500",
+      "fa-magnifying-glass",
+      "ดูบิล " + line.fulfilledTransactionId,
+      `data-transaction-id="${escapeHtml(line.fulfilledTransactionId)}"`
+    );
   }
-  const fulfillLabel = line.status === PO_STATUS_INVOICED_LABEL ? "🧾 ยืนยันรับเงิน+ออกบิล" : "🧾 ปิดออเดอร์ทันที";
+  const fulfillTitle = line.status === PO_STATUS_INVOICED_LABEL ? "ยืนยันรับเงิน + ออกบิล" : "ปิดออเดอร์ทันที";
   return `
-    <div class="flex flex-col gap-1.5">
-      <button type="button" class="po-fulfill-btn text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold px-3 py-1.5 rounded-lg w-full" data-line-id="${escapeHtml(line.lineId)}">${fulfillLabel}</button>
-      <button type="button" class="po-add-deposit-btn text-xs bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold px-3 py-1.5 rounded-lg w-full" data-line-id="${escapeHtml(line.lineId)}">➕ เพิ่มมัดจำ</button>
-      <button type="button" class="po-cancel-btn text-xs bg-red-50 hover:bg-red-100 text-red-600 font-semibold px-3 py-1.5 rounded-lg w-full" data-line-id="${escapeHtml(line.lineId)}">✕ ยกเลิกใบจอง</button>
+    <div class="flex items-center gap-1.5">
+      ${poIconBtn_("po-fulfill-btn bg-emerald-50 hover:bg-emerald-100 text-emerald-700", "fa-receipt", fulfillTitle, `data-line-id="${escapeHtml(line.lineId)}"`)}
+      ${poIconBtn_("po-add-deposit-btn bg-sky-50 hover:bg-sky-100 text-sky-700", "fa-hand-holding-dollar", "เพิ่มมัดจำ", `data-line-id="${escapeHtml(line.lineId)}"`)}
+      ${poIconBtn_("po-cancel-btn bg-red-50 hover:bg-red-100 text-red-600", "fa-xmark", "ยกเลิกใบจอง", `data-line-id="${escapeHtml(line.lineId)}"`)}
     </div>`;
 }
 
@@ -6805,35 +6895,49 @@ function renderPreOrderPoList() {
     return;
   }
 
+  // Redesigned 2026-09 per Wing's request ("รายการไม่ตรงกัน...เปลี่ยนเป็น
+  // ไอคอนเล็กๆ แถวเดี่ยว" — approved mockup:
+  // mockups/preorder_list_row_alignment_redesign.html). The old version
+  // put every line of a PO into ONE shared <tr>, stacking a <div> per
+  // line inside each of the item/status/actions <td>s — three independent
+  // stacks of divs with no guaranteed matching heights (a 3-button action
+  // block is taller than a one-line status badge), so rows drifted out of
+  // alignment as a PO grew past 1 item. Now every line gets its OWN real
+  // <tr>; only the PO-id and customer columns (shared across the whole
+  // group) use rowspan to stay visually grouped. Real table rows can't
+  // drift relative to each other — the browser lays every column out row
+  // by row, so this class of bug can't recur regardless of how tall any
+  // one cell's content gets.
   tbody.innerHTML = Array.from(groups.entries())
     .map(([poId, lines]) => {
       const first = lines[0];
-      const itemsHtml = lines
-        .map(
-          (l) => `<div class="py-1">
-            ${escapeHtml(l.itemName)} <span class="text-gray-400 text-xs">x${l.qty}</span>
-            <div class="text-[11px] text-gray-400">${escapeHtml(preOrderDepositSummaryText(l))}</div>
-          </div>`
-        )
+      return lines
+        .map((l, i) => {
+          const isFirst = i === 0;
+          const groupCellsHtml = isFirst
+            ? `
+            <td rowspan="${lines.length}" class="py-2 pl-2 pr-3 whitespace-nowrap border-l-4 border-emerald-200 align-top bg-emerald-50/30">
+              <div class="font-semibold text-gray-700 text-xs">${escapeHtml(poId)}</div>
+              <div class="text-[11px] text-gray-400">${escapeHtml((first.openedAt || "").slice(0, 10))}</div>
+              <button type="button" class="po-print-btn text-[11px] bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold px-2 py-1 rounded-lg mt-1" data-po-id="${escapeHtml(poId)}">🖨️ พิมพ์ใบจอง</button>
+            </td>
+            <td rowspan="${lines.length}" class="py-2 pr-3 align-top bg-emerald-50/30">
+              <div class="font-medium text-gray-700">${escapeHtml(first.customerName || "-")}</div>
+              <div class="text-[11px] text-gray-400">${escapeHtml(first.customerPhone || "")}</div>
+            </td>`
+            : "";
+          return `
+            <tr class="${isFirst ? "border-t-2 border-emerald-100" : ""} border-b border-gray-100 last:border-b-0">
+              ${groupCellsHtml}
+              <td class="py-2 pr-3 align-middle">
+                <div class="text-gray-700 flex items-center flex-wrap gap-x-1.5 gap-y-1">${storewdBarcodeChip_(l.itemBarcode)}<span>${escapeHtml(l.itemName)}</span><span class="text-gray-400 text-xs">x${l.qty}</span></div>
+                <div class="text-[11px] text-gray-400 mt-0.5">${escapeHtml(preOrderDepositSummaryText(l))}</div>
+              </td>
+              <td class="py-2 text-center align-middle">${preOrderStatusBadge(l.status)}</td>
+              <td class="py-2 align-middle">${preOrderLineActionButtons(l)}</td>
+            </tr>`;
+        })
         .join("");
-      const statusHtml = lines.map((l) => `<div class="py-1">${preOrderStatusBadge(l.status)}</div>`).join("");
-      const actionsHtml = lines.map((l) => `<div class="py-1">${preOrderLineActionButtons(l)}</div>`).join("");
-
-      return `
-        <tr class="border-b last:border-b-0 align-top">
-          <td class="py-2 whitespace-nowrap">
-            <div class="font-semibold text-gray-700 text-xs">${escapeHtml(poId)}</div>
-            <div class="text-[11px] text-gray-400">${escapeHtml((first.openedAt || "").slice(0, 10))}</div>
-            <button type="button" class="po-print-btn text-[11px] bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold px-2 py-1 rounded-lg mt-1" data-po-id="${escapeHtml(poId)}">🖨️ พิมพ์ใบจอง</button>
-          </td>
-          <td class="py-2">
-            <div class="font-medium text-gray-700">${escapeHtml(first.customerName || "-")}</div>
-            <div class="text-[11px] text-gray-400">${escapeHtml(first.customerPhone || "")}</div>
-          </td>
-          <td class="py-2">${itemsHtml}</td>
-          <td class="py-2 text-center">${statusHtml}</td>
-          <td class="py-2">${actionsHtml}</td>
-        </tr>`;
     })
     .join("");
 
@@ -10976,23 +11080,101 @@ let storewdSuggestionMatches = [];
 let storewdBranchLines = [];
 let storewdPickLines = [];
 
+// ---- Master-only "มุมมอง" (view) override + date-picker history ----
+// Added 2026-09 per Wing's request. NON-master staff still get exactly
+// the old behavior: which half of the tab they see is decided purely by
+// THIS device's own saved branch code (STORE_DEVICE_BRANCH_CODE). Master
+// additionally gets a view-only toggle to check either the Store pick
+// list OR any branch's requests from whatever device she's on, WITHOUT
+// changing that device's actual branch code — same idea as the Reports
+// tab's read-only viewBranch, reused via the backend's resolveViewBranch_.
+// storewdViewDate similarly lets anyone browse a past day's data
+// read-only; WRITE actions (add/summarize/scan/close/edit type) always
+// target TODAY server-side regardless of what's on screen (see
+// findTodayStoreWdBatch_ in pos_backend.gs), so there's no risk of a
+// stray click editing yesterday's batch.
+let storewdViewMode = "branch";   // Master-only: "branch" or "store"
+let storewdViewBranch = null;     // Master-only: null = device's own branch
+let storewdViewDate = null;       // null = today
+let storewdMasterBranchPopulated = false;
+
+function storewdTodayDateStr_() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+// Fills #storewdMasterBranchSelect with every branch in BRANCH_LIST
+// (Master can view ANY branch's requests, same as Reports' isAdminRole_
+// short-circuit) — device's own branch first. Called once, lazily, the
+// first time loadStorewdTab() runs for a Master.
+function populateStorewdMasterBranchSelect_() {
+  const select = document.getElementById("storewdMasterBranchSelect");
+  if (!select) return;
+  const ownBranch = getBranchCode();
+  const options = [];
+  if (ownBranch) options.push('<option value="' + ownBranch + '">' + ownBranch + " (สาขาตัวเอง)</option>");
+  BRANCH_LIST.filter((code) => code !== ownBranch).forEach((code) => {
+    options.push('<option value="' + code + '">' + code + "</option>");
+  });
+  select.innerHTML = options.join("") || (ownBranch ? '<option value="' + ownBranch + '">' + ownBranch + "</option>" : "");
+  select.value = storewdViewBranch || ownBranch;
+  storewdMasterBranchPopulated = true;
+}
+
 // Entry point called whenever the "🏬 เบิกของ" tab is opened (see
-// setupTabs above) — decides branch vs Store view from THIS device's
-// own saved branch code, exactly like the rest of the app.
+// setupTabs above). Non-master: branch vs Store view is decided purely
+// by THIS device's own saved branch code, exactly like before. Master:
+// the "มุมมอง" toggle above (storewdViewMode/storewdViewBranch) takes
+// over instead, defaulting to whatever this device would normally show.
 function loadStorewdTab() {
+  const isMaster = !!currentStaff && isAdminRole(currentStaff.role);
   const isStoreDevice = getBranchCode() === STORE_DEVICE_BRANCH_CODE;
+
+  const masterModeRow = document.getElementById("storewdMasterModeRow");
+  if (masterModeRow) {
+    masterModeRow.classList.toggle("hidden", !isMaster);
+    masterModeRow.classList.toggle("flex", isMaster);
+  }
+  if (isMaster) {
+    if (!storewdMasterBranchPopulated) populateStorewdMasterBranchSelect_();
+    document.querySelectorAll(".storewd-mode-btn").forEach((btn) => {
+      const active = btn.getAttribute("data-storewd-mode") === storewdViewMode;
+      btn.classList.toggle("bg-emerald-600", active);
+      btn.classList.toggle("text-white", active);
+      btn.classList.toggle("bg-white", !active);
+      btn.classList.toggle("text-gray-600", !active);
+    });
+    const pickWrap = document.getElementById("storewdMasterBranchPickWrap");
+    if (pickWrap) pickWrap.classList.toggle("hidden", storewdViewMode !== "branch");
+  }
+
+  const dateInput = document.getElementById("storewdDateInput");
+  if (dateInput && !dateInput.value) dateInput.value = storewdTodayDateStr_();
+  const viewDate = storewdViewDate || storewdTodayDateStr_();
+  const isPast = viewDate !== storewdTodayDateStr_();
+  const jumpBtn = document.getElementById("storewdJumpTodayBtn");
+  if (jumpBtn) jumpBtn.classList.toggle("hidden", !isPast);
+  const historyBadge = document.getElementById("storewdReadOnlyHistoryBadge");
+  if (historyBadge) {
+    historyBadge.classList.toggle("hidden", !isPast);
+    historyBadge.classList.toggle("flex", isPast);
+  }
+
+  const effectiveMode = isMaster ? storewdViewMode : (isStoreDevice ? "store" : "branch");
+  const effectiveBranch = isMaster ? (storewdViewBranch || getBranchCode()) : getBranchCode();
+
   const branchView = document.getElementById("storewdBranchView");
   const storeView = document.getElementById("storewdStoreView");
   if (!branchView || !storeView) return;
-  branchView.classList.toggle("hidden", isStoreDevice);
-  branchView.classList.toggle("flex", !isStoreDevice);
-  storeView.classList.toggle("hidden", !isStoreDevice);
-  storeView.classList.toggle("flex", isStoreDevice);
+  branchView.classList.toggle("hidden", effectiveMode !== "branch");
+  branchView.classList.toggle("flex", effectiveMode === "branch");
+  storeView.classList.toggle("hidden", effectiveMode !== "store");
+  storeView.classList.toggle("flex", effectiveMode === "store");
 
-  if (isStoreDevice) {
+  if (effectiveMode === "store") {
     loadStorewdPickList();
   } else {
-    document.getElementById("storewdBranchLabel").textContent = getBranchCode();
+    document.getElementById("storewdBranchLabel").textContent = effectiveBranch;
     loadStorewdBranchStatus();
   }
 }
@@ -11002,49 +11184,112 @@ function loadStorewdTab() {
 async function loadStorewdBranchStatus() {
   const scriptUrl = getAppsScriptUrl();
   if (scriptUrl === "YOUR_URL_HERE" || !currentStaff) return;
+  const isMaster = isAdminRole(currentStaff.role);
+  const effectiveBranch = isMaster ? (storewdViewBranch || getBranchCode()) : getBranchCode();
+  const viewDate = storewdViewDate || storewdTodayDateStr_();
   try {
     const response = await fetch(scriptUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "getStoreWithdrawalStatus", pin: currentStaff.pin, branch: getBranchCode() })
+      // "branch" stays the device's own/login branch (required for the
+      // permission check) — "viewBranch" is the separate read-only ask,
+      // same split as the Reports tab's loadDailySummary() above.
+      body: JSON.stringify({
+        action: "getStoreWithdrawalStatus",
+        pin: currentStaff.pin,
+        branch: getBranchCode(),
+        viewBranch: effectiveBranch,
+        date: viewDate
+      })
     });
     const result = await response.json();
     if (!result || result.status !== "success") {
       throw new Error((result && result.message) || "โหลดรายการเบิกของไม่สำเร็จ");
     }
     storewdBranchLines = result.lines || [];
-    renderStorewdBranchView(result.batchStatus === "closed", result.closedAt);
+    // Read-only whenever looking at a past date, OR (Master only) looking
+    // at a branch other than this device's own — writing there would
+    // silently hit the WRONG branch, since add/summarize always target
+    // this device's own branch server-side regardless of what's on screen.
+    const readOnly = !!result.isPastDate || effectiveBranch !== getBranchCode();
+    renderStorewdBranchView(result.batchStatus === "closed", result.closedAt, readOnly);
   } catch (err) {
     console.error(err);
     showToast("โหลดรายการเบิกของไม่สำเร็จ: " + err.message, "error");
   }
 }
 
+// Barcode chip — a mono badge shown BEFORE the item name (same visual
+// pattern as the Stock Transfer receive rows elsewhere in this app),
+// added 2026-09 per Wing's "แสดงบาร์โค้ดด้วย...กันการหยิบผิด" request —
+// with lots of similar-looking figures, name alone isn't always enough
+// to tell items apart at a glance. No-barcode items (a hand-typed
+// request never matched to a real product) get a muted "ไม่มีบาร์โค้ด"
+// chip instead of silently having nothing there.
+function storewdBarcodeChip_(barcode) {
+  return barcode
+    ? `<span class="bg-slate-100 border border-slate-300 text-slate-700 font-mono text-[12px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap">${escapeHtml(barcode)}</span>`
+    : `<span class="bg-gray-50 border border-dashed border-gray-300 text-gray-400 text-[11px] px-1.5 py-0.5 rounded whitespace-nowrap">ไม่มีบาร์โค้ด</span>`;
+}
+
+// Qty badge — big, bold, tabular-nums, sitting at the FAR RIGHT of the
+// row (per Wing's follow-up "ย้ายไปท้ายขวาสุด") so it lines up in a
+// column down the whole list and reads at a glance without hunting for
+// small grey text. Pending rows just show "x{qty}"; post-close rows show
+// "{picked}/{qty}" colour-coded (green = fulfilled, amber = partial,
+// red = nothing picked) since there both numbers matter.
+function storewdQtyBadge_(qty, picked) {
+  if (picked === undefined || picked === null) {
+    return `<span class="flex-shrink-0 text-base font-bold text-white bg-gray-500 rounded-md px-2 py-1 leading-none tabular-nums">x${qty}</span>`;
+  }
+  const done = picked >= qty;
+  const cls = done ? "bg-emerald-600" : picked > 0 ? "bg-amber-500" : "bg-red-500";
+  return `<span class="flex-shrink-0 text-base font-bold text-white ${cls} rounded-md px-2 py-1 leading-none tabular-nums">${picked}/${qty}</span>`;
+}
+
+// Type badge — "🏬 ปกติ (หยิบของเติม)" vs "🛍️ Shopee". Clickable (with a
+// pencil hint) only on the branch's own still-open pending rows, added
+// 2026-09 per Wing's "ทำได้ไหม...ปุ่มสำหรับแก้สลับ" request: if she
+// scanned/added an item into the wrong bucket, tap the badge to flip it
+// instead of deleting and re-adding. Post-close rows show the same badge
+// as a plain (non-clickable) label — that decision is locked in once the
+// round is closed.
+function storewdTypeBadge_(lineId, requestType, editable) {
+  const isShopee = requestType === "shopee";
+  if (!isShopee && !editable) return "";
+  const cls = isShopee ? "bg-orange-100 text-orange-700 border-orange-200" : "bg-gray-100 text-gray-500 border-gray-200";
+  const label = isShopee ? "🛍️ Shopee" : "🏬 ปกติ (หยิบของเติม)";
+  const pencil = editable ? ` <i class="fa-solid fa-pen text-[8px] ml-0.5 opacity-60"></i>` : "";
+  return editable
+    ? `<button type="button" data-storewd-toggle-type="${escapeHtml(lineId)}" class="text-[10.5px] font-semibold px-2 py-0.5 rounded-full border flex-shrink-0 hover:opacity-80 transition ${cls}">${label}${pencil}</button>`
+    : `<span class="text-[10.5px] font-semibold px-2 py-0.5 rounded-full border flex-shrink-0 ${cls}">${label}</span>`;
+}
+
 function storewdLineRowHtml_(it, opts) {
   const isShopee = it.requestType === "shopee";
   const borderCls = isShopee ? "border-orange-200 bg-orange-50/50" : "border-gray-200";
-  const shopeeBadge = isShopee
-    ? `<span class="bg-orange-100 text-orange-700 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ml-2">🛍️ แพค Shopee</span>`
-    : "";
   const noteLine = isShopee && it.note
     ? `<div class="text-xs text-gray-400 mt-0.5">หมายเหตุ: ${escapeHtml(it.note)}</div>`
     : "";
 
   if (opts && opts.mode === "pending") {
     // Mid-day "คำขอที่เพิ่มวันนี้" list — only manual, still-open lines
-    // can be deleted (see handleCancelStoreWithdrawalRequest_).
-    const canCancel = it.source === "manual" && it.status === "open";
+    // can be deleted (see handleCancelStoreWithdrawalRequest_) or have
+    // their type flipped (see handleEditStoreWithdrawalRequestType_).
+    const canEdit = it.source === "manual" && it.status === "open";
     return `
-      <div class="border ${borderCls} rounded-lg px-3.5 py-2.5 flex items-center justify-between gap-2">
-        <div class="min-w-0">
-          <span class="text-sm text-gray-700 font-medium">${escapeHtml(it.itemName)}</span>
-          ${shopeeBadge}
-          <div class="text-xs text-gray-400 mt-0.5">x ${it.qtyRequested} &middot; ${it.source === "sale" ? "จากยอดขาย" : "เพิ่มเมื่อ " + escapeHtml(it.requestedAt.split(" ")[1] || it.requestedAt)}</div>
+      <div class="border ${borderCls} rounded-lg pl-3.5 pr-2.5 py-2 flex items-center gap-2.5">
+        <div class="min-w-0 flex-1">
+          <div class="flex items-baseline flex-wrap gap-x-2 gap-y-0.5">
+            ${storewdBarcodeChip_(it.barcode)}<span class="text-sm text-gray-700 font-medium">${escapeHtml(it.itemName)}</span>${storewdTypeBadge_(it.lineId, it.requestType, canEdit)}
+            <span class="text-[11px] text-gray-400">${it.source === "sale" ? "จากยอดขาย" : "เพิ่มเมื่อ " + escapeHtml(it.requestedAt.split(" ")[1] || it.requestedAt)}</span>
+          </div>
           ${noteLine}
         </div>
-        ${canCancel
+        ${canEdit
           ? `<button type="button" data-storewd-cancel="${escapeHtml(it.lineId)}" class="text-xs text-gray-400 hover:text-red-500 font-medium flex-shrink-0">ลบ</button>`
           : ""}
+        ${storewdQtyBadge_(it.qtyRequested)}
       </div>`;
   }
 
@@ -11061,43 +11306,56 @@ function storewdLineRowHtml_(it, opts) {
   }
   const dim = it.status === "short" && it.qtyPicked === 0 ? "opacity-70" : "";
   return `
-    <div class="border ${borderCls} ${dim} rounded-lg px-3.5 py-2.5 flex items-center justify-between gap-2">
-      <div class="min-w-0">
-        <span class="text-sm text-gray-700 font-medium">${escapeHtml(it.itemName)}</span>
-        ${shopeeBadge}
-        <div class="text-xs text-gray-400 mt-0.5">ขอ ${it.qtyRequested} &middot; จัดได้ ${it.qtyPicked}</div>
+    <div class="border ${borderCls} ${dim} rounded-lg pl-3.5 pr-2.5 py-2 flex items-center gap-2.5">
+      <div class="min-w-0 flex-1">
+        <div class="flex items-baseline flex-wrap gap-x-2 gap-y-0.5">
+          ${storewdBarcodeChip_(it.barcode)}<span class="text-sm text-gray-700 font-medium">${escapeHtml(it.itemName)}</span>${storewdTypeBadge_(it.lineId, it.requestType, false)}
+        </div>
         ${noteLine}
       </div>
       ${statusBadge}
+      ${storewdQtyBadge_(it.qtyRequested, it.qtyPicked)}
     </div>`;
 }
 
-function renderStorewdBranchView(isClosed, closedAt) {
+function renderStorewdBranchView(isClosed, closedAt, readOnly) {
   document.getElementById("storewdClosedBanner").classList.toggle("hidden", !isClosed);
   document.getElementById("storewdClosedAtLabel").textContent = closedAt || "";
-  document.getElementById("storewdAddFormWrap").classList.toggle("hidden", isClosed);
-  document.getElementById("storewdSummarizeBtn").classList.toggle("hidden", isClosed);
-  document.getElementById("storewdResultSummary").classList.toggle("hidden", !isClosed);
+  // The add-form/summarize button are for TODAY's own branch only — hide
+  // them whenever the round is closed, OR the screen is read-only (a past
+  // date, or Master browsing another branch's requests).
+  document.getElementById("storewdAddFormWrap").classList.toggle("hidden", isClosed || !!readOnly);
+  document.getElementById("storewdSummarizeBtn").classList.toggle("hidden", isClosed || !!readOnly);
+  document.getElementById("storewdResultSummary").classList.toggle("hidden", !(isClosed || readOnly));
 
   const listEl = document.getElementById("storewdRequestList");
   const emptyEl = document.getElementById("storewdRequestEmpty");
   const countEl = document.getElementById("storewdReqCount");
   countEl.textContent = String(storewdBranchLines.length);
 
+  const editableRows = !isClosed && !readOnly;
+
   if (storewdBranchLines.length === 0) {
     listEl.innerHTML = "";
     emptyEl.classList.remove("hidden");
   } else {
     emptyEl.classList.add("hidden");
-    listEl.innerHTML = storewdBranchLines.map((it) => storewdLineRowHtml_(it, { mode: isClosed ? "result" : "pending" })).join("");
-    if (!isClosed) {
+    listEl.innerHTML = storewdBranchLines.map((it) => storewdLineRowHtml_(it, { mode: editableRows ? "pending" : "result" })).join("");
+    if (editableRows) {
       listEl.querySelectorAll("[data-storewd-cancel]").forEach((btn) => {
         btn.addEventListener("click", () => cancelStorewdRequest(btn.getAttribute("data-storewd-cancel")));
+      });
+      listEl.querySelectorAll("[data-storewd-toggle-type]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const lineId = btn.getAttribute("data-storewd-toggle-type");
+          const line = storewdBranchLines.find((l) => l.lineId === lineId);
+          toggleStorewdRequestType(lineId, line ? line.requestType : "normal");
+        });
       });
     }
   }
 
-  if (isClosed) {
+  if (isClosed || readOnly) {
     let totalQty = 0, fulfilledQty = 0, shortQty = 0;
     storewdBranchLines.forEach((it) => {
       totalQty += it.qtyRequested;
@@ -11226,6 +11484,7 @@ function setupStorewdItemSearch_() {
 
 function setStorewdRequestType_(type) {
   storewdSelectedType = type === "shopee" ? "shopee" : "normal";
+  const isShopee = storewdSelectedType === "shopee";
   document.querySelectorAll(".storewd-type-btn").forEach((btn) => {
     const active = btn.getAttribute("data-req-type") === storewdSelectedType;
     const isShopeeBtn = btn.getAttribute("data-req-type") === "shopee";
@@ -11236,9 +11495,50 @@ function setStorewdRequestType_(type) {
     btn.classList.toggle("border-sky-600", active && !isShopeeBtn);
     btn.classList.toggle("text-white", active); // both active states use white text
     btn.classList.toggle("bg-white", !active);
-    btn.classList.toggle("border-sky-300", !active);
-    btn.classList.toggle("text-sky-700", !active);
+    btn.classList.toggle("border-gray-300", !active);
+    btn.classList.toggle("text-gray-600", !active);
   });
+
+  // Whole-box orange tint when in Shopee mode — a deliberately loud
+  // visual so a mode left on from the previous batch of scans is hard to
+  // miss (2026-09, per Wing's request; see storewdAddFormWrap comment).
+  const wrap = document.getElementById("storewdAddFormWrap");
+  const label = document.getElementById("storewdModeLabel");
+  if (wrap) {
+    wrap.classList.toggle("bg-orange-50", isShopee);
+    wrap.classList.toggle("border-orange-200", isShopee);
+    wrap.classList.toggle("bg-sky-50", !isShopee);
+    wrap.classList.toggle("border-sky-200", !isShopee);
+  }
+  if (label) {
+    label.classList.toggle("text-orange-700", isShopee);
+    label.classList.toggle("text-sky-800", !isShopee);
+  }
+}
+
+// "แก้สลับ" — flips an already-added, still-open line between ปกติ/Shopee
+// (see handleEditStoreWithdrawalRequestType_ on the backend) for when
+// staff notice a scan landed in the wrong mode after the fact, instead of
+// having to delete and re-add it.
+async function toggleStorewdRequestType(lineId, currentType) {
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl === "YOUR_URL_HERE" || !currentStaff) return;
+  const newType = currentType === "shopee" ? "normal" : "shopee";
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "editStoreWithdrawalRequestType", pin: currentStaff.pin, branch: getBranchCode(), lineId: lineId, requestType: newType })
+    });
+    const result = await response.json();
+    if (!result || result.status !== "success") {
+      throw new Error((result && result.message) || "แก้ไขไม่สำเร็จ");
+    }
+    await loadStorewdBranchStatus();
+  } catch (err) {
+    console.error(err);
+    showToast("แก้ไขไม่สำเร็จ: " + err.message, "error");
+  }
 }
 
 async function submitStorewdRequest_() {
@@ -11279,7 +11579,9 @@ async function submitStorewdRequest_() {
     qtyInput.value = "1";
     noteInput.value = "";
     storewdSelectedBarcode = null;
-    setStorewdRequestType_("normal");
+    // NOTE: storewdSelectedType is intentionally NOT reset here — the
+    // mode stays sticky across adds (2026-09, per Wing's request). It
+    // only changes when she taps one of the mode buttons herself.
     await loadStorewdBranchStatus();
     nameInput.focus();
   } catch (err) {
@@ -11296,60 +11598,61 @@ async function submitStorewdRequest_() {
 async function loadStorewdPickList() {
   const scriptUrl = getAppsScriptUrl();
   if (scriptUrl === "YOUR_URL_HERE" || !currentStaff) return;
+  const viewDate = storewdViewDate || storewdTodayDateStr_();
   try {
     const response = await fetch(scriptUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "getStoreWithdrawalPickList", pin: currentStaff.pin, branch: getBranchCode() })
+      body: JSON.stringify({ action: "getStoreWithdrawalPickList", pin: currentStaff.pin, branch: getBranchCode(), date: viewDate })
     });
     const result = await response.json();
     if (!result || result.status !== "success") {
       throw new Error((result && result.message) || "โหลดรายการที่ต้องจัดไม่สำเร็จ");
     }
     storewdPickLines = (result.lines || []).filter((l) => l.status !== "cancelled");
-    renderStorewdPickList(result.batchId, result.batchStatus);
+    renderStorewdPickList(result.batchId, result.batchStatus, !!result.isPastDate);
   } catch (err) {
     console.error(err);
     showToast("โหลดรายการที่ต้องจัดไม่สำเร็จ: " + err.message, "error");
   }
 }
 
-function storewdPickRowHtml_(it) {
+function storewdPickRowHtml_(it, readOnly) {
   const isShopee = it.requestType === "shopee";
   const isDone = it.qtyPicked >= it.qtyRequested;
   const hasBarcode = !!it.barcode;
   const borderCls = isShopee ? "border-orange-200 bg-orange-50/50" : (isDone ? "border-emerald-200 bg-emerald-50/40" : "border-gray-200");
   const shopeeBadge = isShopee
-    ? `<span class="bg-orange-100 text-orange-700 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ml-2">🛍️ ${it.note ? escapeHtml(it.note) : "แพค Shopee"}</span>`
+    ? `<span class="bg-orange-100 text-orange-700 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">🛍️ ${it.note ? escapeHtml(it.note) : "Shopee"}</span>`
     : "";
-  const noBarcodeBadge = !hasBarcode
-    ? `<span class="bg-amber-100 text-amber-700 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ml-2">ไม่มีบาร์โค้ด</span>`
-    : "";
-  const branchTag = `<span class="text-gray-400 text-[11px] ml-2">(${escapeHtml(it.branch)})</span>`;
-  const subLine = hasBarcode
-    ? `<span class="text-xs text-gray-400 ml-2 font-mono">${escapeHtml(it.barcode)}</span>`
-    : `<div class="text-xs text-gray-400 mt-0.5">ต้องการ ${it.qtyRequested} ชิ้น</div>`;
+  const branchTag = `<span class="text-gray-400 text-[11px]">(${escapeHtml(it.branch)})</span>`;
 
-  const rightSide = hasBarcode
-    ? `<span class="text-sm font-mono font-bold ${isDone ? "text-emerald-700" : "text-gray-600"} flex-shrink-0">${it.qtyPicked} / ${it.qtyRequested}${isDone ? " ✓" : ""}</span>`
-    : (isDone
-        ? `<span class="text-sm font-mono font-bold text-emerald-700 flex-shrink-0">จัดแล้ว &check;</span>`
-        : `<button type="button" data-storewd-done="${escapeHtml(it.lineId)}" class="bg-gray-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-gray-800 flex-shrink-0">จัดแล้ว</button>`);
+  // hasBarcode rows are picked purely by scanning (qty/picked already
+  // says it all via the badge below); no-barcode rows need an explicit
+  // manual action instead — but never on a read-only (past-date) view,
+  // which just shows the outcome (✓ done / ⚠ short) rather than a live
+  // action to take.
+  const rightAction = readOnly
+    ? `<span class="text-lg flex-shrink-0 ${isDone ? "text-emerald-600" : "text-red-500"}">${isDone ? "&check;" : "&#9888;"}</span>`
+    : (!hasBarcode
+        ? (isDone
+            ? `<span class="text-emerald-600 text-lg flex-shrink-0">&check;</span>`
+            : `<button type="button" data-storewd-done="${escapeHtml(it.lineId)}" class="bg-gray-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-gray-800 flex-shrink-0">จัดแล้ว</button>`)
+        : "");
 
   return `
-    <div class="border ${borderCls} rounded-lg px-3.5 py-2.5 flex items-center justify-between gap-2">
-      <div class="min-w-0">
-        <span class="text-sm text-gray-700 font-medium">${escapeHtml(it.itemName)}</span>
-        ${shopeeBadge}${noBarcodeBadge}${branchTag}
-        ${subLine}
+    <div class="border ${borderCls} rounded-lg pl-3.5 pr-2.5 py-2 flex items-center gap-2.5">
+      <div class="min-w-0 flex-1 flex items-baseline flex-wrap gap-x-1.5 gap-y-0.5">
+        ${storewdBarcodeChip_(it.barcode)}<span class="text-sm text-gray-700 font-medium">${escapeHtml(it.itemName)}</span>${shopeeBadge}${branchTag}
       </div>
-      ${rightSide}
+      ${rightAction}
+      ${storewdQtyBadge_(it.qtyRequested, it.qtyPicked)}
     </div>`;
 }
 
-function renderStorewdPickList(batchId, batchStatus) {
+function renderStorewdPickList(batchId, batchStatus, readOnly) {
   const label = document.getElementById("storewdStoreBatchLabel");
-  label.textContent = batchId ? (batchId + " · รวม M1+M4" + (batchStatus === "closed" ? " · ปิดรอบแล้ว" : "")) : "ยังไม่มีรอบเบิกของวันนี้";
+  label.textContent = batchId ? (batchId + " · รวม M1+M4" + (batchStatus === "closed" ? " · ปิดรอบแล้ว" : "")) : "ไม่มีรอบเบิกของวันนี้";
 
   let pickedTotal = 0, requestedTotal = 0;
   storewdPickLines.forEach((it) => { pickedTotal += it.qtyPicked; requestedTotal += it.qtyRequested; });
@@ -11362,14 +11665,18 @@ function renderStorewdPickList(batchId, batchStatus) {
     emptyEl.classList.remove("hidden");
   } else {
     emptyEl.classList.add("hidden");
-    listEl.innerHTML = storewdPickLines.map(storewdPickRowHtml_).join("");
-    listEl.querySelectorAll("[data-storewd-done]").forEach((btn) => {
-      btn.addEventListener("click", () => markStorewdDone(btn.getAttribute("data-storewd-done")));
-    });
+    listEl.innerHTML = storewdPickLines.map((it) => storewdPickRowHtml_(it, readOnly)).join("");
+    if (!readOnly) {
+      listEl.querySelectorAll("[data-storewd-done]").forEach((btn) => {
+        btn.addEventListener("click", () => markStorewdDone(btn.getAttribute("data-storewd-done")));
+      });
+    }
   }
 
+  const scanInput = document.getElementById("storewdScanInput");
+  if (scanInput) scanInput.classList.toggle("hidden", !!readOnly);
   const closeBtn = document.getElementById("storewdCloseBtn");
-  closeBtn.classList.toggle("hidden", batchStatus === "closed" || !batchId);
+  closeBtn.classList.toggle("hidden", !!readOnly || batchStatus === "closed" || !batchId);
 }
 
 async function scanStorewdBarcode(rawValue) {
@@ -11462,6 +11769,38 @@ function setupStorewdTab() {
     }
   });
   document.getElementById("storewdCloseBtn").addEventListener("click", closeStorewdBatch);
+
+  // Master-only "มุมมอง" toggle + branch pick + date-picker history —
+  // added 2026-09, see the big comment above loadStorewdTab().
+  document.querySelectorAll(".storewd-mode-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      storewdViewMode = btn.getAttribute("data-storewd-mode");
+      loadStorewdTab();
+    });
+  });
+  const masterBranchSelect = document.getElementById("storewdMasterBranchSelect");
+  if (masterBranchSelect) {
+    masterBranchSelect.addEventListener("change", (e) => {
+      storewdViewBranch = e.target.value || null;
+      loadStorewdTab();
+    });
+  }
+  const dateInput = document.getElementById("storewdDateInput");
+  if (dateInput) {
+    dateInput.addEventListener("change", (e) => {
+      storewdViewDate = e.target.value || null;
+      loadStorewdTab();
+    });
+  }
+  const jumpTodayBtn = document.getElementById("storewdJumpTodayBtn");
+  if (jumpTodayBtn) {
+    jumpTodayBtn.addEventListener("click", () => {
+      storewdViewDate = null;
+      const di = document.getElementById("storewdDateInput");
+      if (di) di.value = storewdTodayDateStr_();
+      loadStorewdTab();
+    });
+  }
 }
 
 /* =================================================================
@@ -11974,7 +12313,7 @@ function buildPreOrderBillObject_(isDraft, existingLines) {
     const depositTotal = existingLines.reduce((s, l) => s + (Number(l.depositAmount) || 0), 0);
     const items = existingLines.map((l) => ({
       name: l.itemName,
-      barcode: "",
+      barcode: l.itemBarcode || "",
       qty: l.qty,
       unitPrice: null,
       lineTotal: Number(l.agreedTotal) || 0,
@@ -12002,7 +12341,7 @@ function buildPreOrderBillObject_(isDraft, existingLines) {
   const depositTotal = preOrderDraftItems.reduce((s, i) => s + i.depositAmount, 0);
   const items = preOrderDraftItems.map((i) => ({
     name: i.itemName,
-    barcode: "",
+    barcode: i.itemBarcode || "",
     qty: i.qty,
     unitPrice: null,
     lineTotal: i.agreedTotal,
