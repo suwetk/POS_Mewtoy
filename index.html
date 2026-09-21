@@ -529,6 +529,13 @@
           <textarea id="customerAddressInput" placeholder="ที่อยู่จัดส่ง" rows="2"
                     class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm resize-none
                            focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500"></textarea>
+          <!-- Remark — added 2026-09 per Wing's request (see Sales_History's
+               new trailing "Remark" column + saveSaleTransaction_/
+               buildDailySummary_ on the backend). Free-text note attached to
+               this bill, shown later on Transactions/Report Master. -->
+          <textarea id="billRemarkInput" placeholder="Remark (ถ้ามี) — เช่น นัดมารับของจองภายในสัปดาห์นี้" rows="2"
+                    class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm resize-none
+                           focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500"></textarea>
         </div>
       </div>
     </div>
@@ -560,6 +567,19 @@
               class="bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg px-5 py-2.5 font-semibold transition flex items-center gap-2">
         <i class="fa-solid fa-magnifying-glass"></i> โหลดข้อมูล
       </button>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">สาขา</label>
+        <!-- Populated by populateTransBranchSelect() — mirrors
+             populateReportBranchSelect() exactly: own branch (always first,
+             labeled "(สาขาตัวเอง)") plus any branches granted via
+             currentStaff.viewBranches, read-only, labeled "— อ่านอย่างเดียว". -->
+        <select id="transBranchSelect"
+                class="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+        </select>
+      </div>
+      <span id="transReadOnlyBranchBadge" class="hidden text-xs font-semibold px-2.5 py-1.5 rounded-full bg-sky-100 text-sky-700 flex items-center gap-1">
+        <i class="fa-solid fa-lock"></i> อ่านอย่างเดียว — แก้ไข/ลบไม่ได้
+      </span>
     </div>
 
     <div id="transactionsEmptyState" class="bg-white rounded-xl shadow p-8 text-center text-gray-400">
@@ -843,7 +863,19 @@
       <button data-po-view="arrival" class="po-view-btn text-sm font-semibold px-4 py-2 rounded-lg transition">🚚 ของเข้ารอบนี้</button>
       <button data-po-view="import" class="po-view-btn text-sm font-semibold px-4 py-2 rounded-lg transition">📥 นำเข้าไฟล์เก่า</button>
       <button data-po-view="draftitems" class="po-view-btn text-sm font-semibold px-4 py-2 rounded-lg transition">🏷️ สินค้ายังไม่มีบาร์โค้ด</button>
-      <button id="reloadPreOrdersBtn" type="button" class="ml-auto text-sm text-emerald-700 hover:text-emerald-900 font-medium px-3 py-2">
+      <div class="ml-auto flex items-center gap-2">
+        <!-- Populated by populatePreOrderBranchSelect() — mirrors
+             populateReportBranchSelect() exactly: own branch (always first,
+             labeled "(สาขาตัวเอง)") plus any branches granted via
+             currentStaff.viewBranches, read-only, labeled "— อ่านอย่างเดียว". -->
+        <select id="preOrderBranchSelect"
+                class="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+        </select>
+        <span id="preOrderReadOnlyBranchBadge" class="hidden text-xs font-semibold px-2.5 py-1.5 rounded-full bg-sky-100 text-sky-700 flex items-center gap-1">
+          <i class="fa-solid fa-lock"></i> อ่านอย่างเดียว
+        </span>
+      </div>
+      <button id="reloadPreOrdersBtn" type="button" class="text-sm text-emerald-700 hover:text-emerald-900 font-medium px-3 py-2">
         <i class="fa-solid fa-rotate mr-1"></i> รีเฟรช
       </button>
     </div>
@@ -1277,7 +1309,19 @@
     <div class="flex flex-wrap items-center gap-2">
       <button data-ws-view="list" class="ws-view-btn text-sm font-semibold px-4 py-2 rounded-lg transition">🧾 บิลขายส่ง</button>
       <button data-ws-view="balance" class="ws-view-btn text-sm font-semibold px-4 py-2 rounded-lg transition">👤 ยอดค้างชำระ</button>
-      <button id="reloadWSInvoicesBtn" type="button" class="ml-auto text-sm text-emerald-700 hover:text-emerald-900 font-medium px-3 py-2">
+      <div class="ml-auto flex items-center gap-2">
+        <!-- Populated by populateWSBranchSelect() — mirrors
+             populateReportBranchSelect() exactly: own branch (always first,
+             labeled "(สาขาตัวเอง)") plus any branches granted via
+             currentStaff.viewBranches, read-only, labeled "— อ่านอย่างเดียว". -->
+        <select id="wsBranchSelect"
+                class="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+        </select>
+        <span id="wsReadOnlyBranchBadge" class="hidden text-xs font-semibold px-2.5 py-1.5 rounded-full bg-sky-100 text-sky-700 flex items-center gap-1">
+          <i class="fa-solid fa-lock"></i> อ่านอย่างเดียว
+        </span>
+      </div>
+      <button id="reloadWSInvoicesBtn" type="button" class="text-sm text-emerald-700 hover:text-emerald-900 font-medium px-3 py-2">
         <i class="fa-solid fa-rotate mr-1"></i> รีเฟรช
       </button>
     </div>
@@ -2366,11 +2410,126 @@
         <i class="fa-solid fa-lock"></i> อ่านอย่างเดียว — แก้ไข/ลบไม่ได้
       </span>
       <span class="text-xs text-gray-400">สาขา: <b id="reportBranchLabel" class="text-gray-600"></b></span>
+
+      <!-- "Report Master" toggle (2026-09, Master-only) — lets Master flip
+           between this normal single-branch Reports view (unchanged for
+           everyone else) and the new all-branches Report Master view
+           below. Deliberately built as a simple toggle button rather than
+           a separate tab/nav placement per Wing's instruction: decide
+           which to keep later, easy to reorganize or remove either side
+           at that point. Visibility gated in applyRoleVisibility() —
+           reuses the same isAdmin check as every other Master-only
+           element, never shown to non-Master staff. -->
+      <button id="toggleMasterReportBtn" type="button"
+              class="hidden ml-auto bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2.5 text-sm font-semibold transition flex items-center gap-2">
+        <i class="fa-solid fa-layer-group"></i> <span id="toggleMasterReportBtnLabel">ดู Report Master (ทุกสาขา)</span>
+      </button>
     </div>
 
     <div id="reportEmptyState" class="bg-white rounded-xl shadow p-8 text-center text-gray-400">
       <i class="fa-solid fa-chart-line text-3xl mb-3"></i>
       <p>เลือกวันที่แล้วกด "โหลดข้อมูล" เพื่อดูสรุปยอดขายวันนั้น</p>
+    </div>
+
+    <!-- ============ Report Master panel (2026-09, Master-only) ============
+         Aggregates every branch in BRANCH_LIST for the selected date via
+         the "getMasterReport" backend action (handleGetMasterReport_).
+         Shares the same #reportDateInput date field as the normal Reports
+         view above — only one date picker, both views read it. Hidden by
+         default; shown only when toggleMasterReportBtn is clicked (see
+         toggleReportView() in the script). -->
+    <div id="masterReportEmptyState" class="hidden bg-white rounded-xl shadow p-8 text-center text-gray-400">
+      <i class="fa-solid fa-layer-group text-3xl mb-3"></i>
+      <p>กด "โหลดข้อมูล" เพื่อดูสรุปยอดรวมทุกสาขาของวันนี้</p>
+    </div>
+
+    <div id="masterReportContent" class="hidden flex flex-col gap-6">
+      <div class="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr_1fr] gap-4 items-stretch">
+
+        <!-- Column 1: grand total across every branch -->
+        <div class="flex flex-col gap-4">
+          <div class="bg-white rounded-xl shadow p-4 flex items-center gap-3">
+            <div class="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xl font-bold flex-shrink-0">
+              <i class="fa-solid fa-sack-dollar"></i>
+            </div>
+            <div class="min-w-0">
+              <p class="text-xs text-gray-400 mb-1">ยอดขายรวมทุกสาขา</p>
+              <p id="mrKpiTotalSales" class="text-xl font-bold text-indigo-700 truncate">0.00</p>
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <div class="bg-white rounded-lg shadow px-3 py-2 flex items-center gap-2 flex-1">
+              <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center text-sm flex-shrink-0">
+                <i class="fa-solid fa-file-invoice"></i>
+              </div>
+              <p class="text-[11px] text-gray-400">บิลรวม</p>
+              <p id="mrKpiBillCount" class="text-sm font-bold text-gray-700 ml-auto">0</p>
+            </div>
+            <div class="bg-white rounded-lg shadow px-3 py-2 flex items-center gap-2 flex-1">
+              <div class="w-8 h-8 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-sm flex-shrink-0">
+                <i class="fa-solid fa-cart-shopping"></i>
+              </div>
+              <p class="text-[11px] text-gray-400">สินค้ารวม</p>
+              <p id="mrKpiItemCount" class="text-sm font-bold text-gray-700 ml-auto">0</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column 2: payment breakdown across every branch (same 4 real
+             categories as the single-branch view: Cash/Transfer/Card/Copay) -->
+        <div class="bg-white rounded-xl shadow p-4">
+          <h3 class="font-semibold text-gray-700 mb-3">แยกตามวิธีชำระเงิน (รวมทุกสาขา)</h3>
+          <div class="flex h-3 rounded-full overflow-hidden bg-gray-100 mb-3" id="mrPaymentBar">
+            <div id="mrPayBarCash" class="bg-emerald-500 h-full"></div>
+            <div id="mrPayBarTransfer" class="bg-sky-500 h-full"></div>
+            <div id="mrPayBarCard" class="bg-violet-500 h-full"></div>
+            <div id="mrPayBarCopay" class="bg-amber-500 h-full"></div>
+          </div>
+          <table class="w-full text-sm">
+            <tbody>
+              <tr class="border-b">
+                <td class="py-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm bg-emerald-500 mr-2"></span>เงินสด</td>
+                <td id="mrPayAmtCash" class="py-1.5 text-right font-medium">0.00</td>
+                <td id="mrPayPctCash" class="py-1.5 text-right text-gray-400 w-16">0.0%</td>
+              </tr>
+              <tr class="border-b">
+                <td class="py-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm bg-sky-500 mr-2"></span>โอน</td>
+                <td id="mrPayAmtTransfer" class="py-1.5 text-right font-medium">0.00</td>
+                <td id="mrPayPctTransfer" class="py-1.5 text-right text-gray-400 w-16">0.0%</td>
+              </tr>
+              <tr class="border-b">
+                <td class="py-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm bg-violet-500 mr-2"></span>บัตร</td>
+                <td id="mrPayAmtCard" class="py-1.5 text-right font-medium">0.00</td>
+                <td id="mrPayPctCard" class="py-1.5 text-right text-gray-400 w-16">0.0%</td>
+              </tr>
+              <tr>
+                <td class="py-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm bg-amber-500 mr-2"></span>ร่วมจ่าย (Copay)</td>
+                <td id="mrPayAmtCopay" class="py-1.5 text-right font-medium">0.00</td>
+                <td id="mrPayPctCopay" class="py-1.5 text-right text-gray-400 w-16">0.0%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Column 3: per-branch breakdown — replaces the mockup's
+             Pre/Rec/WS/SP "type" breakdown, which needs a per-line type
+             tag on Sales_History that doesn't exist in production yet.
+             Per-branch totals are real, available data today. -->
+        <div class="bg-white rounded-xl shadow p-4">
+          <h3 class="font-semibold text-gray-700 mb-3">แยกตามสาขา</h3>
+          <div id="mrBranchBreakdown" class="flex flex-col gap-2 text-sm"></div>
+        </div>
+      </div>
+
+      <!-- Merged bill list across every branch, sorted by time, tagged
+           with branch + customer name + remark per row. -->
+      <div class="bg-white rounded-xl shadow p-4">
+        <div class="flex items-baseline justify-between mb-3">
+          <h3 class="font-semibold text-gray-700">รายการขายวันนี้ (ทุกสาขา)</h3>
+          <span id="mrBillsCountLabel" class="text-xs text-gray-400"></span>
+        </div>
+        <div id="mrBillsList" class="flex flex-col gap-3.5"></div>
+      </div>
     </div>
 
     <div id="reportContent" class="hidden flex flex-col gap-6">
@@ -3134,6 +3293,14 @@ const PIN_FAIL_COUNT_KEY = "pos_pin_fail_count";
 const PIN_LOCK_UNTIL_KEY = "pos_pin_lock_until";
 let pinLockCountdownTimer = null;
 let lastDailySummary = null; // cached response from the last "โหลดข้อมูล" click
+
+// "Report Master" (2026-09) — which of the two Reports-tab views is
+// currently showing: "single" (existing per-branch Reports, everyone) or
+// "master" (new all-branches aggregate, Master-only). See
+// toggleReportView()/loadReportsTabData() below and applyRoleVisibility()
+// above for the Master-only gate.
+let reportViewMode = "single";
+let lastMasterReport = null; // cached response from the last Report Master load
 const paymentOrder = ["cash", "transfer", "card", "copay"];
 const paymentLabels = {
   cash: "เงินสดที่รับมา (Cash Received)",
@@ -4179,6 +4346,7 @@ function resetCustomerSection() {
   document.getElementById("customerNameInput").value = "";
   document.getElementById("customerPhoneInput").value = "";
   document.getElementById("customerAddressInput").value = "";
+  document.getElementById("billRemarkInput").value = "";
   document.getElementById("customerNotFoundHint").classList.add("hidden");
   renderDeliveryButtons();
 }
@@ -4231,7 +4399,8 @@ function buildPayload(overrides) {
     customerName: document.getElementById("customerNameInput").value.trim(),
     customerPhone: document.getElementById("customerPhoneInput").value.trim(),
     customerAddress: document.getElementById("customerAddressInput").value.trim(),
-    deliveryMethod: deliveryMethod
+    deliveryMethod: deliveryMethod,
+    remark: document.getElementById("billRemarkInput").value.trim()
   };
 
   return overrides ? Object.assign(payload, overrides) : payload;
@@ -4340,6 +4509,7 @@ function startEditingBill(transactionId) {
   document.getElementById("customerNameInput").value = bill.customerName || "";
   document.getElementById("customerPhoneInput").value = bill.customerPhone || "";
   document.getElementById("customerAddressInput").value = bill.customerAddress || "";
+  document.getElementById("billRemarkInput").value = bill.remark || "";
   document.getElementById("customerNotFoundHint").classList.add("hidden");
   deliveryMethod = bill.deliveryMethod === "delivery" ? "delivery" : "pickup";
   renderDeliveryButtons();
@@ -4888,6 +5058,9 @@ function applyLogin(staff) {
   syncMobileTabNav(); // rebuild the mobile page picker now that this staff member's tab permissions are known
   populateReportBranchSelect();
   populateByRoomBranchSelect();
+  populateTransBranchSelect();
+  populatePreOrderBranchSelect();
+  populateWSBranchSelect();
   populateBranchIndicator();
   document.getElementById("loginOverlay").classList.add("hidden");
 
@@ -4957,6 +5130,19 @@ function applyRoleVisibility() {
     const el = document.getElementById(id);
     if (el) el.classList.toggle("hidden", !isAdmin);
   });
+
+  // "Report Master" toggle button (2026-09) — Master-only, per Wing's
+  // "เอาแค่ Master ที่ดูได้ก่อน". If a non-Master staff member somehow had
+  // the master view active (shouldn't happen — the button that switches
+  // to it is itself hidden) this also forces them back to the normal
+  // single-branch Reports view on next render.
+  const masterReportBtn = document.getElementById("toggleMasterReportBtn");
+  if (masterReportBtn) masterReportBtn.classList.toggle("hidden", !isAdmin);
+  if (!isAdmin && reportViewMode === "master") {
+    reportViewMode = "single";
+    document.getElementById("masterReportContent").classList.add("hidden");
+    document.getElementById("masterReportEmptyState").classList.add("hidden");
+  }
 
   // "System ▾" trigger (added 2026-09, houses Settings + Permissions) —
   // hide the whole trigger button if BOTH items inside ended up hidden
@@ -5215,11 +5401,15 @@ function buildHomeBranchOptionsHtml_(selectedBranch) {
   return opts.join("");
 }
 
-// Builds the sky-bordered "ดู Report ของสาขาอื่นได้เพิ่ม" block's inner
+// Builds the sky-bordered "ดูข้อมูลของสาขาอื่นได้เพิ่ม" block's inner
 // HTML for one staff member — one checkbox per OTHER branch; their own
 // Home Branch (if set) shows instead as a disabled, pre-checked,
 // "(สาขาตัวเองอยู่แล้ว)" entry, matching the approved mockup (a staff
 // member's own branch is implicitly always viewable, no need to grant it).
+// This single ViewBranches list is shared across every cross-branch
+// read-only viewer on the frontend (Reports/byroom/Transactions/
+// Pre-Order/WS — see resolveViewBranch_ in pos_backend.gs), gated per
+// tab by whether that tab's own checkbox is also ticked above.
 function buildViewBranchesHtml_(homeBranch, viewBranches) {
   return BRANCH_LIST.map(function (code) {
     if (homeBranch && code === homeBranch) {
@@ -5350,10 +5540,10 @@ function renderPermissionsStaffList() {
       "</div>" +
       '<div class="mt-3 bg-sky-50 border-2 border-sky-200 rounded-lg p-3 perm-viewbranch-block">' +
       '<label class="block text-xs font-semibold text-sky-700 mb-2">' +
-      '<i class="fa-solid fa-eye"></i> ดู Report ของสาขาอื่นได้เพิ่ม (อ่านอย่างเดียว — แก้ไข/ลบไม่ได้)' +
+      '<i class="fa-solid fa-eye"></i> ดูข้อมูลของสาขาอื่นได้เพิ่ม (อ่านอย่างเดียว — แก้ไข/ลบไม่ได้)' +
       "</label>" +
       '<div class="perm-viewbranch-grid flex flex-wrap gap-2">' + buildViewBranchesHtml_(staff.homeBranch, viewBranches) + "</div>" +
-      '<p class="text-xs text-sky-600 mt-1.5">มีผลเฉพาะตอนติ๊ก "Reports" ไว้ด้านบนเท่านั้น</p>' +
+      '<p class="text-xs text-sky-600 mt-1.5">มีผลเฉพาะตอนติ๊กแท็บที่เกี่ยวข้องไว้ด้านบน (Reports / Transactions / Pre-Order / WS) เท่านั้น — เปิดใช้ได้ทีละแท็บตามที่ติ๊กไว้</p>' +
       "</div>" +
       '<div class="mt-3 flex justify-end">' +
       '<button type="button" class="perm-save-btn bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg px-4 py-1.5 text-sm font-semibold transition">' +
@@ -5415,6 +5605,34 @@ function setupPermissionsTab() {
     reportBranchSelect.addEventListener("change", function () {
       const badge = document.getElementById("readOnlyBranchBadge");
       if (badge) badge.classList.toggle("hidden", reportBranchSelect.value === getBranchCode());
+    });
+  }
+
+  // Transactions tab: same badge-toggle-only pattern as Reports above —
+  // Transactions has its own explicit "โหลดข้อมูล" button, so switching
+  // branch here just flips the badge; the actual reload happens when
+  // that button is pressed (see loadTransactionsForDate).
+  const transBranchSelect = document.getElementById("transBranchSelect");
+  if (transBranchSelect) {
+    transBranchSelect.addEventListener("change", function () {
+      const badge = document.getElementById("transReadOnlyBranchBadge");
+      if (badge) badge.classList.toggle("hidden", transBranchSelect.value === getBranchCode());
+    });
+  }
+
+  // Pre-Order / WS tabs have no separate date+load button (they auto-load
+  // on tab open / "รีเฟรช"), so switching branch here reloads right away,
+  // same convention as byRoomBranchSelect above.
+  const poBranchSelect = document.getElementById("preOrderBranchSelect");
+  if (poBranchSelect) {
+    poBranchSelect.addEventListener("change", function () {
+      loadPreOrders();
+    });
+  }
+  const wsBranchSelectEl = document.getElementById("wsBranchSelect");
+  if (wsBranchSelectEl) {
+    wsBranchSelectEl.addEventListener("change", function () {
+      loadWSInvoices();
     });
   }
 }
@@ -5592,6 +5810,98 @@ function populateByRoomBranchSelect() {
 
   const badge = document.getElementById("byRoomReadOnlyBranchBadge");
   if (badge) badge.classList.add("hidden"); // reset — re-shown by the change listener / loadCashierListForByRoomTab/loadSalesByCashier as needed
+}
+
+// Fills #transBranchSelect — identical logic to populateReportBranchSelect()
+// above, targeting the Transactions tab's own select/badge pair. Added
+// 2026-09 alongside handleGetTransactionsForDate_'s resolveViewBranch_
+// wiring on the backend, extending the same ViewBranches cross-branch
+// read-only viewing already used by Reports/byroom to this tab. Called at
+// login and safe to call again any time currentStaff changes.
+function populateTransBranchSelect() {
+  const select = document.getElementById("transBranchSelect");
+  if (!select) return;
+  const ownBranch = getBranchCode();
+  const isAdmin = !!currentStaff && isAdminRole(currentStaff.role);
+  const extraBranches = isAdmin
+    ? BRANCH_LIST.filter(function (code) { return code !== ownBranch; })
+    : ((currentStaff && Array.isArray(currentStaff.viewBranches)) ? currentStaff.viewBranches : [])
+        .filter(function (code) { return code && code !== ownBranch; });
+
+  const options = [];
+  if (ownBranch) {
+    options.push('<option value="' + ownBranch + '">' + ownBranch + " (สาขาตัวเอง)</option>");
+  }
+  extraBranches.forEach(function (code) {
+    options.push('<option value="' + code + '">' + code + " — อ่านอย่างเดียว</option>");
+  });
+  select.innerHTML = options.join("") || (ownBranch ? '<option value="' + ownBranch + '">' + ownBranch + "</option>" : "");
+  select.value = ownBranch;
+
+  const badge = document.getElementById("transReadOnlyBranchBadge");
+  if (badge) badge.classList.add("hidden"); // reset — re-shown by the change listener / loadTransactionsForDate as needed
+}
+
+// Fills #preOrderBranchSelect — identical logic to populateReportBranchSelect()
+// above, targeting the Pre-Order tab's own select/badge pair. Added 2026-09
+// alongside handleGetPreOrders_'s resolveViewBranch_ wiring on the backend.
+// Note: this only controls what the READ (list) shows — opening a new
+// booking / fulfilling an item on this tab always still writes to the
+// device's own branch, never the viewed one. Called at login and safe to
+// call again any time currentStaff changes.
+function populatePreOrderBranchSelect() {
+  const select = document.getElementById("preOrderBranchSelect");
+  if (!select) return;
+  const ownBranch = getBranchCode();
+  const isAdmin = !!currentStaff && isAdminRole(currentStaff.role);
+  const extraBranches = isAdmin
+    ? BRANCH_LIST.filter(function (code) { return code !== ownBranch; })
+    : ((currentStaff && Array.isArray(currentStaff.viewBranches)) ? currentStaff.viewBranches : [])
+        .filter(function (code) { return code && code !== ownBranch; });
+
+  const options = [];
+  if (ownBranch) {
+    options.push('<option value="' + ownBranch + '">' + ownBranch + " (สาขาตัวเอง)</option>");
+  }
+  extraBranches.forEach(function (code) {
+    options.push('<option value="' + code + '">' + code + " — อ่านอย่างเดียว</option>");
+  });
+  select.innerHTML = options.join("") || (ownBranch ? '<option value="' + ownBranch + '">' + ownBranch + "</option>" : "");
+  select.value = ownBranch;
+
+  const badge = document.getElementById("preOrderReadOnlyBranchBadge");
+  if (badge) badge.classList.add("hidden"); // reset — re-shown by the change listener / loadPreOrders as needed
+}
+
+// Fills #wsBranchSelect — identical logic to populateReportBranchSelect()
+// above, targeting the WS (wholesale) tab's own select/badge pair. Added
+// 2026-09 alongside handleGetWSInvoices_'s resolveViewBranch_ wiring on
+// the backend. Note: this only controls what the READ (list) shows —
+// issuing a WS bill on this tab always still writes to the device's own
+// branch, never the viewed one. Called at login and safe to call again
+// any time currentStaff changes.
+function populateWSBranchSelect() {
+  const select = document.getElementById("wsBranchSelect");
+  if (!select) return;
+  const ownBranch = getBranchCode();
+  const isAdmin = !!currentStaff && isAdminRole(currentStaff.role);
+  const extraBranches = isAdmin
+    ? BRANCH_LIST.filter(function (code) { return code !== ownBranch; })
+    : ((currentStaff && Array.isArray(currentStaff.viewBranches)) ? currentStaff.viewBranches : [])
+        .filter(function (code) { return code && code !== ownBranch; });
+
+  const options = [];
+  if (ownBranch) {
+    options.push('<option value="' + ownBranch + '">' + ownBranch + " (สาขาตัวเอง)</option>");
+  }
+  extraBranches.forEach(function (code) {
+    options.push('<option value="' + code + '">' + code + " — อ่านอย่างเดียว</option>");
+  });
+  select.innerHTML = options.join("") || (ownBranch ? '<option value="' + ownBranch + '">' + ownBranch + "</option>" : "");
+  select.value = ownBranch;
+
+  const badge = document.getElementById("wsReadOnlyBranchBadge");
+  if (badge) badge.classList.add("hidden"); // reset — re-shown by the change listener / loadWSInvoices as needed
 }
 
 /* =================================================================
@@ -5786,6 +6096,221 @@ function renderReportBillsList(bills, billCount, itemCount) {
             </div>
             <span class="ml-auto font-bold text-emerald-800">${formatMoney(bill.billTotal)}</span>
           </div>
+          ${bill.remark ? `<div class="px-4 pt-2 text-xs text-amber-700 bg-amber-50 border-b border-amber-100 -mx-0 py-1.5"><i class="fa-solid fa-note-sticky mr-1"></i>${escapeHtml(bill.remark)}</div>` : ""}
+          <div class="px-4">${itemRows}</div>
+        </div>`;
+    })
+    .join("");
+}
+
+/* =================================================================
+   "REPORT MASTER" (2026-09) — Master-only toggle alongside the normal
+   single-branch Reports view above. See handleGetMasterReport_ in the
+   backend, and the #masterReportContent markup in the Reports tab HTML.
+   Built as a simple show/hide toggle within the existing Reports tab
+   (not a new nav tab) per Wing's explicit instruction, so it's easy to
+   reorganize or remove either side later once she decides which to keep.
+   ================================================================= */
+
+// Flips which of the two views is showing and (re)loads data for it —
+// wired to #toggleMasterReportBtn's click. Reuses the same
+// #reportDateInput date field both views already share.
+function toggleReportView() {
+  reportViewMode = reportViewMode === "single" ? "master" : "single";
+
+  const singleEmpty = document.getElementById("reportEmptyState");
+  const singleContent = document.getElementById("reportContent");
+  const masterEmpty = document.getElementById("masterReportEmptyState");
+  const masterContent = document.getElementById("masterReportContent");
+  const btnLabel = document.getElementById("toggleMasterReportBtnLabel");
+
+  if (reportViewMode === "master") {
+    btnLabel.textContent = "กลับไป Report ปกติ (สาขาเดียว)";
+    singleEmpty.classList.add("hidden");
+    singleContent.classList.add("hidden");
+    if (lastMasterReport) {
+      masterEmpty.classList.add("hidden");
+      masterContent.classList.remove("hidden");
+    } else {
+      masterEmpty.classList.remove("hidden");
+      masterContent.classList.add("hidden");
+      loadMasterReport();
+    }
+  } else {
+    btnLabel.textContent = "ดู Report Master (ทุกสาขา)";
+    masterEmpty.classList.add("hidden");
+    masterContent.classList.add("hidden");
+    if (lastDailySummary) {
+      singleEmpty.classList.add("hidden");
+      singleContent.classList.remove("hidden");
+    } else {
+      singleEmpty.classList.remove("hidden");
+      singleContent.classList.add("hidden");
+    }
+  }
+}
+
+// Dispatcher behind the "โหลดข้อมูล" button — both views share this one
+// button/date field, so route to whichever load function matches the
+// view currently showing.
+function loadReportsTabData() {
+  if (reportViewMode === "master") {
+    loadMasterReport();
+  } else {
+    loadDailySummary();
+  }
+}
+
+async function loadMasterReport() {
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl === "YOUR_URL_HERE") {
+    showToast("กรุณาวางลิงก์ Apps Script Web App ที่แท็บ Settings ก่อน", "error");
+    return;
+  }
+  if (!currentStaff || !isAdminRole(currentStaff.role)) return;
+
+  const dateStr = document.getElementById("reportDateInput").value;
+  if (!dateStr) {
+    showToast("กรุณาเลือกวันที่", "error");
+    return;
+  }
+
+  const btn = document.getElementById("loadReportBtn");
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลด...';
+
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        action: "getMasterReport",
+        pin: currentStaff.pin,
+        branch: getBranchCode(),
+        date: dateStr,
+        branches: BRANCH_LIST
+      })
+    });
+    const result = await response.json();
+    if (!result || result.status !== "success") {
+      throw new Error((result && result.message) || "โหลดข้อมูลไม่สำเร็จ");
+    }
+    lastMasterReport = result;
+    renderMasterReport(result);
+    document.getElementById("masterReportEmptyState").classList.add("hidden");
+    document.getElementById("masterReportContent").classList.remove("hidden");
+  } catch (err) {
+    console.error(err);
+    showToast("โหลด Report Master ไม่สำเร็จ: " + err.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
+
+function renderMasterReport(summary) {
+  document.getElementById("mrKpiTotalSales").textContent = formatMoney(summary.totalSales);
+  document.getElementById("mrKpiBillCount").textContent = (summary.billCount || 0).toLocaleString();
+  document.getElementById("mrKpiItemCount").textContent = (summary.itemCount || 0).toLocaleString();
+
+  const p = summary.payments || { cash: 0, transfer: 0, card: 0, copay: 0 };
+  const paySum = (p.cash || 0) + (p.transfer || 0) + (p.card || 0) + (p.copay || 0);
+  const pct = (v) => (paySum > 0 ? ((v / paySum) * 100).toFixed(1) : "0.0");
+
+  document.getElementById("mrPayAmtCash").textContent = formatMoney(p.cash);
+  document.getElementById("mrPayAmtTransfer").textContent = formatMoney(p.transfer);
+  document.getElementById("mrPayAmtCard").textContent = formatMoney(p.card);
+  document.getElementById("mrPayAmtCopay").textContent = formatMoney(p.copay);
+  document.getElementById("mrPayPctCash").textContent = pct(p.cash) + "%";
+  document.getElementById("mrPayPctTransfer").textContent = pct(p.transfer) + "%";
+  document.getElementById("mrPayPctCard").textContent = pct(p.card) + "%";
+  document.getElementById("mrPayPctCopay").textContent = pct(p.copay) + "%";
+
+  document.getElementById("mrPayBarCash").style.width = pct(p.cash) + "%";
+  document.getElementById("mrPayBarTransfer").style.width = pct(p.transfer) + "%";
+  document.getElementById("mrPayBarCard").style.width = pct(p.card) + "%";
+  document.getElementById("mrPayBarCopay").style.width = pct(p.copay) + "%";
+
+  // Per-branch breakdown — stands in for the mockup's Pre/Rec/WS/SP type
+  // breakdown, which needs data (a per-line type tag) that doesn't exist
+  // in production yet. This shows real, available per-branch totals.
+  const perBranch = summary.perBranch || [];
+  const branchTotal = perBranch.reduce((sum, b) => sum + (Number(b.totalSales) || 0), 0);
+  document.getElementById("mrBranchBreakdown").innerHTML = perBranch
+    .map((b) => {
+      const branchPct = branchTotal > 0 ? (((Number(b.totalSales) || 0) / branchTotal) * 100).toFixed(1) : "0.0";
+      const okBadge = b.crossCheckOk
+        ? ""
+        : '<i class="fa-solid fa-triangle-exclamation text-red-500 ml-1" title="ยอดไม่ตรง"></i>';
+      return `
+        <div class="border border-gray-100 rounded-lg px-3 py-2.5">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-semibold text-gray-700 text-sm">${escapeHtml(b.branch)}${okBadge}</span>
+            <span class="font-bold text-indigo-700 text-sm">${formatMoney(b.totalSales)}</span>
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-gray-400">
+            <span>${(b.billCount || 0).toLocaleString()} บิล · ${(b.itemCount || 0).toLocaleString()} ชิ้น</span>
+            <span>${branchPct}%</span>
+          </div>
+        </div>`;
+    })
+    .join("");
+
+  // Merged bill list across every branch — same receipt-style card as the
+  // single-branch Reports view, plus a branch tag pill per row.
+  const bills = summary.bills || [];
+  document.getElementById("mrBillsCountLabel").textContent =
+    bills.length > 0 ? `${(summary.billCount || 0).toLocaleString()} บิล · ${(summary.itemCount || 0).toLocaleString()} ชิ้น` : "";
+
+  const container = document.getElementById("mrBillsList");
+  if (bills.length === 0) {
+    container.innerHTML = '<p class="py-8 text-center text-gray-400">ไม่มีรายการขายในวันนี้</p>';
+    return;
+  }
+
+  container.innerHTML = bills
+    .map((bill) => {
+      const time = bill.timestamp
+        ? new Date(bill.timestamp).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+        : "";
+      const deliveryLabel = bill.deliveryMethod === "delivery" ? "จัดส่ง" : "รับหน้าร้าน";
+
+      const itemRows = (bill.items || [])
+        .map((item) => {
+          const qty = Number(item.qty) || 0;
+          const qtyClass =
+            qty > 1
+              ? "justify-self-center bg-orange-600 text-white text-base font-bold px-3.5 py-1 rounded-full"
+              : "justify-self-center bg-gray-100 text-gray-500 text-base font-bold px-3.5 py-1 rounded-full";
+          const barcode = String(item.barcode || "").trim();
+          const nameHtml = barcode
+            ? `${escapeHtml(barcode)} &nbsp; ${escapeHtml(item.name || "")}`
+            : escapeHtml(item.name || item.barcode);
+          return `
+            <div class="grid grid-cols-[1fr_80px_110px_110px] items-center gap-2.5 py-2.5 border-b last:border-b-0 border-gray-100 text-[13.5px]">
+              <div class="text-gray-700 leading-snug">${nameHtml}</div>
+              <div class="${qtyClass}">${qty}</div>
+              <div class="text-right text-gray-500">${formatMoney(item.price)}</div>
+              <div class="text-right font-semibold text-gray-700">${formatMoney(item.lineTotal)}</div>
+            </div>`;
+        })
+        .join("");
+
+      return `
+        <div class="border border-gray-100 rounded-xl overflow-hidden">
+          <div class="bg-emerald-50 px-4 py-2.5 flex flex-wrap items-center gap-3">
+            <span class="bg-indigo-600 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">${escapeHtml(bill.branch || "")}</span>
+            <span class="font-bold text-emerald-800 text-sm">${escapeHtml(bill.transactionId)}</span>
+            <div class="flex items-center gap-2 text-xs text-gray-500">
+              <span>${time}</span><span class="text-gray-300">·</span>
+              <span>${escapeHtml(bill.cashier)}</span>
+              ${bill.customerName ? `<span class="text-gray-300">·</span><span>${escapeHtml(bill.customerName)}</span>` : ""}
+              <span class="bg-white border border-emerald-100 text-emerald-700 text-[11px] font-semibold px-2.5 py-0.5 rounded-full">${deliveryLabel}</span>
+            </div>
+            <span class="ml-auto font-bold text-emerald-800">${formatMoney(bill.billTotal)}</span>
+          </div>
+          ${bill.remark ? `<div class="px-4 pt-2 text-xs text-amber-700 bg-amber-50 border-b border-amber-100 py-1.5"><i class="fa-solid fa-note-sticky mr-1"></i>${escapeHtml(bill.remark)}</div>` : ""}
           <div class="px-4">${itemRows}</div>
         </div>`;
     })
@@ -5821,6 +6346,16 @@ async function loadTransactionsForDate() {
     return;
   }
 
+  // The selected branch in #transBranchSelect (see populateTransBranchSelect
+  // below) — own branch by default, or an extra branch granted via
+  // currentStaff.viewBranches, read-only. Sent as a SEPARATE "viewBranch"
+  // field, same pattern as loadDailySummary/loadDataForByRoom.
+  const transBranchSelect = document.getElementById("transBranchSelect");
+  const viewBranch = transBranchSelect ? transBranchSelect.value : "";
+  const isOwnBranch = !viewBranch || viewBranch === getBranchCode();
+  const transBadge = document.getElementById("transReadOnlyBranchBadge");
+  if (transBadge) transBadge.classList.toggle("hidden", isOwnBranch);
+
   const btn = document.getElementById("loadTransactionsBtn");
   const originalHtml = btn.innerHTML;
   btn.disabled = true;
@@ -5830,7 +6365,7 @@ async function loadTransactionsForDate() {
     const response = await fetch(scriptUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "getTransactions", pin: currentStaff.pin, branch: getBranchCode(), date: dateStr })
+      body: JSON.stringify({ action: "getTransactions", pin: currentStaff.pin, branch: getBranchCode(), date: dateStr, viewBranch: viewBranch })
     });
     const result = await response.json();
     if (!result || result.status !== "success") {
@@ -6329,6 +6864,17 @@ async function loadPreOrders() {
   }
   if (!currentStaff) return;
 
+  // Same "viewBranch, read-only" pattern as loadDailySummary/loadDataForByRoom/
+  // loadTransactionsForDate — own branch by default, or an extra branch
+  // granted via currentStaff.viewBranches. Note this only affects what this
+  // READ shows; "เปิดจองใหม่"/fulfillment on this tab still always write to
+  // the device's own branch (getBranchCode()), never the viewed branch.
+  const poBranchSelect = document.getElementById("preOrderBranchSelect");
+  const viewBranch = poBranchSelect ? poBranchSelect.value : "";
+  const isOwnBranch = !viewBranch || viewBranch === getBranchCode();
+  const poBadge = document.getElementById("preOrderReadOnlyBranchBadge");
+  if (poBadge) poBadge.classList.toggle("hidden", isOwnBranch);
+
   const btn = document.getElementById("reloadPreOrdersBtn");
   const originalHtml = btn.innerHTML;
   btn.disabled = true;
@@ -6338,7 +6884,7 @@ async function loadPreOrders() {
     const response = await fetch(scriptUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "getPreOrders", pin: currentStaff.pin, branch: getBranchCode() })
+      body: JSON.stringify({ action: "getPreOrders", pin: currentStaff.pin, branch: getBranchCode(), viewBranch: viewBranch })
     });
     const result = await response.json();
     if (!result || result.status !== "success") {
@@ -9455,6 +10001,17 @@ async function loadWSInvoices() {
   }
   if (!currentStaff) return;
 
+  // Same "viewBranch, read-only" pattern as loadDailySummary/loadDataForByRoom/
+  // loadTransactionsForDate/loadPreOrders — own branch by default, or an
+  // extra branch granted via currentStaff.viewBranches. Note this only
+  // affects what this READ shows; issuing a WS bill on this tab still
+  // always writes to the device's own branch (getBranchCode()).
+  const wsBranchSelect = document.getElementById("wsBranchSelect");
+  const viewBranch = wsBranchSelect ? wsBranchSelect.value : "";
+  const isOwnBranch = !viewBranch || viewBranch === getBranchCode();
+  const wsBadge = document.getElementById("wsReadOnlyBranchBadge");
+  if (wsBadge) wsBadge.classList.toggle("hidden", isOwnBranch);
+
   const btn = document.getElementById("reloadWSInvoicesBtn");
   const originalHtml = btn.innerHTML;
   btn.disabled = true;
@@ -9464,7 +10021,7 @@ async function loadWSInvoices() {
     const response = await fetch(scriptUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "getWSInvoices", pin: currentStaff.pin, branch: getBranchCode() })
+      body: JSON.stringify({ action: "getWSInvoices", pin: currentStaff.pin, branch: getBranchCode(), viewBranch: viewBranch })
     });
     const result = await response.json();
     if (!result || result.status !== "success") {
@@ -12982,7 +13539,8 @@ async function init() {
   document.getElementById("syncCustomerDataBtn").addEventListener("click", syncCustomerData);
   document.getElementById("clearCacheBtn").addEventListener("click", clearCache);
   document.getElementById("logoutBtn").addEventListener("click", logout);
-  document.getElementById("loadReportBtn").addEventListener("click", loadDailySummary);
+  document.getElementById("loadReportBtn").addEventListener("click", loadReportsTabData);
+  document.getElementById("toggleMasterReportBtn").addEventListener("click", toggleReportView);
   document.getElementById("loadTransactionsBtn").addEventListener("click", loadTransactionsForDate);
   document.getElementById("saveOpeningFloatBtn").addEventListener("click", saveOpeningFloatSetting);
   document.getElementById("savePreOrderBankInfoBtn").addEventListener("click", savePreOrderBankInfoSetting);
