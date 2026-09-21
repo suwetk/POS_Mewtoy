@@ -68,8 +68,9 @@
 
   @media print {
     body * { visibility: hidden; }
-    #billPreviewPrintArea, #billPreviewPrintArea * { visibility: visible; }
-    #billPreviewPrintArea { position: absolute; top: 0; left: 0; }
+    #billPreviewPrintArea, #billPreviewPrintArea *,
+    #storewdPrintArea, #storewdPrintArea * { visibility: visible; }
+    #billPreviewPrintArea, #storewdPrintArea { position: absolute; top: 0; left: 0; }
     .no-print { display: none !important; }
   }
 </style>
@@ -189,7 +190,14 @@
            Order/labels per Wing's 2026-09 request: Reports moved next to
            POS; "พรีออเดอร์"→"Pre-Order"; "ขายส่ง WS"→"WS"; "ตามห้อง"→
            "Viewer"; Settings+Permissions consolidated into the "System ▾"
-           dropdown below instead of two separate top-level buttons. -->
+           dropdown below instead of two separate top-level buttons.
+           "storewd" (เบิกของ) LOST its "role-gated-tab" class in 2026-09
+           per Wing's follow-up request ("ใครก็เพิ่มได้ตรงนี้ไม่ต้องให้
+           Master ใส่พาส เพราะไม่ซีเรียสขนาดนั้น") — it's now always
+           visible to any logged-in staff, same treatment as POS. See
+           requireStorewdAccess_ in the backend (replaces
+           requirePermission_ there too) and PERMISSION_TABS below, which
+           no longer lists it. -->
       <button data-tab="reports"      class="tab-btn role-gated-tab h-full flex items-center border-b-4 border-transparent text-emerald-100 hover:text-white px-1">Reports</button>
       <button data-tab="transactions" class="tab-btn role-gated-tab h-full flex items-center border-b-4 border-transparent text-emerald-100 hover:text-white px-1">Transactions</button>
       <button data-tab="byroom"       class="tab-btn role-gated-tab h-full flex items-center border-b-4 border-transparent text-emerald-100 hover:text-white px-1">👁️ Viewer</button>
@@ -197,7 +205,7 @@
       <button data-tab="preorder"     class="tab-btn role-gated-tab h-full flex items-center border-b-4 border-transparent text-emerald-100 hover:text-white px-1">Pre-Order</button>
       <button data-tab="ws"           class="tab-btn role-gated-tab h-full flex items-center border-b-4 border-transparent text-emerald-100 hover:text-white px-1">WS</button>
       <button data-tab="stock"        class="tab-btn role-gated-tab h-full flex items-center border-b-4 border-transparent text-emerald-100 hover:text-white px-1">📦 สต๊อก</button>
-      <button data-tab="storewd"      class="tab-btn role-gated-tab h-full flex items-center border-b-4 border-transparent text-emerald-100 hover:text-white px-1">🏬 เบิกของ</button>
+      <button data-tab="storewd"      class="tab-btn h-full flex items-center border-b-4 border-transparent text-emerald-100 hover:text-white px-1">🏬 เบิกของ</button>
 
       <!-- "System ▾" dropdown — houses Settings + Permissions (added
            2026-09 per Wing's request to shrink these two into one menu).
@@ -223,6 +231,32 @@
 
     <!-- Right side -->
     <div class="flex items-center gap-3">
+      <!-- Branch indicator + quick-switch (added 2026-09 per Wing's
+           request — "Master งง ว่าตอนนี้อยู่สาขาไหน แล้วเผลอขายของ").
+           This is a SECOND, faster way to reach the exact same
+           device-level branch code Settings tab's #branchCodeInput
+           already controls (see BRANCH_CODE_STORAGE_KEY /
+           saveBranchCode() / getBranchCode()) — not a separate concept,
+           and no Logout or page reload needed to use it. See
+           setupBranchIndicator()/populateBranchIndicator() below. -->
+      <div id="branchIndicatorWrap" class="relative">
+        <button id="branchIndicatorBtn" type="button"
+                class="bg-emerald-800 hover:bg-emerald-700 px-3 py-1 rounded-full text-sm font-semibold transition items-center gap-1.5 hidden sm:inline-flex">
+          <i class="fa-solid fa-location-dot"></i>
+          <span id="branchIndicatorLabel">--</span>
+          <i class="fa-solid fa-caret-down text-[10px] opacity-70"></i>
+        </button>
+        <div id="branchIndicatorPanel"
+             class="hidden absolute top-full left-0 mt-1.5 bg-white rounded-lg shadow-xl border border-gray-200 w-48 p-3 z-40 text-gray-700">
+          <p class="text-xs text-gray-400 mb-1.5">สลับสาขาของเครื่องนี้</p>
+          <select id="branchIndicatorSelect"
+                  class="w-full border-2 border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white mb-2"></select>
+          <button id="branchIndicatorSaveBtn" type="button"
+                  class="w-full bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition">
+            บันทึก
+          </button>
+        </div>
+      </div>
       <span class="bg-emerald-800 px-3 py-1 rounded-full text-sm hidden sm:inline-block">
         <i class="fa-solid fa-user mr-1"></i> <span id="cashierNameLabel">Admin</span>
         <span id="cashierRoleLabel" class="text-emerald-300"></span>
@@ -233,6 +267,28 @@
     </div>
   </div>
 </nav>
+
+<!-- ============================================================
+     MOBILE PAGE PICKER (added 2026-09, per Wing) — #tabNav above is
+     "hidden md:flex", so on any phone-width screen it never renders at
+     all, which meant there was NO way to reach any tab except POS on
+     narrow screens (e.g. this file opened on a phone browser, since
+     GitHub Pages serves it at the site root). This <select> is the
+     mobile-only stand-in: "md:hidden" so it shows exactly when #tabNav
+     is hidden and vice versa, never both at once. It doesn't duplicate
+     the tab list/permission logic — syncMobileTabNav() (see JS below)
+     rebuilds its <option>s straight from #tabNav's own .tab-btn
+     buttons (skipping whichever ones applyRoleVisibility() just marked
+     "hidden" for this staff member's role), so adding/removing/
+     regating a tab in #tabNav is the only place that ever needs
+     editing; this picker just follows along automatically. Selecting
+     an option simply .click()s the matching real tab-btn, reusing all
+     of setupTabs()'s existing switching/permission/refresh logic
+     rather than re-implementing any of it here.
+     ============================================================ -->
+<div class="md:hidden bg-emerald-800 border-t border-emerald-700 px-4 py-2">
+  <select id="mobileTabNav" class="w-full bg-emerald-900 text-white border border-emerald-600 rounded-lg px-3 py-2 text-sm font-semibold"></select>
+</div>
 
 <!-- ============================================================
      PREVIEW/PRINT — compact sticky bar, top-right (per Wing, 2026-09).
@@ -905,8 +961,16 @@
 
       <!-- รายการใบจอง (บิลทั้งหมด) — เต็มความกว้างด้านล่าง -->
       <div class="bg-white rounded-xl shadow p-4">
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
           <h2 class="font-semibold text-gray-700">📋 รายการใบจอง</h2>
+          <!-- Sort-by-date toggle — added 2026-09 per Wing's request: when
+               there's a big backlog of pending pre-orders, an old one can
+               get buried and hard to find. Client-side only (no re-fetch)
+               since lastLoadedPreOrders already has everything. -->
+          <div class="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+            <button type="button" data-po-sort="oldest" class="po-sort-btn font-semibold px-3 py-1.5 transition">🕐 เก่าสุดก่อน</button>
+            <button type="button" data-po-sort="newest" class="po-sort-btn font-semibold px-3 py-1.5 transition border-l border-gray-200">🕐 ใหม่สุดก่อน</button>
+          </div>
         </div>
         <div class="flex flex-wrap gap-1.5 mb-3" id="poStatusFilterPills">
           <button data-po-status="all" class="po-status-filter-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">ทั้งหมด</button>
@@ -2121,15 +2185,44 @@
       </div>
     </div>
 
+    <!-- New standalone เบิกของ system launcher banner (added 2026-09) —
+         the ONLY change made to POS for the whole standalone-withdrawal
+         initiative: a link that opens the new, separate, faster
+         เบิกของ system (its own spreadsheet + Apps Script, no PIN) in a
+         new tab. Purely a launcher — nothing about the new system is
+         embedded into POS's UI/tab system. Hidden entirely until
+         NEW_STOREWD_LINK_URL below is filled in, and this old tab stays
+         working as-is during the transition (per instruction: keep both
+         side by side for now, retire this tab later once the new system
+         is confirmed working). -->
+    <div id="storewdNewSystemBanner" class="hidden bg-sky-50 border border-sky-200 rounded-xl p-3 mb-1 flex items-center justify-between gap-3 flex-wrap">
+      <span class="text-xs text-sky-800"><i class="fa-solid fa-bolt"></i> ตอนนี้มีระบบเบิกของใหม่แยกต่างหาก (เร็วกว่า เช็กข้อมูลง่ายกว่า)</span>
+      <button id="storewdNewSystemLinkBtn" type="button" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 flex-shrink-0">
+        เปิดระบบเบิกของใหม่ <i class="fa-solid fa-arrow-up-right-from-square"></i>
+      </button>
+    </div>
+
     <!-- ---------------- BRANCH VIEW (M1/M4/...) ---------------- -->
     <div id="storewdBranchView" class="hidden flex-col gap-4">
       <div class="bg-white rounded-xl shadow p-5">
         <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
           <h3 class="font-semibold text-gray-800 text-base">📦 เบิกของจาก Store — <span id="storewdBranchLabel"></span></h3>
-          <button id="storewdSummarizeBtn" type="button"
-                  class="bg-emerald-600 text-white text-sm font-medium px-3.5 py-2 rounded-lg hover:bg-emerald-700 flex items-center gap-1.5 flex-shrink-0">
-            🧾 สรุปยอดเบิกวันนี้
-          </button>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <!-- Print button (added 2026-09 per Wing's request to record/
+                 print what was withdrawn) — deliberately NOT gated by
+                 isClosed/readOnly like storewdSummarizeBtn above: printing
+                 the current list should work any time, including mid-day
+                 and while browsing a past date. See
+                 printStorewdBranchLog() below. -->
+            <button id="storewdPrintBranchBtn" type="button"
+                    class="bg-white border border-gray-300 text-gray-600 text-sm font-medium px-3 py-2 rounded-lg hover:bg-gray-50 flex items-center gap-1.5">
+              🖨️ ปริ้น
+            </button>
+            <button id="storewdSummarizeBtn" type="button"
+                    class="bg-emerald-600 text-white text-sm font-medium px-3.5 py-2 rounded-lg hover:bg-emerald-700 flex items-center gap-1.5 flex-shrink-0">
+              🧾 สรุปยอดเบิกวันนี้
+            </button>
+          </div>
         </div>
         <p class="text-xs text-gray-400 mb-4 leading-relaxed">
           ของที่ขายไปวันนี้จะถูกเบิกให้อัตโนมัติตอนกด "สรุปยอดเบิกวันนี้" ไม่ต้องเพิ่มเอง —
@@ -2171,6 +2264,13 @@
                  class="w-full border border-orange-300 rounded-lg px-3 py-1.5 text-xs bg-white">
         </div>
 
+        <!-- Explicit "which date is this list for" chip (added 2026-09,
+             see renderStorewdBranchView's comment) — placed right above
+             the list itself, not just relying on the #storewdDateInput
+             control bar above, per Wing's request after she got confused
+             thinking the Store pick list was stuck on a previous date. -->
+        <p id="storewdBranchDateLabel" class="text-xs font-semibold text-sky-700 bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1.5 mb-2 inline-block"></p>
+
         <p class="text-xs font-semibold text-gray-500 mb-2">คำขอที่เพิ่มวันนี้ (<span id="storewdReqCount">0</span> รายการ)</p>
         <div id="storewdRequestList" class="flex flex-col gap-2"></div>
         <p id="storewdRequestEmpty" class="text-sm text-gray-400 text-center py-4">ยังไม่มีคำขอวันนี้</p>
@@ -2203,8 +2303,23 @@
       <div class="bg-white rounded-xl shadow p-5">
         <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
           <h3 class="font-semibold text-gray-800 text-base">🏬 รายการที่ต้องจัดวันนี้</h3>
-          <span id="storewdStoreBatchLabel" class="bg-gray-100 text-gray-500 text-xs font-semibold px-2.5 py-1 rounded-full"></span>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <span id="storewdStoreBatchLabel" class="bg-gray-100 text-gray-500 text-xs font-semibold px-2.5 py-1 rounded-full"></span>
+            <!-- Print button (added 2026-09, same as the branch view's —
+                 see printStorewdStoreLog() below) — prints the COMBINED
+                 pick list across every branch for whichever date is
+                 currently being viewed. -->
+            <button id="storewdPrintStoreBtn" type="button"
+                    class="bg-white border border-gray-300 text-gray-600 text-xs font-medium px-2.5 py-1.5 rounded-lg hover:bg-gray-50 flex items-center gap-1">
+              🖨️ ปริ้น
+            </button>
+          </div>
         </div>
+        <!-- Explicit "which date is this list for" chip (added 2026-09,
+             see renderStorewdPickList's comment) — per Wing's request
+             after she got confused thinking this list was stuck on a
+             previous date instead of the one currently picked above. -->
+        <p id="storewdStoreDateLabel" class="text-xs font-semibold text-sky-700 bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1.5 mb-2 inline-block"></p>
         <p id="storewdStoreProgressLabel" class="text-xs text-gray-400 mb-3">จัดแล้ว 0 / 0 ชิ้น</p>
 
         <input id="storewdScanInput" type="text" autocomplete="off" lang="en" inputmode="latin"
@@ -2731,6 +2846,39 @@
   </div>
 </div>
 
+<!-- ============================================================
+     STORE WITHDRAWAL PRINT (added 2026-09) — per Wing's request to
+     record/print what was withdrawn ("รวมถึงการบันทึก และปริ้นไว้ว่า
+     ทำเบิกสินค้าอะไรออกไปบ้าง"). A lightweight sibling to
+     #billPreviewModal above rather than reusing it directly — that
+     modal's markup/labels are money-specific (ราคา/หน่วย, ยอดรวม
+     สุทธิ...บาท), which doesn't fit a withdrawal QUANTITY log. Filled by
+     openStorewdPrint_() in the script below from either Store
+     Withdrawal sub-view (branch's own requests, or Store's combined
+     pick list), available any time — not gated to closing the batch,
+     per Wing's explicit answer when asked.
+     ============================================================ -->
+<div id="storewdPrintModal" class="fixed inset-0 bg-black/50 z-[120] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-lg flex flex-col max-h-[92vh]">
+    <div class="no-print flex items-center justify-between px-5 pt-4 pb-2 border-b">
+      <h3 class="font-semibold text-gray-800 text-lg flex items-center gap-2">
+        <i class="fa-solid fa-print text-emerald-600"></i> พรีวิว/พิมพ์รายการเบิกของ
+      </h3>
+      <button id="storewdPrintCloseBtn" type="button" class="text-gray-400 hover:text-gray-600 text-xl">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="no-print flex items-center justify-end px-5 py-2 border-b">
+      <button id="storewdPrintBtn" type="button" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white transition">
+        🖨️ พิมพ์
+      </button>
+    </div>
+    <div class="overflow-y-auto px-5 py-4 bg-gray-50">
+      <div id="storewdPrintArea" class="bg-white shadow-sm p-3"></div>
+    </div>
+  </div>
+</div>
+
 <script>
 /* =================================================================
    CONFIGURATION
@@ -2749,6 +2897,14 @@
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxrxZDbLlgo3n4Bh-YLUvoWDxOCKZWAOtBqFr-3cz1vGKqjPbjBAnL6zT9sO4K_ZCQgIg/exec";
 
 const APPS_SCRIPT_URL_STORAGE_KEY = "pos_apps_script_url";
+
+// New standalone เบิกของ system's branch-request page URL (added
+// 2026-09 — see the storewdNewSystemBanner HTML comment above). Paste
+// the HOSTED URL of storewd_branch_request.html here once it's live
+// (e.g. its GitHub Pages link) — the banner on the เบิกของ tab stays
+// hidden until this is filled in. This is the ONLY thing to edit in
+// POS for the whole new-system rollout; nothing else here changes.
+const NEW_STOREWD_LINK_URL = "https://docs.google.com/spreadsheets/d/1PqRbtlKepXiBnQL9Wqms4Y_lpGTO4_ul2I2AJEzj1bw/edit?gid=230550074#gid=230550074";
 
 // Returns the URL actually in effect: whatever was saved from the
 // Settings tab (localStorage) takes priority over the hardcoded
@@ -2829,17 +2985,81 @@ function saveBranchCode(code) {
   }
   localStorage.setItem(BRANCH_CODE_STORAGE_KEY, trimmed);
   showToast("บันทึกรหัสสาขาเรียบร้อยแล้ว", "success");
-  // There are two branch-code dropdowns in the page (the login-screen box
-  // and the Settings-tab one, both bound to the same #loginBranchCodeInput
-  // / #branchCodeInput ids) — keep both showing the saved value right
-  // away, not just whichever one was actually used to save, so a staff
-  // member who saves on the login screen then opens Settings tab in the
-  // same session sees the real value instead of the empty placeholder.
-  ["branchCodeInput", "loginBranchCodeInput"].forEach((id) => {
+  // There are three branch-code pickers in the page now (the login-screen
+  // box, the Settings-tab one, and the POS-screen quick-switch badge —
+  // see branchIndicatorSelect/populateBranchIndicator below, added
+  // 2026-09) — keep all of them showing the saved value right away, not
+  // just whichever one was actually used to save, so switching from any
+  // one of them is instantly reflected everywhere else too.
+  ["branchCodeInput", "loginBranchCodeInput", "branchIndicatorSelect"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.value = trimmed;
   });
+  populateBranchIndicator();
   return true;
+}
+
+// Keeps the POS-screen branch badge's LABEL text (not just the hidden
+// <select> — see saveBranchCode above) in sync with getBranchCode().
+// Called on login and every time the branch code changes from ANY of
+// the three pickers.
+function populateBranchIndicator() {
+  const label = document.getElementById("branchIndicatorLabel");
+  if (label) label.textContent = getBranchCode() || "ยังไม่ตั้งค่า";
+}
+
+// POS-screen branch quick-switch (added 2026-09, see the HTML comment
+// above #branchIndicatorWrap) — a click-to-open panel with the SAME
+// picklist/save mechanics as Settings tab's branch code select, just
+// reachable without leaving the POS screen or logging out. Guards
+// against the exact mistake Wing described (accidentally selling under
+// the wrong branch): if the cart isn't empty, switching requires
+// confirming first — same "ล้างตะกร้า" pattern as logout() below —
+// because a sale submitted after switching always posts under whatever
+// branch is CURRENTLY saved, regardless of which branch was active when
+// items were scanned into the cart.
+function setupBranchIndicator() {
+  const btn = document.getElementById("branchIndicatorBtn");
+  const wrap = document.getElementById("branchIndicatorWrap");
+  const panel = document.getElementById("branchIndicatorPanel");
+  const select = document.getElementById("branchIndicatorSelect");
+  const saveBtn = document.getElementById("branchIndicatorSaveBtn");
+  if (!btn || !wrap || !panel || !select || !saveBtn) return;
+
+  populateBranchCodeSelect(select);
+  populateBranchIndicator();
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    select.value = getBranchCode();
+    panel.classList.toggle("hidden");
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!wrap.contains(e.target)) panel.classList.add("hidden");
+  });
+
+  saveBtn.addEventListener("click", () => {
+    const newBranch = String(select.value || "").trim();
+    if (!newBranch) {
+      showToast("กรุณาเลือกสาขา", "error");
+      return;
+    }
+    if (newBranch === getBranchCode()) {
+      panel.classList.add("hidden");
+      return;
+    }
+    if (cart.length > 0) {
+      const ok = confirm(
+        "ตะกร้ายังมีสินค้าอยู่ — สลับสาขาตอนนี้จะล้างตะกร้า " +
+        "(กันไม่ให้รายการที่สแกนไว้ถูกบันทึกลงสาขาใหม่โดยไม่ตั้งใจ) ต้องการดำเนินการต่อหรือไม่?"
+      );
+      if (!ok) return;
+      resetPOSForNextSale();
+    }
+    saveBranchCode(newBranch);
+    panel.classList.add("hidden");
+  });
 }
 
 // IndexedDB configuration
@@ -4665,8 +4885,10 @@ function applyLogin(staff) {
   loadShopInfo();
 
   applyRoleVisibility();
+  syncMobileTabNav(); // rebuild the mobile page picker now that this staff member's tab permissions are known
   populateReportBranchSelect();
   populateByRoomBranchSelect();
+  populateBranchIndicator();
   document.getElementById("loginOverlay").classList.add("hidden");
 
   // Now that the login screen is out of the way, hand keyboard focus to
@@ -4872,8 +5094,50 @@ function setupTabs() {
       // another branch's request (or Store picking/closing) shows up
       // right away. loadStorewdTab() itself decides branch vs Store view.
       if (target === "storewd") loadStorewdTab();
+
+      // Keep the mobile picker's selected option matching whichever tab
+      // just became active (a real tab-btn click always reaches here,
+      // whether it was triggered by mobileTabNav's own change handler
+      // below or, on desktop, a direct click on the nav bar itself).
+      syncMobileTabNav();
     });
   });
+}
+
+/* -----------------------------------------------------------------
+   Mobile page picker — see the HTML comment above #mobileTabNav for
+   why this exists. setupMobileTabNav() wires the <select> itself
+   (once); syncMobileTabNav() rebuilds its <option>s to match #tabNav's
+   current state and re-runs after every tab switch and every login
+   (i.e. every time applyRoleVisibility() may have changed which tabs
+   this staff member can see).
+   ----------------------------------------------------------------- */
+function setupMobileTabNav() {
+  const select = document.getElementById("mobileTabNav");
+  if (!select) return;
+  select.addEventListener("change", () => {
+    const btn = document.querySelector('#tabNav .tab-btn[data-tab="' + select.value + '"]');
+    if (btn) btn.click(); // reuses setupTabs()'s full switching/permission/refresh logic — nothing duplicated here
+  });
+  syncMobileTabNav();
+}
+
+function syncMobileTabNav() {
+  const select = document.getElementById("mobileTabNav");
+  if (!select) return;
+
+  const activePanel = document.querySelector(".tab-panel:not(.hidden)");
+  const activeTarget = activePanel ? activePanel.id.replace(/^tab-/, "") : "pos";
+
+  select.innerHTML = "";
+  document.querySelectorAll("#tabNav .tab-btn").forEach((btn) => {
+    if (btn.classList.contains("hidden")) return; // applyRoleVisibility() already decided this staff member can't see it
+    const option = document.createElement("option");
+    option.value = btn.getAttribute("data-tab");
+    option.textContent = btn.textContent.trim();
+    select.appendChild(option);
+  });
+  select.value = activeTarget;
 }
 
 /* =================================================================
@@ -4890,10 +5154,16 @@ function setupTabs() {
    but every value is real data instead of the mockup's hardcoded sample.
    ================================================================= */
 
-// The 8 non-POS tabs Master can grant/revoke per staff member — POS
+// The 7 non-POS tabs Master can grant/revoke per staff member — POS
 // itself is always available to everyone and is never listed here. Keys
 // must exactly match both this file's data-tab attributes AND the
 // backend's requirePermission_ tabKey strings (pos_backend.gs).
+// "storewd" (เบิกของ) was REMOVED from this list 2026-09 per Wing's
+// request — it's no longer a grantable/revokable permission at all, it's
+// always available to any logged-in staff (see the "storewd" tab button
+// above and requireStorewdAccess_ in the backend). A staff member's
+// Staff-sheet Permissions cell may still contain a leftover "storewd"
+// entry from before this change — harmless, it's just ignored now.
 const PERMISSION_TABS = [
   { key: "transactions", label: "Transactions" },
   { key: "byroom", label: "👁️ Viewer" },
@@ -4901,7 +5171,6 @@ const PERMISSION_TABS = [
   { key: "preorder", label: "Pre-Order" },
   { key: "ws", label: "WS" },
   { key: "stock", label: "📦 สต๊อก" },
-  { key: "storewd", label: "🏬 เบิกของ" },
   { key: "reports", label: "Reports" },
   { key: "settings", label: "Settings" }
 ];
@@ -5983,6 +6252,11 @@ let lastLoadedPreOrders = [];      // flat list from the last "getPreOrders" fet
 let preOrderBankInfoCache = "";    // เลขบัญชี/ชื่อบัญชีร้าน — used to build the "แจ้งยอด" copy-message
 let preOrderViewMode = "po";       // "po" | "customer" | "product"
 let preOrderStatusFilter = "all";  // active pill in the ตามใบจอง view
+// "oldest" (default, matches the backend's own sort in listPreOrders_) or
+// "newest" — added 2026-09 per Wing's request so an old pending PO doesn't
+// get buried once there's a big backlog. Purely a client-side re-sort of
+// lastLoadedPreOrders, no re-fetch needed.
+let preOrderSortOrder = "oldest";
 let poProductExpandOpen = new Set();  // itemName keys currently expanded in the ตามสินค้า view
 let preOrderReceiveState = null;   // { itemName, candidates, checked:Set, selectedLineIds, index } while poReceiveModal is open
 let poInvoiceDeliveryMethod = "pickup"; // active choice inside the receive modal's invoice step
@@ -6866,8 +7140,29 @@ function setupPreOrderStatusFilterPills() {
   renderPreOrderStatusFilterPills();
 }
 
+function renderPreOrderSortToggle_() {
+  document.querySelectorAll(".po-sort-btn").forEach((btn) => {
+    const active = btn.getAttribute("data-po-sort") === preOrderSortOrder;
+    btn.classList.toggle("bg-emerald-600", active);
+    btn.classList.toggle("text-white", active);
+    btn.classList.toggle("bg-white", !active);
+    btn.classList.toggle("text-gray-600", !active);
+  });
+}
+
+function setupPreOrderSortToggle_() {
+  document.querySelectorAll(".po-sort-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      preOrderSortOrder = btn.getAttribute("data-po-sort");
+      renderPreOrderPoList();
+    });
+  });
+  renderPreOrderSortToggle_();
+}
+
 function renderPreOrderPoList() {
   renderPreOrderStatusFilterPills();
+  renderPreOrderSortToggle_();
   const emptyState = document.getElementById("poListEmptyState");
   const wrap = document.getElementById("poListTableWrap");
   const tbody = document.getElementById("poListTableBody");
@@ -6895,6 +7190,17 @@ function renderPreOrderPoList() {
     return;
   }
 
+  // Sort whole PO groups by their first line's "Opened At" per the
+  // เก่าสุดก่อน/ใหม่สุดก่อน toggle above — added 2026-09 so an old pending
+  // booking doesn't get lost once there's a big backlog. Sorts the GROUP
+  // (not individual lines within it) since a PO's items always stay
+  // together regardless of sort direction.
+  const sortedGroupEntries = Array.from(groups.entries()).sort(([, linesA], [, linesB]) => {
+    const timeA = new Date(linesA[0].openedAt).getTime();
+    const timeB = new Date(linesB[0].openedAt).getTime();
+    return preOrderSortOrder === "newest" ? timeB - timeA : timeA - timeB;
+  });
+
   // Redesigned 2026-09 per Wing's request ("รายการไม่ตรงกัน...เปลี่ยนเป็น
   // ไอคอนเล็กๆ แถวเดี่ยว" — approved mockup:
   // mockups/preorder_list_row_alignment_redesign.html). The old version
@@ -6908,7 +7214,7 @@ function renderPreOrderPoList() {
   // drift relative to each other — the browser lays every column out row
   // by row, so this class of bug can't recur regardless of how tall any
   // one cell's content gets.
-  tbody.innerHTML = Array.from(groups.entries())
+  tbody.innerHTML = sortedGroupEntries
     .map(([poId, lines]) => {
       const first = lines[0];
       return lines
@@ -9045,6 +9351,7 @@ function setupArrivalTab() {
 function setupPreOrderTab() {
   setupPreOrderViewTabs();
   setupPreOrderStatusFilterPills();
+  setupPreOrderSortToggle_();
   setupPreOrderCustomerSearch();
   setupPreOrderReceiveModal();
   setupPreOrderCustomerNotifyModal();
@@ -11098,9 +11405,33 @@ let storewdViewBranch = null;     // Master-only: null = device's own branch
 let storewdViewDate = null;       // null = today
 let storewdMasterBranchPopulated = false;
 
+// Stale-response guards (added 2026-09 after Wing reported the Store
+// pick list looking "stuck" on a previous date — see loadStorewdBranchStatus/
+// loadStorewdPickList below). Each load function stamps its own request
+// with the CURRENT value of its counter, then only applies the result if
+// no newer request has been issued in the meantime — so if a slow
+// response for an old date/branch arrives AFTER a faster response for
+// whatever was picked next, the old one is silently dropped instead of
+// overwriting the screen with stale data. Two separate counters because
+// the branch view and Store view load independently (only one is ever
+// visible at a time, but that's not guaranteed mid-flight).
+let storewdBranchLoadSeq = 0;
+let storewdPickLoadSeq = 0;
+
 function storewdTodayDateStr_() {
   const d = new Date();
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+// "yyyy-mm-dd" -> "dd/mm/yyyy", written by hand rather than
+// toLocaleDateString("th-TH", ...) — that locale silently switches to
+// the Buddhist Era year (+543), which would show "18/09/2569" and
+// mismatch the Gregorian year used everywhere else in this app (e.g.
+// the WD-20260918 batch ID shown right next to it).
+function storewdFormatDateLabel_(dateStr) {
+  const parts = String(dateStr || "").split("-");
+  if (parts.length !== 3) return dateStr || "";
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
 // Fills #storewdMasterBranchSelect with every branch in BRANCH_LIST
@@ -11187,6 +11518,7 @@ async function loadStorewdBranchStatus() {
   const isMaster = isAdminRole(currentStaff.role);
   const effectiveBranch = isMaster ? (storewdViewBranch || getBranchCode()) : getBranchCode();
   const viewDate = storewdViewDate || storewdTodayDateStr_();
+  const seq = ++storewdBranchLoadSeq; // see the comment above the counter's declaration
   try {
     const response = await fetch(scriptUrl, {
       method: "POST",
@@ -11203,6 +11535,7 @@ async function loadStorewdBranchStatus() {
       })
     });
     const result = await response.json();
+    if (seq !== storewdBranchLoadSeq) return; // a newer request already superseded this one — drop it
     if (!result || result.status !== "success") {
       throw new Error((result && result.message) || "โหลดรายการเบิกของไม่สำเร็จ");
     }
@@ -11212,8 +11545,9 @@ async function loadStorewdBranchStatus() {
     // silently hit the WRONG branch, since add/summarize always target
     // this device's own branch server-side regardless of what's on screen.
     const readOnly = !!result.isPastDate || effectiveBranch !== getBranchCode();
-    renderStorewdBranchView(result.batchStatus === "closed", result.closedAt, readOnly);
+    renderStorewdBranchView(result.batchStatus === "closed", result.closedAt, readOnly, result.date || viewDate);
   } catch (err) {
+    if (seq !== storewdBranchLoadSeq) return;
     console.error(err);
     showToast("โหลดรายการเบิกของไม่สำเร็จ: " + err.message, "error");
   }
@@ -11318,7 +11652,18 @@ function storewdLineRowHtml_(it, opts) {
     </div>`;
 }
 
-function renderStorewdBranchView(isClosed, closedAt, readOnly) {
+function renderStorewdBranchView(isClosed, closedAt, readOnly, viewDate) {
+  // Explicit "which date is this list for" chip — added 2026-09 after
+  // Wing reported the Store pick list LOOKING stuck on a previous date
+  // and asked for something clearer than just reading the #storewdDateInput
+  // value. viewDate here is the date actually echoed back by the backend
+  // for the request that produced this render (see loadStorewdBranchStatus
+  // above's result.date), not just whatever's currently in storewdViewDate —
+  // so it can never drift from what's really on screen, even given the
+  // stale-response guard right beside it.
+  const dateLabelEl = document.getElementById("storewdBranchDateLabel");
+  if (dateLabelEl) dateLabelEl.textContent = "📅 กำลังแสดงรายการวันที่ " + storewdFormatDateLabel_(viewDate);
+
   document.getElementById("storewdClosedBanner").classList.toggle("hidden", !isClosed);
   document.getElementById("storewdClosedAtLabel").textContent = closedAt || "";
   // The add-form/summarize button are for TODAY's own branch only — hide
@@ -11599,6 +11944,7 @@ async function loadStorewdPickList() {
   const scriptUrl = getAppsScriptUrl();
   if (scriptUrl === "YOUR_URL_HERE" || !currentStaff) return;
   const viewDate = storewdViewDate || storewdTodayDateStr_();
+  const seq = ++storewdPickLoadSeq; // see the comment above the counter's declaration
   try {
     const response = await fetch(scriptUrl, {
       method: "POST",
@@ -11606,12 +11952,14 @@ async function loadStorewdPickList() {
       body: JSON.stringify({ action: "getStoreWithdrawalPickList", pin: currentStaff.pin, branch: getBranchCode(), date: viewDate })
     });
     const result = await response.json();
+    if (seq !== storewdPickLoadSeq) return; // a newer request already superseded this one — drop it
     if (!result || result.status !== "success") {
       throw new Error((result && result.message) || "โหลดรายการที่ต้องจัดไม่สำเร็จ");
     }
     storewdPickLines = (result.lines || []).filter((l) => l.status !== "cancelled");
-    renderStorewdPickList(result.batchId, result.batchStatus, !!result.isPastDate);
+    renderStorewdPickList(result.batchId, result.batchStatus, !!result.isPastDate, result.date || viewDate);
   } catch (err) {
+    if (seq !== storewdPickLoadSeq) return;
     console.error(err);
     showToast("โหลดรายการที่ต้องจัดไม่สำเร็จ: " + err.message, "error");
   }
@@ -11650,9 +11998,17 @@ function storewdPickRowHtml_(it, readOnly) {
     </div>`;
 }
 
-function renderStorewdPickList(batchId, batchStatus, readOnly) {
+function renderStorewdPickList(batchId, batchStatus, readOnly, viewDate) {
   const label = document.getElementById("storewdStoreBatchLabel");
   label.textContent = batchId ? (batchId + " · รวม M1+M4" + (batchStatus === "closed" ? " · ปิดรอบแล้ว" : "")) : "ไม่มีรอบเบิกของวันนี้";
+
+  // Explicit "which date is this list for" chip — same reasoning as
+  // renderStorewdBranchView's storewdBranchDateLabel above. viewDate here
+  // is the date echoed back by the backend for the request that produced
+  // THIS render (see loadStorewdPickList's result.date), so it can never
+  // drift from what's actually on screen.
+  const dateLabelEl = document.getElementById("storewdStoreDateLabel");
+  if (dateLabelEl) dateLabelEl.textContent = "📅 กำลังแสดงรายการวันที่ " + storewdFormatDateLabel_(viewDate);
 
   let pickedTotal = 0, requestedTotal = 0;
   storewdPickLines.forEach((it) => { pickedTotal += it.qtyPicked; requestedTotal += it.qtyRequested; });
@@ -11747,7 +12103,140 @@ async function closeStorewdBatch() {
   }
 }
 
+/* -----------------------------------------------------------------
+   STORE WITHDRAWAL PRINT (added 2026-09) — per Wing's request to
+   record/print what was withdrawn. See the #storewdPrintModal HTML
+   comment above for why this is its own small engine instead of
+   reusing openBillPreview()/#billPreviewPrintArea (money-specific
+   labels there don't fit a withdrawal QUANTITY log). Both print
+   buttons (branch view's storewdPrintBranchBtn, Store view's
+   storewdPrintStoreBtn — wired in setupStorewdTab below) print
+   whatever's CURRENTLY LOADED (storewdBranchLines/storewdPickLines),
+   i.e. exactly what's on screen for the date/branch currently being
+   viewed — available any time, not gated to closing the batch.
+   ----------------------------------------------------------------- */
+
+// Same status wording as storewdLineRowHtml_'s statusBadge above, as
+// plain text instead of a colored pill (a receipt printer/plain paper
+// copy doesn't reliably keep background colors) — plus an "open with
+// some already picked" case that view never needed to distinguish
+// on-screen (a colored badge shows this via the qty numbers alone) but
+// a paper log reads more clearly spelled out.
+function storewdPrintStatusLabel_(it) {
+  if (it.status === "fulfilled") return "จัดครบ";
+  if (it.status === "short") return it.qtyPicked > 0 ? `ขาด ${it.qtyRequested - it.qtyPicked} ชิ้น` : "ของหมด";
+  if (it.status === "open") return it.qtyPicked > 0 ? "จัดบางส่วน" : "รอจัด";
+  return it.status || "";
+}
+
+function storewdPrintRowHtml_(it, showBranchCol) {
+  return `
+    <tr class="border-b">
+      <td class="text-left align-top py-1">
+        ${escapeHtml(it.itemName || "(ไม่มีชื่อ)")}
+        <div class="text-[10px] text-gray-400">${escapeHtml(it.barcode || "ไม่มีบาร์โค้ด")}</div>
+      </td>
+      ${showBranchCol ? `<td class="text-center align-top py-1">${escapeHtml(it.branch || "")}</td>` : ""}
+      <td class="text-center align-top py-1">${it.requestType === "shopee" ? "🛍️ Shopee" : "ปกติ"}</td>
+      <td class="text-center align-top py-1">${it.qtyRequested}</td>
+      <td class="text-center align-top py-1">${it.qtyPicked}</td>
+      <td class="text-center align-top py-1">${escapeHtml(storewdPrintStatusLabel_(it))}</td>
+    </tr>`;
+}
+
+function renderStorewdPrintContent_(title, lines, opts) {
+  const area = document.getElementById("storewdPrintArea");
+  const shop = shopInfoCache || { name: "", address: "", phone: "" };
+  const showBranchCol = !!(opts && opts.showBranchCol);
+  const rows = (lines || []).map((it) => storewdPrintRowHtml_(it, showBranchCol)).join("");
+  const colCount = showBranchCol ? 6 : 5;
+  let totalRequested = 0, totalPicked = 0;
+  (lines || []).forEach((it) => {
+    totalRequested += Number(it.qtyRequested) || 0;
+    totalPicked += Number(it.qtyPicked) || 0;
+  });
+
+  area.innerHTML = `
+    <div class="text-center mb-2">
+      <div class="font-bold text-base">${escapeHtml(shop.name) || "ระบบ POS"}</div>
+    </div>
+    <div class="text-center border-t border-b border-dashed py-1.5 mb-2">
+      <div class="font-semibold">บันทึกรายการเบิกของ (เบิกของจาก Store)</div>
+      <div class="text-xs">${escapeHtml(title)}</div>
+    </div>
+    <table class="w-full text-xs" style="border-collapse:collapse;">
+      <thead>
+        <tr class="border-b-2 text-xs">
+          <th class="text-left py-1">สินค้า</th>
+          ${showBranchCol ? `<th class="text-center py-1">สาขา</th>` : ""}
+          <th class="text-center py-1">ประเภท</th>
+          <th class="text-center py-1">ขอ</th>
+          <th class="text-center py-1">จัดแล้ว</th>
+          <th class="text-center py-1">สถานะ</th>
+        </tr>
+      </thead>
+      <tbody>${rows || `<tr><td colspan="${colCount}" class="text-center text-gray-400 py-3">ไม่มีรายการ</td></tr>`}</tbody>
+    </table>
+    <div class="mt-2 pt-2 border-t-2 flex justify-between font-bold text-sm">
+      <span>รวม ${(lines || []).length} รายการ</span><span>ขอ ${totalRequested} / จัดแล้ว ${totalPicked} ชิ้น</span>
+    </div>
+    <div class="mt-3 pt-2 border-t border-dashed text-center text-[10px] text-gray-400">
+      พิมพ์จากระบบ POS · ${escapeHtml(new Date().toLocaleString("th-TH"))}
+    </div>
+  `;
+}
+
+function openStorewdPrint_(title, lines, opts) {
+  renderStorewdPrintContent_(title, lines, opts);
+  document.getElementById("storewdPrintModal").classList.remove("hidden");
+}
+
+function closeStorewdPrint_() {
+  document.getElementById("storewdPrintModal").classList.add("hidden");
+}
+
+function printStorewdLog_() {
+  window.print();
+}
+
+// Branch view's "🖨️ ปริ้น" — prints exactly what's currently loaded in
+// storewdBranchLines (the same branch/date the on-screen list is
+// showing, including a Master browsing another branch or a past date).
+function printStorewdBranchLog_() {
+  const isMaster = !!currentStaff && isAdminRole(currentStaff.role);
+  const effectiveBranch = isMaster ? (storewdViewBranch || getBranchCode()) : getBranchCode();
+  const viewDate = storewdViewDate || storewdTodayDateStr_();
+  openStorewdPrint_(`สาขา ${effectiveBranch} — วันที่ ${viewDate}`, storewdBranchLines, { showBranchCol: false });
+}
+
+// Store/pick view's "🖨️ ปริ้น" — prints the COMBINED pick list across
+// every branch (storewdPickLines is never filtered by branch — same
+// "รวม M1+M4+Event" data the on-screen list shows).
+function printStorewdStoreLog_() {
+  const viewDate = storewdViewDate || storewdTodayDateStr_();
+  openStorewdPrint_(`รวมทุกสาขา (Store) — วันที่ ${viewDate}`, storewdPickLines, { showBranchCol: true });
+}
+
+function setupStorewdPrintModal() {
+  document.getElementById("storewdPrintCloseBtn").addEventListener("click", closeStorewdPrint_);
+  document.getElementById("storewdPrintBtn").addEventListener("click", printStorewdLog_);
+}
+
 function setupStorewdTab() {
+  // New standalone เบิกของ system launcher banner — see
+  // NEW_STOREWD_LINK_URL / storewdNewSystemBanner above. Shown only
+  // once that URL is actually filled in; opens in a new tab so the
+  // old tab (and its own in-progress session/date view) is untouched.
+  const newSystemUrl = String(NEW_STOREWD_LINK_URL || "").trim();
+  const newSystemBanner = document.getElementById("storewdNewSystemBanner");
+  if (newSystemBanner) newSystemBanner.classList.toggle("hidden", !newSystemUrl);
+  const newSystemLinkBtn = document.getElementById("storewdNewSystemLinkBtn");
+  if (newSystemLinkBtn) {
+    newSystemLinkBtn.addEventListener("click", () => {
+      if (newSystemUrl) window.open(newSystemUrl, "_blank", "noopener");
+    });
+  }
+
   setupStorewdItemSearch_();
   setStorewdRequestType_("normal");
   document.querySelectorAll(".storewd-type-btn").forEach((btn) => {
@@ -11758,6 +12247,8 @@ function setupStorewdTab() {
     if (e.key === "Enter" || e.code === "NumpadEnter") { e.preventDefault(); submitStorewdRequest_(); }
   });
   document.getElementById("storewdSummarizeBtn").addEventListener("click", summarizeStorewd);
+  document.getElementById("storewdPrintBranchBtn").addEventListener("click", printStorewdBranchLog_);
+  document.getElementById("storewdPrintStoreBtn").addEventListener("click", printStorewdStoreLog_);
 
   const scanInput = document.getElementById("storewdScanInput");
   scanInput.addEventListener("keydown", (e) => {
@@ -12460,6 +12951,8 @@ async function init() {
 
   setupTabs();
   setupSystemMenu();
+  setupMobileTabNav();
+  setupBranchIndicator();
   setupByRoomTab();
   setupScanInput();
   setupPaymentButtons();
@@ -12477,6 +12970,7 @@ async function init() {
   setupStorewdTab();
   setupPermissionsTab();
   setupBillPreviewModal();
+  setupStorewdPrintModal();
   checkPinLockOnLoad(); // resume an in-progress lockout if the page was reloaded mid-countdown
   renderCart();       // also renders grand total + split inputs
   renderSplitInputs();
