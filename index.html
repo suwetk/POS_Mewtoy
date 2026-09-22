@@ -398,19 +398,47 @@
           </table>
         </div>
       </div>
+
+      <!-- 2b. Pull a customer's existing pre-orders into THIS cart, as "Rec"
+           (รับของจอง) rows (2026-09 — matches the approved cart row-type
+           mockup, pos_cart_type_variants.html). Booking a brand-new
+           pre-order ("Pre") no longer needs its own form: scan/search the
+           item into the cart like any normal sale, then set that row's type
+           dropdown to "Pre" and fill in Pre-Order Price / deposit inline —
+           same for "WS"/"SP". Only "Rec" needs this button, because it has
+           to be matched to a REAL existing PreOrder line (to deduct the
+           right old deposit and mark it fulfilled) — see
+           confirmOneBillPickupSelection() and handleSaveOneBillTransaction_. -->
+      <div id="oneBillPullSection" class="bg-white rounded-xl shadow p-4">
+        <button id="oneBillOpenPickupBtn" type="button"
+                class="w-full border-2 border-pink-300 text-pink-700 hover:bg-pink-50 rounded-lg py-2.5 text-sm font-semibold transition">
+          📥 ดึงรายการจองของลูกค้านี้ใส่ตะกร้า (Rec)
+        </button>
+      </div>
     </div>
 
     <!-- ---------------- RIGHT COLUMN ---------------- -->
     <div class="flex flex-col gap-3">
 
-      <!-- 3. Grand Total -->
+      <!-- 3. Grand Total — "TOTAL COLLECT TODAY" (2026-09, matches the
+           approved cart row-type mockup): includes every row's collectAmount(),
+           which for a "Pre" row is only today's deposit and for a "Rec" row
+           is only the balance after the old deposit is deducted — i.e. this
+           is "money to collect right now", not the same figure as Sales_History
+           revenue (buildOneBillPayload() below keeps that split correct). -->
       <div class="bg-white rounded-xl shadow p-4">
         <h2 class="font-semibold text-gray-700 mb-2">3. Grand Total</h2>
-        <div class="bg-black rounded-lg py-6 flex items-center justify-center">
+        <div class="bg-black rounded-lg py-6 flex flex-col items-center justify-center gap-1">
+          <span class="text-[11px] font-bold text-emerald-300 tracking-wide">TOTAL COLLECT TODAY</span>
           <span class="text-2xl md:text-3xl font-extrabold neon-total tracking-wide">
-            TOTAL: <span id="grandTotalText">0.00</span> THB
+            <span id="grandTotalText">0.00</span> THB
           </span>
         </div>
+        <div class="mt-2.5 bg-emerald-50 rounded-lg px-3 py-2 flex items-center justify-between">
+          <span class="text-xs font-bold text-emerald-800">📦 รวมจำนวนชิ้น (นับให้ลูกค้า)</span>
+          <span class="text-lg font-extrabold text-emerald-900"><span id="pieceTotalText">0</span> <small class="font-bold text-sm">ชิ้น</small></span>
+        </div>
+        <div id="cartBreakdownBox" class="mt-2 flex flex-col gap-1 text-xs text-gray-500"></div>
       </div>
 
       <!-- 4. Payment Methods -->
@@ -1748,6 +1776,34 @@
       <div class="flex gap-2 justify-end mt-1">
         <button id="poBulkFulfillCancelBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ยกเลิก</button>
         <button id="poBulkFulfillConfirmBtn" type="button" class="px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold">✅ ยืนยัน → ออกบิลรวม</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pull customer's pre-orders into the cart as "Rec" rows (2026-09,
+       matches pos_cart_type_variants.html) — NOT the same as
+       poBulkFulfillModal above: this one does NOT fire a separate
+       transaction by itself. It just resolves lineId+realBarcode per
+       selected line and pushes each straight into the MAIN `cart` array
+       with type:"rec", to be combined with whatever else is in the cart
+       the next time the main SAVE & SUBMIT button is pressed. Shows BOTH
+       "รอสินค้า" and "แจ้งยอดแล้ว รอโอน" lines (poBulkFulfillModal only
+       shows the latter) since the backend (handleSaveOneBillTransaction_)
+       accepts either. -->
+  <div id="oneBillPickupModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 flex flex-col gap-3 max-h-[90vh] overflow-y-auto">
+      <h3 class="font-semibold text-gray-800 text-lg flex items-center gap-2">
+        <i class="fa-solid fa-box-open text-pink-600"></i> รับของจอง — <span id="oneBillPickupCustomerName" class="text-pink-700"></span>
+      </h3>
+      <p class="text-sm text-gray-500 -mt-2">เลือกรายการที่จะรับวันนี้ แล้วสแกน/พิมพ์บาร์โค้ดจริงให้ครบทุกชิ้น — ระบบจะหักมัดจำที่จ่ายไว้แล้วให้อัตโนมัติตอนบันทึกบิล</p>
+
+      <div id="oneBillPickupChecklist" class="flex flex-col gap-2"></div>
+
+      <p id="oneBillPickupModalError" class="text-sm text-red-500 hidden"></p>
+
+      <div class="flex gap-2 justify-end mt-1">
+        <button id="oneBillPickupCancelBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ยกเลิก</button>
+        <button id="oneBillPickupConfirmBtn" type="button" class="px-4 py-2 rounded-lg bg-pink-600 hover:bg-pink-700 text-white font-semibold">+ เพิ่มลงตะกร้า</button>
       </div>
     </div>
   </div>
@@ -3240,7 +3296,30 @@ let productMap = new Map();   // barcode (string) -> { barcode, name, price, sho
                                // updateProductCheckAdminColumns — but are present in every product object)
 let productList = [];         // flat array of the same products, for name search
 let customerMap = new Map();  // customer code (string) -> { code, name, phone, address }
-let cart = [];                // [{ barcode, name, price, qty }]
+// Cart row "type" (2026-09, per Wing's approved mockup at
+// pos_cart_type_variants.html — matches that prototype exactly):
+//   branch — plain sale at the logged-in branch's price. DEFAULT for every
+//            newly scanned item. type-specific fields: none (uses price/qty).
+//   pre    — booking a brand-new pre-order, deposit collected TODAY.
+//            fields: agreed (Pre-Order Price), deposit (มัดจำ, editable).
+//   rec    — receiving/picking up an EXISTING pre-order, old deposit
+//            deducted. fields: agreed, deposit (read-only — pulled from the
+//            real PreOrderDeposits record), lineId (which PO line this
+//            fulfills — REQUIRED, only ever set by confirmOneBillPickupSelection
+//            below; the type dropdown does not offer "Rec" on a row that
+//            doesn't already have one, since there'd be nothing to fulfill).
+//   ws     — พ่อค้าส่งหน้าร้าน, sold at a per-item wholesale price.
+//            fields: wsPrice (editable, defaults to the scanned retail price).
+//   sp     — ราคาพิเศษ/อื่นๆ, a flat special-case line price (NOT × qty,
+//            matching the mockup). fields: spPrice (editable).
+// Every row also carries remarkOn/remark (per-item note, shown/hidden by a
+// checkbox) — new in this same pass, matching the mockup's per-row Remark.
+// See collectAmount()/renderCart()/buildOneBillPayload() below.
+let cart = []; // [{ id, barcode, name, price, qty, type, agreed, deposit, wsPrice, spPrice, lineId, remarkOn, remark }]
+let nextCartRowId = 1; // cart rows are keyed by this stable id, NOT barcode — a
+// "Rec" row's real barcode can collide with a plain item someone also scans
+// normally in the same bill, and two rows must never share one lookup key.
+let oneBillPickupState = null; // transient state while oneBillPickupModal (now "pull customer's pre-orders into this cart as Rec rows") is open
 let deliveryMethod = "pickup"; // "pickup" | "delivery"
 let activeMethods = new Set(); // nothing pre-selected — cashier picks a method themselves (per Wing, 2026-09: defaulting to cash meant an extra step to un-pick it when paying by transfer instead)
 
@@ -3687,8 +3766,20 @@ function setupProductCheckSearch() {
   input.addEventListener("input", () => renderProductCheckResults(input.value));
 }
 
+// Keyboard-highlighted suggestion, for ArrowUp/ArrowDown + Enter navigation
+// in the scan/search box (2026-09, per Wing's request — "พิมพ์ค้นหาแล้วกด
+// ลูกศรลงเลือก แล้วกด Enter"). -1 = nothing highlighted (Enter falls back
+// to treating the typed text as a literal barcode, same as before).
+let scanSuggestionIndex = -1;
+
+function highlightScanSuggestion(items) {
+  items.forEach((el, idx) => el.classList.toggle("bg-emerald-100", idx === scanSuggestionIndex));
+  if (items[scanSuggestionIndex]) items[scanSuggestionIndex].scrollIntoView({ block: "nearest" });
+}
+
 function renderSuggestions(matches) {
   const box = document.getElementById("searchSuggestions");
+  scanSuggestionIndex = -1; // fresh results — no stale highlight from the last keystroke
   if (matches.length === 0) {
     box.classList.add("hidden");
     box.innerHTML = "";
@@ -3708,7 +3799,14 @@ function renderSuggestions(matches) {
 
   box.classList.remove("hidden");
 
-  box.querySelectorAll(".suggestion-item").forEach((el) => {
+  box.querySelectorAll(".suggestion-item").forEach((el, idx) => {
+    // Hovering a suggestion with the mouse keeps the keyboard highlight in
+    // sync, so Arrow keys and the mouse never disagree about which row Enter
+    // would pick.
+    el.addEventListener("mouseenter", () => {
+      scanSuggestionIndex = idx;
+      highlightScanSuggestion(box.querySelectorAll(".suggestion-item"));
+    });
     el.addEventListener("click", () => {
       const code = el.getAttribute("data-barcode");
       handleScan(code);
@@ -3776,7 +3874,7 @@ function setupScanInput() {
   // (that click happened to blur this input): every keystroke was landing
   // here instead of reaching the overlay's own input.
   function isAnyOverlayVisible() {
-    return ["loginOverlay", "voidModal", "editApprovalModal", "poReceiveModal", "poFulfillModal", "poAddDepositModal", "poCancelModal", "wsPaymentModal", "wsVoidModal"].some((id) => {
+    return ["loginOverlay", "voidModal", "editApprovalModal", "poReceiveModal", "poFulfillModal", "poBulkFulfillModal", "oneBillPickupModal", "poAddDepositModal", "poCancelModal", "wsPaymentModal", "wsVoidModal"].some((id) => {
       const el = document.getElementById(id);
       return !!el && !el.classList.contains("hidden");
     });
@@ -3784,10 +3882,16 @@ function setupScanInput() {
   if (!isAnyOverlayVisible()) input.focus();
   document.addEventListener("click", (e) => {
     if (isAnyOverlayVisible()) return;
-    // Re-focus whenever the user clicks anywhere that isn't an interactive control.
+    // Re-focus whenever the user clicks anywhere that isn't an interactive
+    // control. "select" is excluded alongside button/input (2026-09, fixed
+    // per Wing's report) — a cart row's type dropdown (M1/Pre/Rec/WS/SP) is
+    // a <select>, not a <button> or <input>, so without this exclusion this
+    // handler yanked focus back to the scan box the instant it was clicked,
+    // closing the dropdown before a choice could be made.
     if (
       !e.target.closest("button") &&
       !e.target.closest("input") &&
+      !e.target.closest("select") &&
       !e.target.closest("#cameraModal")
     ) {
       input.focus();
@@ -3795,10 +3899,33 @@ function setupScanInput() {
   });
 
   input.addEventListener("keydown", (e) => {
+    // ArrowDown/ArrowUp move a highlight through the autocomplete list
+    // below (2026-09, per Wing's request) — only while it's actually open,
+    // so normal cursor-position arrow-key behavior is untouched the rest
+    // of the time.
+    if ((e.key === "ArrowDown" || e.key === "ArrowUp") && !box.classList.contains("hidden")) {
+      const items = box.querySelectorAll(".suggestion-item");
+      if (items.length > 0) {
+        e.preventDefault();
+        scanSuggestionIndex =
+          e.key === "ArrowDown"
+            ? Math.min(scanSuggestionIndex + 1, items.length - 1)
+            : Math.max(scanSuggestionIndex - 1, 0);
+        highlightScanSuggestion(items);
+      }
+      return;
+    }
+
     if (e.key === "Enter" || e.code === "NumpadEnter") {
       e.preventDefault();
-      handleScan(input.value);
+      const items = box.querySelectorAll(".suggestion-item");
+      const highlighted = !box.classList.contains("hidden") && scanSuggestionIndex >= 0 ? items[scanSuggestionIndex] : null;
+      // A suggestion is highlighted (via Arrow keys or a mouse hover) —
+      // Enter picks THAT product, same as clicking it, instead of treating
+      // whatever's typed as a literal barcode.
+      handleScan(highlighted ? highlighted.getAttribute("data-barcode") : input.value);
       box.classList.add("hidden");
+      scanSuggestionIndex = -1;
       return;
     }
 
@@ -3818,8 +3945,8 @@ function setupScanInput() {
       // so refresh the autocomplete suggestions manually here instead.
       renderSuggestions(searchProducts(input.value, 8));
     }
-    // Everything else (Backspace, Delete, arrow keys, Tab, Space, Shift,
-    // paste, etc.) is left to behave normally.
+    // Everything else (Backspace, Delete, Tab, Space, Shift, paste, etc.)
+    // is left to behave normally.
   });
 
   input.addEventListener("input", () => {
@@ -3882,17 +4009,26 @@ function handleScan(rawValue) {
   input.focus();
 }
 
-// Adds a new cart line, or increments qty if that barcode is already in
-// the cart. Never overwrites a name/price the cashier already has on
-// an existing line — it only fills them in if they were still missing.
+// Adds a new cart line, or increments qty if that barcode is already in the
+// cart AS A PLAIN "branch" ROW. Only matches "branch" rows on purpose — a
+// "Rec"/"Pre"/"WS"/"SP" row that happens to share a barcode with a normal
+// scan is a different kind of line and must stay separate (they carry their
+// own agreed/deposit/lineId, so folding a plain re-scan into one of those
+// would silently corrupt it). Never overwrites a name/price the cashier
+// already has on an existing line — it only fills them in if still missing.
 function addOrIncrementCartItem(barcode, name, price, qtyDelta) {
-  const existing = cart.find((item) => item.barcode === barcode);
+  const existing = cart.find((item) => item.barcode === barcode && item.type === "branch");
   if (existing) {
     existing.qty += qtyDelta;
     if (!existing.name && name) existing.name = name;
     if (!existing.price && price) existing.price = price;
   } else {
-    cart.push({ barcode, name, price, qty: qtyDelta });
+    cart.push({
+      id: nextCartRowId++,
+      barcode, name, price, qty: qtyDelta,
+      type: "branch", agreed: price, deposit: 0, wsPrice: price, spPrice: price,
+      lineId: null, remarkOn: false, remark: ""
+    });
   }
   renderCart();
 }
@@ -3901,23 +4037,48 @@ function addOrIncrementCartItem(barcode, name, price, qtyDelta) {
    CART LOGIC
    ================================================================= */
 
-function changeQty(barcode, delta) {
-  const item = cart.find((i) => i.barcode === barcode);
+// Per-type "amount to collect today" for one cart row — the single source
+// of truth for the Grand Total, the per-row price cell, and the payload
+// split below. Matches pos_cart_type_variants.html's collectAmount() exactly
+// (see that file / its published artifact for the approved reference).
+function collectAmount(item) {
+  switch (item.type) {
+    case "pre":
+      return Number(item.deposit) || 0; // only the deposit is collected today — the rest is due later
+    case "rec":
+      return Math.max((Number(item.agreed) || 0) - (Number(item.deposit) || 0), 0); // old deposit deducted
+    case "ws":
+      return (Number(item.wsPrice) || 0) * (Number(item.qty) || 0);
+    case "sp":
+      return Number(item.spPrice) || 0; // flat line price, deliberately NOT × qty (matches the approved mockup)
+    default:
+      return (Number(item.price) || 0) * (Number(item.qty) || 0);
+  }
+}
+
+function changeQty(id, delta) {
+  const item = cart.find((i) => i.id === id);
   if (!item) return;
   item.qty += delta;
   if (item.qty <= 0) {
-    cart = cart.filter((i) => i.barcode !== barcode);
+    cart = cart.filter((i) => i.id !== id);
   }
   renderCart();
 }
 
-function removeFromCart(barcode) {
-  cart = cart.filter((i) => i.barcode !== barcode);
+function removeFromCart(id) {
+  cart = cart.filter((i) => i.id !== id);
   renderCart();
 }
 
+// Grand Total = sum of collectAmount() across every row, whatever its type —
+// a "Rec" row's balance-due and a "Pre" row's today's-deposit are both real
+// money the cashier needs to collect right now, exactly like the approved
+// mockup's "TOTAL COLLECT TODAY". (Accounting-wise a "Pre" row's deposit is
+// NOT revenue yet — buildOneBillPayload() below keeps that split correct
+// when it talks to the backend; this total is just "what to collect".)
 function calculateGrandTotal() {
-  return cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  return cart.reduce((sum, item) => sum + collectAmount(item), 0);
 }
 
 function renderCart() {
@@ -3929,80 +4090,59 @@ function renderCart() {
         <td colspan="4" class="py-8 text-center text-gray-400">Cart is empty — scan a product to begin.</td>
       </tr>`;
   } else {
-    tbody.innerHTML = cart
-      .map((item) => {
-        const needsInfo = !item.name; // barcode wasn't found in the database
-        return `
-        <tr class="border-b last:border-b-0 ${needsInfo ? "bg-amber-50" : ""}">
-          <td class="py-3">
-            <div class="flex items-center gap-2">
-              <span class="w-8 h-8 rounded bg-emerald-50 text-emerald-500 flex items-center justify-center flex-shrink-0">
-                <i class="fa-solid fa-box"></i>
-              </span>
-              <div class="flex flex-col w-full">
-                <input type="text" data-barcode="${escapeHtml(item.barcode)}" data-field="name"
-                       value="${escapeHtml(item.name)}" placeholder="Type product name..."
-                       class="cart-edit-input w-full bg-transparent border border-transparent hover:border-gray-200
-                              focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 focus:bg-white
-                              rounded px-2 py-1 ${needsInfo ? "placeholder-amber-500" : ""}">
-                <span class="text-xs text-gray-400 px-2">${escapeHtml(item.barcode)}</span>
-              </div>
-            </div>
-          </td>
-          <td class="py-3">
-            <div class="flex items-center justify-center gap-2">
-              <button data-action="dec" data-barcode="${escapeHtml(item.barcode)}"
-                      class="qty-btn w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-lg font-bold">-</button>
-              <span class="w-6 text-center font-medium">${item.qty}</span>
-              <button data-action="inc" data-barcode="${escapeHtml(item.barcode)}"
-                      class="qty-btn w-8 h-8 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-lg font-bold">+</button>
-            </div>
-          </td>
-          <td class="py-3 text-right">
-            <input type="number" step="0.01" min="0" data-barcode="${escapeHtml(item.barcode)}" data-field="price"
-                   value="${item.price}" placeholder="0.00"
-                   class="cart-edit-input w-24 text-right bg-transparent border border-transparent hover:border-gray-200
-                          focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 focus:bg-white rounded px-2 py-1">
-            ${item.qty > 1 ? `<div class="line-total-hint text-xs text-gray-400 mt-1">= ${formatMoney(item.price * item.qty)} THB</div>` : ""}
-          </td>
-          <td class="py-3 text-center">
-            <button data-barcode="${escapeHtml(item.barcode)}" class="remove-btn text-red-500 hover:text-red-700 text-lg">
-              <i class="fa-solid fa-trash-can"></i>
-            </button>
-          </td>
-        </tr>`;
-      })
-      .join("");
+    tbody.innerHTML = cart.map((item) => cartRowHtml(item)).join("");
 
     tbody.querySelectorAll(".qty-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const barcode = btn.getAttribute("data-barcode");
+        const id = Number(btn.getAttribute("data-id"));
         const delta = btn.getAttribute("data-action") === "inc" ? 1 : -1;
-        changeQty(barcode, delta);
+        changeQty(id, delta);
       });
     });
     tbody.querySelectorAll(".remove-btn").forEach((btn) => {
-      btn.addEventListener("click", () => removeFromCart(btn.getAttribute("data-barcode")));
+      btn.addEventListener("click", () => removeFromCart(Number(btn.getAttribute("data-id"))));
+    });
+    tbody.querySelectorAll(".row-type-select").forEach((sel) => {
+      sel.addEventListener("change", () => setRowType(Number(sel.getAttribute("data-id")), sel.value));
+    });
+    tbody.querySelectorAll(".row-remark-check").forEach((cb) => {
+      cb.addEventListener("change", () => toggleRowRemark(Number(cb.getAttribute("data-id")), cb.checked));
     });
 
-    // Inline editing: typing directly into a cart row's Name/Price updates
-    // that item in place. We deliberately do NOT call the full renderCart()
-    // here (that would rebuild the table and steal focus mid-keystroke) —
-    // only the grand total / split-payment section refreshes live.
+    // Inline editing: typing directly into a cart row's Name/Price/type-
+    // specific fields updates that item in place. We deliberately do NOT
+    // call the full renderCart() here for every keystroke (that would
+    // rebuild the table and steal focus mid-type) — only the grand total /
+    // split-payment section refreshes live. Fields whose on-screen value
+    // depends on ANOTHER field (e.g. "Rec"'s Balance Due) DO need a full
+    // re-render, via the data-rerender flag below.
     tbody.querySelectorAll(".cart-edit-input").forEach((input) => {
       input.addEventListener("input", () => {
-        const barcode = input.getAttribute("data-barcode");
+        const id = Number(input.getAttribute("data-id"));
         const field = input.getAttribute("data-field");
-        const item = cart.find((i) => i.barcode === barcode);
+        const item = cart.find((i) => i.id === id);
         if (!item) return;
 
         if (field === "name") {
           item.name = input.value;
         } else if (field === "price") {
           item.price = parseFloat(input.value) || 0;
+          item.agreed = item.price; // keep in sync so switching type later starts from a sane default
+          item.wsPrice = item.price;
+          item.spPrice = item.price;
           const hint = input.parentElement.querySelector(".line-total-hint");
           if (hint) hint.textContent = "= " + formatMoney(item.price * item.qty) + " THB";
-          renderGrandTotal(); // price changed — grand total & split payments must refresh
+          renderGrandTotal();
+        } else if (field === "remark") {
+          item.remark = input.value;
+        } else {
+          // agreed / deposit (pre only — rec's deposit is read-only) / wsPrice / spPrice
+          item[field] = parseFloat(input.value) || 0;
+          if (input.hasAttribute("data-rerender")) {
+            renderCart(); // this row's OTHER displayed fields (e.g. Balance Due) depend on this one
+          } else {
+            renderGrandTotal();
+          }
         }
       });
     });
@@ -4011,8 +4151,175 @@ function renderCart() {
   renderGrandTotal();
 }
 
+// Row background + the type dropdown's own colors, matching the approved
+// mockup's palette (pos_cart_type_variants.html) translated to this file's
+// Tailwind classes.
+const ROW_TYPE_STYLE = {
+  branch: { row: "", select: "bg-white border-gray-300 text-gray-700" },
+  pre:    { row: "bg-amber-50",  select: "bg-amber-100 border-amber-300 text-amber-800" },
+  rec:    { row: "bg-pink-50",   select: "bg-pink-100 border-pink-300 text-pink-800" },
+  ws:     { row: "bg-lime-50",   select: "bg-lime-100 border-lime-300 text-lime-800" },
+  sp:     { row: "bg-purple-50", select: "bg-purple-100 border-purple-300 text-purple-800" }
+};
+
+function typeFieldsHtml(item) {
+  const field = (label, name, value, opts) => `
+    <div class="flex flex-col gap-0.5">
+      <label class="text-[10px] font-semibold text-gray-500 whitespace-nowrap">${label}</label>
+      <input type="number" step="0.01" min="0" value="${value}"
+             class="cart-edit-input w-24 text-right border border-gray-200 rounded px-2 py-1 text-xs bg-white"
+             data-id="${item.id}" data-field="${name}" ${opts || ""}>
+    </div>`;
+  const readout = (label, value) => `
+    <div class="flex flex-col gap-0.5">
+      <label class="text-[10px] font-semibold text-gray-500 whitespace-nowrap">${label}</label>
+      <div class="text-xs font-bold text-emerald-800 pt-1.5">${formatMoney(value)}</div>
+    </div>`;
+
+  if (item.type === "pre") {
+    return `<div class="mt-1.5 p-2 rounded-lg bg-white/70 border border-dashed border-amber-300 flex flex-wrap gap-3">
+      ${field("Pre-Order Price", "agreed", item.agreed, 'data-rerender')}
+      ${field("ค่ามัดจำ (วันนี้)", "deposit", item.deposit)}
+    </div>`;
+  }
+  if (item.type === "rec") {
+    return `<div class="mt-1.5 p-2 rounded-lg bg-white/70 border border-dashed border-pink-300 flex flex-wrap gap-3">
+      ${field("Pre-Order Price", "agreed", item.agreed, 'data-rerender')}
+      ${readout("Deposit Paid", item.deposit)}
+      ${readout("Balance Due", Math.max(item.agreed - item.deposit, 0))}
+    </div>`;
+  }
+  if (item.type === "ws") {
+    return `<div class="mt-1.5 p-2 rounded-lg bg-white/70 border border-dashed border-lime-300 flex flex-wrap gap-3">
+      ${readout("ราคาปลีก (อ้างอิง)", item.price)}
+      ${field("ราคาส่ง/ชิ้น (บาท)", "wsPrice", item.wsPrice)}
+    </div>`;
+  }
+  if (item.type === "sp") {
+    return `<div class="mt-1.5 p-2 rounded-lg bg-white/70 border border-dashed border-purple-300 flex flex-wrap gap-3">
+      ${field("ราคาพิเศษ (บาท, ไม่คูณจำนวน)", "spPrice", item.spPrice)}
+    </div>`;
+  }
+  return "";
+}
+
+function cartRowHtml(item) {
+  const needsInfo = !item.name; // barcode wasn't found in the database
+  const style = ROW_TYPE_STYLE[item.type] || ROW_TYPE_STYLE.branch;
+  const branchLabel = getBranchCode() || "สาขา";
+  const remarkField = item.remarkOn
+    ? `<div class="mt-1.5"><input type="text" placeholder="เช่น นัดรับ, เบอร์ลูกค้า" value="${escapeHtml(item.remark)}"
+         class="cart-edit-input w-full border border-gray-200 rounded px-2 py-1 text-xs bg-white" data-id="${item.id}" data-field="remark"></div>`
+    : "";
+
+  return `
+    <tr class="border-b last:border-b-0 ${needsInfo ? "bg-amber-50" : style.row}">
+      <td class="py-3">
+        <div class="flex items-start gap-2">
+          <span class="w-8 h-8 rounded bg-emerald-50 text-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <i class="fa-solid fa-box"></i>
+          </span>
+          <div class="flex flex-col w-full min-w-0">
+            <input type="text" data-id="${item.id}" data-field="name"
+                   value="${escapeHtml(item.name)}" placeholder="Type product name..."
+                   class="cart-edit-input w-full bg-transparent border border-transparent hover:border-gray-200
+                          focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 focus:bg-white
+                          rounded px-2 py-1 ${needsInfo ? "placeholder-amber-500" : ""}">
+            <div class="flex items-center gap-2 flex-wrap px-2 mt-0.5">
+              <span class="text-xs text-gray-400">${escapeHtml(item.barcode)}</span>
+              <select data-id="${item.id}" class="row-type-select text-[10px] font-bold rounded-full border px-2 py-0.5 ${style.select}" ${item.lineId ? "disabled title='ผูกกับรายการจองจริง เอาออกได้เฉพาะด้วยปุ่มลบ 🗑'" : ""}>
+                <option value="branch" ${item.type === "branch" ? "selected" : ""}>${escapeHtml(branchLabel)}</option>
+                <option value="pre" ${item.type === "pre" ? "selected" : ""}>Pre</option>
+                <option value="rec" ${item.type === "rec" ? "selected" : ""} ${item.lineId ? "" : "disabled"}>Rec</option>
+                <option value="ws" ${item.type === "ws" ? "selected" : ""}>WS</option>
+                <option value="sp" ${item.type === "sp" ? "selected" : ""}>SP</option>
+              </select>
+              <label class="flex items-center gap-1 text-[10px] font-bold text-gray-500 cursor-pointer select-none">
+                <input type="checkbox" class="row-remark-check w-3.5 h-3.5" data-id="${item.id}" ${item.remarkOn ? "checked" : ""}> Remark
+              </label>
+            </div>
+            ${typeFieldsHtml(item)}
+            ${remarkField}
+          </div>
+        </div>
+      </td>
+      <td class="py-3">
+        <div class="flex items-center justify-center gap-2">
+          <button data-action="dec" data-id="${item.id}"
+                  class="qty-btn w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-lg font-bold">-</button>
+          <span class="w-6 text-center font-medium">${item.qty}</span>
+          <button data-action="inc" data-id="${item.id}"
+                  class="qty-btn w-8 h-8 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-lg font-bold">+</button>
+        </div>
+      </td>
+      <td class="py-3 text-right">
+        ${
+          item.type === "branch"
+            ? `<input type="number" step="0.01" min="0" data-id="${item.id}" data-field="price"
+                 value="${item.price}" placeholder="0.00"
+                 class="cart-edit-input w-24 text-right bg-transparent border border-transparent hover:border-gray-200
+                        focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 focus:bg-white rounded px-2 py-1">
+               ${item.qty > 1 ? `<div class="line-total-hint text-xs text-gray-400 mt-1">= ${formatMoney(item.price * item.qty)} THB</div>` : ""}`
+            : `<div class="font-semibold px-2 py-1">${formatMoney(collectAmount(item))}</div>`
+        }
+      </td>
+      <td class="py-3 text-center">
+        <button data-id="${item.id}" class="remove-btn text-red-500 hover:text-red-700 text-lg">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      </td>
+    </tr>`;
+}
+
+// A row's type only changes via this dropdown (never silently) — flips in
+// sensible defaults the first time a row becomes "Pre"/"WS"/"SP" (agreed/
+// wsPrice/spPrice default to whatever price it already had) so the inline
+// fields never start blank. Switching AWAY from "Rec" does not clear
+// lineId — switching back is harmless and re-shows the same real data —
+// but the dropdown itself only re-offers "Rec" while lineId is still set.
+function setRowType(id, type) {
+  const item = cart.find((i) => i.id === id);
+  if (!item) return;
+  if (type === "rec" && !item.lineId) {
+    // Shouldn't be reachable (the <option> is disabled without a lineId),
+    // but guard anyway — "Rec" only ever comes from the pull-preorders flow.
+    showToast('เลือก "Rec" ได้เฉพาะรายการที่ดึงมาจากปุ่ม "ดึงรายการจองของลูกค้านี้ใส่ตะกร้า" เท่านั้น', "error");
+    renderCart();
+    return;
+  }
+  item.type = type;
+  renderCart();
+}
+
+function toggleRowRemark(id, checked) {
+  const item = cart.find((i) => i.id === id);
+  if (!item) return;
+  item.remarkOn = checked;
+  renderCart();
+}
+
 function renderGrandTotal() {
   document.getElementById("grandTotalText").textContent = formatMoney(calculateGrandTotal());
+
+  const pieceTotalEl = document.getElementById("pieceTotalText");
+  if (pieceTotalEl) {
+    pieceTotalEl.textContent = cart.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+  }
+
+  const breakdownEl = document.getElementById("cartBreakdownBox");
+  if (breakdownEl) {
+    const byType = { branch: 0, pre: 0, rec: 0, ws: 0, sp: 0 };
+    cart.forEach((item) => { byType[item.type] = (byType[item.type] || 0) + collectAmount(item); });
+    const branchLabel = getBranchCode() || "สาขา";
+    breakdownEl.innerHTML = `
+      <div class="flex justify-between"><span>ขายปกติ (${escapeHtml(branchLabel)})</span><b>${formatMoney(byType.branch)}</b></div>
+      <div class="flex justify-between"><span>Pre-Order (มัดจำ)</span><b>${formatMoney(byType.pre)}</b></div>
+      <div class="flex justify-between"><span>Rec (รับของจอง)</span><b>${formatMoney(byType.rec)}</b></div>
+      <div class="flex justify-between"><span>WS (พ่อค้าส่ง)</span><b>${formatMoney(byType.ws)}</b></div>
+      <div class="flex justify-between"><span>SP (ราคาพิเศษ)</span><b>${formatMoney(byType.sp)}</b></div>
+    `;
+  }
+
   renderSplitInputs(); // keep split payment section in sync with the new total
 }
 
@@ -4147,7 +4454,15 @@ function validateSplitPayments() {
   let statusClass = "text-gray-400";
   let canSubmit = false;
 
-  if (nonCashSum - grandTotal > AMOUNT_EPSILON) {
+  if (grandTotal <= AMOUNT_EPSILON) {
+    // Nothing to collect — e.g. a "Pre" (booking) row with 0 deposit today.
+    // Added 2026-09 for the cart row-type feature; a normal sale's cart is
+    // never empty AND priced at zero in practice, so this never changes
+    // existing behavior.
+    statusText = cart.length > 0 ? "ไม่ต้องรับเงินผ่านช่องทางนี้ (0.00 THB)" : "";
+    statusClass = "text-gray-400";
+    canSubmit = true;
+  } else if (nonCashSum - grandTotal > AMOUNT_EPSILON) {
     // Non-cash channels alone already exceed the total — there's no such
     // thing as "change" for a transfer/card/co-pay, so this must be fixed.
     statusText = "ยอดโอน/บัตร/Co-Pay เกินยอดรวม กรุณาแก้ไขให้ถูกต้อง";
@@ -4183,7 +4498,8 @@ function validateSplitPayments() {
   statusLine.className = "text-right text-lg font-bold " + statusClass;
 
   const submitBtn = document.getElementById("submitBtn");
-  submitBtn.disabled = !(cart.length > 0 && activeMethods.size > 0 && canSubmit);
+  const paymentOk = grandTotal <= AMOUNT_EPSILON ? true : (activeMethods.size > 0 && canSubmit);
+  submitBtn.disabled = !(cart.length > 0 && paymentOk);
 }
 
 /* =================================================================
@@ -4315,9 +4631,214 @@ async function pullPreOrdersForSaleCustomer() {
   }
 }
 
+/* =================================================================
+   PULL CUSTOMER'S PRE-ORDERS INTO THE CART AS "Rec" ROWS (2026-09)
+   Matches the approved cart row-type mockup (pos_cart_type_variants.html).
+   Booking a brand-new pre-order ("Pre") no longer has its own modal/form —
+   it's just a normal cart row with its type dropdown set to "Pre". Only
+   "Rec" needs this pull-and-pick flow, since it must be matched to a real
+   existing PreOrder line. See collectAmount()/cartRowHtml() above and
+   handleSaveOneBillTransaction_ on the backend.
+   ================================================================= */
+
+// "📥 ดึงรายการจองของลูกค้านี้ใส่ตะกร้า" — uses the same typed customer code
+// as "📦 ดึงรายการพรีของลูกค้านี้" above, but shows BOTH "รอสินค้า" and
+// "แจ้งยอดแล้ว รอโอน" lines (that other button only shows the latter,
+// because it fires an immediate separate bill — this one only adds rows to
+// the current bill's cart, so a walk-in item that never went through
+// "แจ้งยอด" is fine too, same as the singular fulfill flow on the Pre-Order tab).
+async function openOneBillPickupModal() {
+  const code = document.getElementById("customerCodeInput").value.trim();
+  if (!code) {
+    showToast("กรุณาพิมพ์/สแกนรหัสลูกค้าก่อน", "error");
+    return;
+  }
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl === "YOUR_URL_HERE") {
+    showToast("กรุณาวางลิงก์ Apps Script Web App ที่แท็บ Settings ก่อน", "error");
+    return;
+  }
+  if (!currentStaff) return;
+
+  const btn = document.getElementById("oneBillOpenPickupBtn");
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "getPreOrders", pin: currentStaff.pin, branch: getBranchCode() })
+    });
+    const result = await response.json();
+    if (!result || result.status !== "success") {
+      throw new Error((result && result.message) || "โหลดรายการพรีออเดอร์ไม่สำเร็จ");
+    }
+    const alreadyInBill = new Set(cart.filter((i) => i.type === "rec").map((i) => i.lineId));
+    const eligible = (result.lines || []).filter(
+      (l) =>
+        l.customerCode === code &&
+        (l.status === PO_STATUS_WAITING_LABEL || l.status === PO_STATUS_INVOICED_LABEL) &&
+        !alreadyInBill.has(l.lineId)
+    );
+    if (eligible.length === 0) {
+      showToast("ไม่มีรายการพรีออเดอร์ที่ยังไม่ปิดบิลสำหรับรหัสนี้ (หรือเพิ่มเข้าบิลนี้ไปหมดแล้ว)", "error");
+      return;
+    }
+    oneBillPickupState = {
+      lines: eligible,
+      checked: new Set(eligible.map((l) => l.lineId)), // all pre-checked, same convenience default as poBulkFulfillModal
+      barcodes: new Map()
+    };
+    document.getElementById("oneBillPickupCustomerName").textContent = eligible[0].customerName || "ลูกค้าขาจร";
+    hideOneBillPickupModalError();
+    renderOneBillPickupChecklist();
+    document.getElementById("oneBillPickupModal").classList.remove("hidden");
+  } catch (err) {
+    console.error(err);
+    showToast("ดึงรายการพรีไม่สำเร็จ: " + err.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
+
+function closeOneBillPickupModal() {
+  oneBillPickupState = null;
+  document.getElementById("oneBillPickupModal").classList.add("hidden");
+}
+
+function renderOneBillPickupChecklist() {
+  const state = oneBillPickupState;
+  if (!state) return;
+  const box = document.getElementById("oneBillPickupChecklist");
+  box.innerHTML = state.lines
+    .map((l) => {
+      const checked = state.checked.has(l.lineId);
+      const barcodeVal = state.barcodes.get(l.lineId) || "";
+      // "รอสินค้า" lines don't have a backend-computed amountDue yet (that's
+      // only filled in at the "แจ้งยอด" step) — same agreed-minus-deposit
+      // math the onebill_prototype.html mockup used for this case.
+      const remain = l.status === PO_STATUS_INVOICED_LABEL ? l.amountDue : Math.max(l.agreedTotal - l.depositAmount, 0);
+      const statusPill =
+        l.status === PO_STATUS_INVOICED_LABEL
+          ? '<span class="bg-sky-100 text-sky-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">แจ้งยอดแล้ว</span>'
+          : '<span class="bg-amber-100 text-amber-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">รอสินค้า</span>';
+      return `
+      <div class="border-2 rounded-lg px-3 py-2 transition ${checked ? "border-sky-500 bg-sky-50" : "border-gray-200"}">
+        <label class="flex items-center gap-3 text-sm cursor-pointer">
+          <input type="checkbox" class="onebill-pickup-checkbox w-4 h-4" data-line-id="${escapeHtml(l.lineId)}" ${checked ? "checked" : ""}>
+          <span class="flex-1">${escapeHtml(l.itemName)} <span class="text-gray-400 text-xs">x${l.qty}</span> ${statusPill}</span>
+          <span class="text-xs text-gray-500">${formatMoney(remain)}</span>
+        </label>
+        ${
+          checked
+            ? `<input type="text" autocomplete="off" class="onebill-pickup-barcode-input mt-1.5 w-full border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-500" data-line-id="${escapeHtml(
+                l.lineId
+              )}" placeholder="สแกน/พิมพ์บาร์โค้ดจริงของชิ้นนี้..." value="${escapeHtml(barcodeVal)}">`
+            : ""
+        }
+      </div>`;
+    })
+    .join("");
+
+  box.querySelectorAll(".onebill-pickup-checkbox").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      const id = cb.getAttribute("data-line-id");
+      if (cb.checked) state.checked.add(id);
+      else {
+        state.checked.delete(id);
+        state.barcodes.delete(id);
+      }
+      renderOneBillPickupChecklist();
+    });
+  });
+  box.querySelectorAll(".onebill-pickup-barcode-input").forEach((input) => {
+    input.addEventListener("input", () => {
+      state.barcodes.set(input.getAttribute("data-line-id"), input.value);
+    });
+  });
+}
+
+function showOneBillPickupModalError(msg) {
+  const el = document.getElementById("oneBillPickupModalError");
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+function hideOneBillPickupModalError() {
+  const el = document.getElementById("oneBillPickupModalError");
+  el.classList.add("hidden");
+  el.textContent = "";
+}
+
+// Does NOT touch the backend — just resolves the checked lines (with their
+// scanned barcode) and pushes each straight into the main `cart` array as a
+// type:"rec" row, to be sent together with the rest of the cart the next
+// time SAVE & SUBMIT is pressed.
+function confirmOneBillPickupSelection() {
+  const state = oneBillPickupState;
+  if (!state) return;
+  hideOneBillPickupModalError();
+
+  const checkedLines = state.lines.filter((l) => state.checked.has(l.lineId));
+  if (checkedLines.length === 0) {
+    showOneBillPickupModalError("กรุณาเลือกอย่างน้อย 1 รายการ");
+    return;
+  }
+  for (const l of checkedLines) {
+    const barcode = (state.barcodes.get(l.lineId) || "").trim();
+    if (!barcode) {
+      showOneBillPickupModalError('กรุณาสแกน/พิมพ์บาร์โค้ดจริงของ "' + l.itemName + '" ให้ครบก่อน');
+      return;
+    }
+  }
+
+  checkedLines.forEach((l) => {
+    // "Deposit Paid" is shown reconciled against the TRUE amount left to
+    // collect (agreedTotal − remain), not just the raw deposit originally
+    // paid at booking — for an INVOICED line that "remain" is the backend's
+    // own locked amountDue (which can include a delivery fee negotiated at
+    // the "แจ้งยอด" step), same source of truth the old checklist modal
+    // already used. The backend itself never trusts any of this — it
+    // re-reads the real PreOrder row by lineId — these fields only drive
+    // what THIS screen shows/collects for the split-payment total.
+    const remain = l.status === PO_STATUS_INVOICED_LABEL ? l.amountDue : Math.max(l.agreedTotal - l.depositAmount, 0);
+    cart.push({
+      id: nextCartRowId++,
+      barcode: (state.barcodes.get(l.lineId) || "").trim(),
+      name: l.itemName,
+      price: 0,
+      qty: l.qty,
+      type: "rec",
+      agreed: l.agreedTotal,
+      deposit: l.agreedTotal - remain,
+      wsPrice: l.agreedTotal,
+      spPrice: l.agreedTotal,
+      lineId: l.lineId,
+      remarkOn: false,
+      remark: ""
+    });
+  });
+
+  closeOneBillPickupModal();
+  renderCart();
+  showToast("เพิ่มรายการรับของจอง " + checkedLines.length + " ชิ้นลงตะกร้าแล้ว", "success");
+}
+
+function setupOneBillPickupModal() {
+  document.getElementById("oneBillOpenPickupBtn").addEventListener("click", openOneBillPickupModal);
+  document.getElementById("oneBillPickupCancelBtn").addEventListener("click", closeOneBillPickupModal);
+  document.getElementById("oneBillPickupConfirmBtn").addEventListener("click", confirmOneBillPickupSelection);
+  document.getElementById("oneBillPickupModal").addEventListener("click", (e) => {
+    if (e.target.id === "oneBillPickupModal") closeOneBillPickupModal();
+  });
+}
+
 function setupCustomerSection() {
   setupDeliveryButtons();
   document.getElementById("pullPreOrdersBtn").addEventListener("click", pullPreOrdersForSaleCustomer);
+  setupOneBillPickupModal();
 
   const codeInput = document.getElementById("customerCodeInput");
   codeInput.addEventListener("keydown", (e) => {
@@ -4357,6 +4878,37 @@ function resetCustomerSection() {
 // EXISTING transactionId instead of a brand-new "sale" — every other
 // field (items/customer/payment) is extracted exactly the same way
 // either way, so a fresh sale and an edited one can never drift apart.
+// Maps cart rows that end up as plain Sales_History line items (branch/ws/sp
+// — "pre"/"rec" rows are handled completely separately, see
+// buildOneBillPayload below) into the {barcode,name,qty,price,lineTotal}
+// shape saveSaleTransaction_ expects. price is back-derived from
+// collectAmount() so lineTotal (the number that actually matters) is always
+// exactly right, even for "sp"'s flat not-×-qty pricing.
+function cartItemsForSale(rows) {
+  return rows.map((item) => {
+    const lineTotal = collectAmount(item);
+    const qty = Number(item.qty) || 0;
+    return {
+      barcode: item.barcode,
+      name: item.name,
+      qty: qty,
+      price: qty > 0 ? Math.round((lineTotal / qty) * 100) / 100 : lineTotal,
+      lineTotal: lineTotal
+    };
+  });
+}
+
+// Builds the request body for whatever the POS cart/customer/payment
+// section currently holds. `overrides` lets startEditingBill's flow
+// (submitEditSale below) turn this into an "editSale" request against an
+// EXISTING transactionId instead of a brand-new "sale" — every other
+// field (items/customer/payment) is extracted exactly the same way
+// either way, so a fresh sale and an edited one can never drift apart.
+// Only ever called when the cart has no "Pre"/"Rec" rows (submitTransaction
+// routes to buildOneBillPayload() instead the moment either exists) — a
+// cart of plain "branch"/"ws"/"sp" rows still posts the same "sale" action
+// it always has, so the by-far-most-common case (a normal sale, with no
+// pre-order booking or pickup involved) is untouched byte-for-byte.
 function buildPayload(overrides) {
   const grandTotal = calculateGrandTotal();
   const nonCashSum = getNonCashSum();
@@ -4377,13 +4929,7 @@ function buildPayload(overrides) {
     branch: getBranchCode(),
     timestamp: new Date().toISOString(),
     cashier: currentStaff ? currentStaff.name : "Admin",
-    items: cart.map((item) => ({
-      barcode: item.barcode,
-      name: item.name,
-      qty: item.qty,
-      price: item.price,
-      lineTotal: item.price * item.qty
-    })),
+    items: cartItemsForSale(cart),
     grandTotal: grandTotal,
     cashPaid: cashApplied,
     transferPaid: getSplitInputValue("transfer"),
@@ -4406,6 +4952,104 @@ function buildPayload(overrides) {
   return overrides ? Object.assign(payload, overrides) : payload;
 }
 
+// One-Bill Checkout (2026-09) — used INSTEAD of buildPayload() whenever the
+// cart has a "Pre" and/or "Rec" row. Splits the cart by row type: branch/
+// ws/sp rows become normal Sales_History line items (same as buildPayload),
+// "Rec" rows become pickupLines (lineId+realBarcode — the backend re-reads
+// the real PreOrder row itself, ignoring any other field), and "Pre" rows
+// become bookLines. Never called while editingTransactionId is set — editing
+// an existing bill keeps using the separate, untouched submitEditSale()
+// approval flow (updateSubmitBarForEditMode hides the "pull pre-orders"
+// button during edit mode, and historical bills only ever load back in as
+// plain "branch" rows — see startEditingBill).
+function buildOneBillPayload() {
+  const grandTotal = calculateGrandTotal();
+  const nonCashSum = getNonCashSum();
+  const cashValue = getSplitInputValue("cash");
+  const remainingForCash = Math.max(grandTotal - nonCashSum, 0);
+  const cashApplied = activeMethods.has("cash") ? Math.min(cashValue, remainingForCash) : 0;
+  const changeGiven = activeMethods.has("cash") ? Math.max(cashValue - remainingForCash, 0) : 0;
+  const transferApplied = getSplitInputValue("transfer");
+
+  const saleRows = cart.filter((i) => i.type === "branch" || i.type === "ws" || i.type === "sp");
+  const recRows = cart.filter((i) => i.type === "rec");
+  const preRows = cart.filter((i) => i.type === "pre");
+
+  // A "Pre" row's deposit is part of "money to collect today" (grandTotal
+  // above, and the on-screen split-payment total, already include it — see
+  // collectAmount()) but it is NOT Sales_History revenue: it's a liability,
+  // written only to PreOrderDeposits (handleSaveOneBillTransaction_). It has
+  // to be subtracted back out of whichever bucket collected it before
+  // cashPaid/transferPaid go to the backend, so the Sales_History row this
+  // produces (sale items + pickup balances only) still reconciles against
+  // its own recorded grandTotal. PreOrderDeposits only supports cash or
+  // transfer (same restriction as the existing "เปิดจองใหม่" tab), and the
+  // cart no longer collects a per-row deposit method — so this bill-level
+  // choice (transfer if any transfer was entered, else cash) is what gets
+  // recorded for every "Pre" row's deposit in this bill.
+  const preDepositSum = preRows.reduce((s, i) => s + (Number(i.deposit) || 0), 0);
+  const bookDepositMethod = activeMethods.has("transfer") ? "transfer" : "cash";
+  let cashForSales = cashApplied;
+  let transferForSales = transferApplied;
+  if (preDepositSum > 0) {
+    if (bookDepositMethod === "transfer") {
+      transferForSales = Math.max(transferApplied - preDepositSum, 0);
+    } else {
+      cashForSales = Math.max(cashApplied - preDepositSum, 0);
+    }
+  }
+
+  return {
+    action: "saveOneBillTransaction",
+    pin: currentStaff ? currentStaff.pin : "",
+    branch: getBranchCode(),
+    saleItems: cartItemsForSale(saleRows),
+    pickupLines: recRows.map((i) => ({ lineId: i.lineId, realBarcode: i.barcode })),
+    bookLines: preRows.map((i) => ({
+      itemName: i.name,
+      qty: i.qty,
+      agreedTotal: i.agreed,
+      depositAmount: i.deposit,
+      depositMethod: bookDepositMethod,
+      expectedArrivalNote: i.remarkOn ? i.remark : "",
+      itemBarcode: i.barcode || ""
+    })),
+    cashPaid: cashForSales,
+    transferPaid: transferForSales,
+    cardPaid: getSplitInputValue("card"),
+    copayPaid: getSplitInputValue("copay"),
+    changeGiven: changeGiven,
+    customerCode: document.getElementById("customerCodeInput").value.trim(),
+    customerName: document.getElementById("customerNameInput").value.trim(),
+    customerPhone: document.getElementById("customerPhoneInput").value.trim(),
+    customerAddress: document.getElementById("customerAddressInput").value.trim(),
+    deliveryMethod: deliveryMethod,
+    deliveryFee: 0,
+    remark: document.getElementById("billRemarkInput").value.trim()
+  };
+}
+
+// Guards the things buildOneBillPayload()/buildPayload() would otherwise
+// silently send wrong: a "Rec" row missing its scanned real barcode (should
+// be unreachable — it's required before confirmOneBillPickupSelection ever
+// creates the row — but a defensive check costs nothing), and a "Pre" row
+// with no name or a non-positive agreed price (the backend would reject an
+// empty-name booking anyway; catching it here gives a clearer message).
+function validateCartForSubmit() {
+  for (const item of cart) {
+    if (item.type === "rec" && !String(item.barcode || "").trim()) {
+      return 'รายการ "' + (item.name || item.lineId) + '" (Rec) ไม่มีบาร์โค้ดจริง — กรุณาลบแล้วดึงรายการจองใหม่อีกครั้ง';
+    }
+    if (item.type === "pre" && (!item.name || !String(item.name).trim())) {
+      return "กรุณาใส่ชื่อสินค้าให้ครบทุกแถวที่เป็น Pre";
+    }
+    if (item.type === "pre" && !((Number(item.agreed) || 0) > 0)) {
+      return 'รายการ "' + item.name + '" (Pre) ต้องระบุ Pre-Order Price มากกว่า 0';
+    }
+  }
+  return null;
+}
+
 async function submitTransaction() {
   const scriptUrl = getAppsScriptUrl();
   if (scriptUrl === "YOUR_URL_HERE") {
@@ -4422,12 +5066,24 @@ async function submitTransaction() {
     return;
   }
 
+  const cartError = validateCartForSubmit();
+  if (cartError) {
+    showToast(cartError, "error");
+    return;
+  }
+
   const submitBtn = document.getElementById("submitBtn");
   const originalHtml = submitBtn.innerHTML;
   submitBtn.disabled = true;
   submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
 
-  const payload = buildPayload();
+  // One-Bill Checkout: when this bill's cart has any "Pre"/"Rec" row, post
+  // the combined payload to the new action instead of the plain "sale" one.
+  // Falls back to the untouched buildPayload()/"sale" path whenever it
+  // doesn't — by far the most common case, and a plain (or WS/SP-only)
+  // cart stays byte-for-byte what it always was.
+  const isOneBillCheckout = cart.some((i) => i.type === "rec" || i.type === "pre");
+  const payload = isOneBillCheckout ? buildOneBillPayload() : buildPayload();
 
   try {
     // NOTE: Content-Type is deliberately "text/plain" (not "application/json").
@@ -4446,7 +5102,10 @@ async function submitTransaction() {
       throw new Error((result && result.message) || "Unknown error from server.");
     }
 
-    const idSuffix = result.transactionId ? " รหัสบิล: " + result.transactionId : "";
+    const idParts = [];
+    if (result.transactionId) idParts.push("รหัสบิล: " + result.transactionId);
+    if (result.poId) idParts.push("ใบจองใหม่: " + result.poId);
+    const idSuffix = idParts.length ? " " + idParts.join(" · ") : "";
     showToast("บันทึกรายการขายลง Google Sheets เรียบร้อยแล้ว!" + idSuffix, "success");
     resetPOSForNextSale();
   } catch (err) {
@@ -4459,7 +5118,7 @@ async function submitTransaction() {
 }
 
 function resetPOSForNextSale() {
-  cart = [];
+  cart = []; // clears every row and its type (branch/pre/rec/ws/sp) — this bill is done
   activeMethods = new Set(); // same as the page-load default above — no method pre-picked for the next sale either
   renderCart();
   renderPaymentButtons();
@@ -4497,12 +5156,20 @@ function startEditingBill(transactionId) {
   editingTransactionId = bill.transactionId;
 
   // Load the bill's recorded items into the cart exactly as saveSaleTransaction_
-  // recorded them (barcode/name/price/qty — lineTotal is always recomputed live).
+  // recorded them (barcode/name/price/qty — lineTotal is always recomputed
+  // live). Always type:"branch" — a historical Sales_History row never had
+  // a Pre/Rec/WS/SP row type (that's a 2026-09 cart-only concept), and the
+  // "Pull pre-orders into cart" button + type dropdown's "Rec" option are
+  // both hidden/disabled during edit mode anyway (updateSubmitBarForEditMode).
   cart = (bill.items || []).map((it) => ({
+    id: nextCartRowId++,
     barcode: it.barcode || "",
     name: it.name || "",
     price: Number(it.price) || 0,
-    qty: Number(it.qty) || 0
+    qty: Number(it.qty) || 0,
+    type: "branch", agreed: Number(it.price) || 0, deposit: 0,
+    wsPrice: Number(it.price) || 0, spPrice: Number(it.price) || 0,
+    lineId: null, remarkOn: false, remark: ""
   }));
 
   document.getElementById("customerCodeInput").value = bill.customerCode || "";
@@ -4551,6 +5218,14 @@ function cancelEditingBill() {
 function updateSubmitBarForEditMode() {
   const banner = document.getElementById("editModeBanner");
   const submitBtn = document.getElementById("submitBtn");
+  // Pulling pre-orders into the cart as "Rec" rows only makes sense for a
+  // brand-new bill — hide that button while editing an already-saved one
+  // (that flow keeps using the separate, untouched submitEditSale()
+  // approval path; buildOneBillPayload() is never called while
+  // editingTransactionId is set, and historical items always load back in
+  // as plain "branch" rows — see startEditingBill).
+  const oneBillPullSection = document.getElementById("oneBillPullSection");
+  if (oneBillPullSection) oneBillPullSection.classList.toggle("hidden", !!editingTransactionId);
   if (editingTransactionId) {
     document.getElementById("editModeTransactionId").textContent = editingTransactionId;
     banner.classList.remove("hidden");
@@ -13267,13 +13942,17 @@ function buildCartBillObject_(isDraft, existingBill) {
     customerName: document.getElementById("customerNameInput").value.trim(),
     customerPhone: document.getElementById("customerPhoneInput").value.trim(),
     customerAddress: document.getElementById("customerAddressInput").value.trim(),
-    items: cart.map((item) => ({
-      name: item.name,
-      barcode: item.barcode,
-      qty: item.qty,
-      unitPrice: item.price,
-      lineTotal: item.price * item.qty
-    })),
+    items: cart.map((item) => {
+      const lineTotal = collectAmount(item);
+      const qty = Number(item.qty) || 0;
+      return {
+        name: item.name,
+        barcode: item.barcode,
+        qty: qty,
+        unitPrice: qty > 0 ? Math.round((lineTotal / qty) * 100) / 100 : lineTotal,
+        lineTotal: lineTotal
+      };
+    }),
     grandTotal,
     paymentLines,
     amountDue: null,
