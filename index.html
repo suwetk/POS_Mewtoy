@@ -399,22 +399,6 @@
         </div>
       </div>
 
-      <!-- 2b. Pull a customer's existing pre-orders into THIS cart, as "Rec"
-           (รับของจอง) rows (2026-09 — matches the approved cart row-type
-           mockup, pos_cart_type_variants.html). Booking a brand-new
-           pre-order ("Pre") no longer needs its own form: scan/search the
-           item into the cart like any normal sale, then set that row's type
-           dropdown to "Pre" and fill in Pre-Order Price / deposit inline —
-           same for "WS"/"SP". Only "Rec" needs this button, because it has
-           to be matched to a REAL existing PreOrder line (to deduct the
-           right old deposit and mark it fulfilled) — see
-           confirmOneBillPickupSelection() and handleSaveOneBillTransaction_. -->
-      <div id="oneBillPullSection" class="bg-white rounded-xl shadow p-4">
-        <button id="oneBillOpenPickupBtn" type="button"
-                class="w-full border-2 border-pink-300 text-pink-700 hover:bg-pink-50 rounded-lg py-2.5 text-sm font-semibold transition">
-          📥 ดึงรายการจองของลูกค้านี้ใส่ตะกร้า (Rec)
-        </button>
-      </div>
     </div>
 
     <!-- ---------------- RIGHT COLUMN ---------------- -->
@@ -531,23 +515,42 @@
              เบอร์-ที่อยู่มาเติมให้อัตโนมัติ ถ้าไม่เจอ (ลูกค้าขาจร) ก็พิมพ์ข้อมูลเอง
              ในช่องด้านล่างได้เลย -->
         <label class="block text-xs text-gray-500 mb-1">รหัสลูกค้า / เบอร์โทร / ชื่อ Facebook-LINE — เว้นว่างได้ถ้าเป็นลูกค้าขาจร</label>
+        <!-- Yellow fill (2026-09, per Wing) — this box doubles as a
+             lookup/search field (code, phone, or Facebook/LINE name — see
+             findCustomer()), sitting right above the plain white
+             "ชื่อลูกค้า" input below. The two kept getting mixed up by
+             touch/click, so this one is now visually unmistakable instead
+             of relying on a focus-ring difference alone. -->
         <input id="customerCodeInput" type="text" autocomplete="off"
                placeholder="พิมพ์/สแกนรหัส, เบอร์โทร หรือชื่อ Facebook/LINE..."
-               class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 mb-1
-                      focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+               class="w-full border-2 border-amber-300 bg-amber-50 rounded-lg px-3 py-2 mb-1 font-medium
+                      focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-500">
         <p id="customerNotFoundHint" class="hidden text-xs text-amber-600 mb-2">
           <i class="fa-solid fa-triangle-exclamation mr-1"></i> ไม่พบรหัสนี้ — กรอกชื่อ/ที่อยู่เองด้านล่างได้เลย
         </p>
 
-        <!-- ดึงรายการพรีออเดอร์ที่ "แจ้งยอดแล้ว รอโอน" ของรหัสลูกค้านี้มาปิดบิล
-             — added 2026-09 per Wing's request. จงใจไม่ผสมเข้าตะกร้าขายปกติ
-             ด้านล่าง (ออกเป็นบิลแยกของตัวเองผ่าน poBulkFulfillModal) เพื่อไม่ต้อง
-             แตะโครงสร้างตะกร้าที่คีย์ด้วย barcode ซึ่งใช้ขายจริงทุกวันอยู่แล้ว —
-             ถ้าลูกค้าจะซื้อของอื่นเพิ่มวันนี้ด้วย คิดเป็นอีกบิลแยกตามปกติ -->
-        <button id="pullPreOrdersBtn" type="button"
-                class="w-full border-2 border-dashed border-emerald-300 text-emerald-700 hover:bg-emerald-50 rounded-lg py-2 text-xs font-semibold transition mb-2">
-          📦 ดึงรายการพรีของลูกค้านี้ (ที่พร้อมขายแล้ว)
-        </button>
+        <!-- Pull this customer's existing pre-orders into THIS cart, as "Rec"
+             (รับของจอง) rows (2026-09 — matches the approved cart row-type
+             mockup, pos_cart_type_variants.html; relocated here 2026-09 per
+             Wing, replacing the old green "ดึงรายการพรีของลูกค้านี้" button
+             that opened a separate immediate bill via poBulkFulfillModal —
+             that flow overlapped confusingly with this one, so it was
+             removed; poBulkFulfillModal itself is still used from the
+             Pre-Order tab's own "ปิดบิล X รายการ" button, untouched).
+             Booking a brand-new pre-order ("Pre") still doesn't need its
+             own form: scan/search the item into the cart like any normal
+             sale, then set that row's type dropdown to "Pre" and fill in
+             Pre-Order Price / deposit inline — same for "WS"/"SP". Only
+             "Rec" needs this button, because it has to be matched to a REAL
+             existing PreOrder line (to deduct the right old deposit and
+             mark it fulfilled) — see confirmOneBillPickupSelection() and
+             handleSaveOneBillTransaction_. -->
+        <div id="oneBillPullSection" class="mb-2">
+          <button id="oneBillOpenPickupBtn" type="button"
+                  class="w-full border-2 border-pink-300 text-pink-700 hover:bg-pink-50 rounded-lg py-2 text-xs font-semibold transition">
+            📥 ดึงรายการจองของลูกค้านี้ใส่ตะกร้า (Rec)
+          </button>
+        </div>
 
         <div class="flex flex-col gap-2">
           <input id="customerNameInput" type="text" placeholder="ชื่อลูกค้า"
@@ -1720,11 +1723,13 @@
   <!-- ปิดบิลรวมหลายรายการเป็นใบเดียว — added 2026-09 per Wing's request:
        ลูกค้าที่ "แจ้งยอดแล้ว รอโอน" ไว้หลายชิ้น (หรือมาจ่ายพร้อมกันทีเดียว)
        อยากออกเป็นใบเสร็จเดียว ไม่ใช่ทีละใบต่อชิ้นเหมือน poFulfillModal ด้านบน.
-       เรียกจาก 2 จุด: ปุ่ม "ปิดบิล X รายการ" ในหน้า ตามลูกค้า, และปุ่ม
-       "ดึงรายการพรีของลูกค้านี้" ในหน้าพิมพ์ขายหลัก (ดู pullPreOrdersForSaleCustomer)
-       — ทั้งสองจุดใช้ modal นี้ร่วมกัน, ยิง action "fulfillPreOrderItems" (พหูพจน์)
-       ไปที่ handleFulfillPreOrderItems_ ฝั่ง backend เหมือนกัน. รับเฉพาะรายการที่
-       สถานะ "แจ้งยอดแล้ว รอโอน" เท่านั้น (ที่ยัง "รอสินค้า" จะไม่ถูกส่งเข้ามาที่นี่เลย)
+       เรียกจากปุ่ม "ปิดบิล X รายการ" ในหน้า ตามลูกค้า เท่านั้น (เดิมยังเรียกได้จาก
+       ปุ่ม "ดึงรายการพรีของลูกค้านี้" สีเขียวในหน้าพิมพ์ขายหลักด้วย แต่ปุ่มนั้นถูก
+       ถอดออกไปแล้ว 2026-09 ตามที่ Wing ขอ — ซ้อนทับกับปุ่ม "📥 ดึงรายการจองของ
+       ลูกค้านี้ใส่ตะกร้า" (oneBillOpenPickupBtn) ที่ทำหน้าที่คล้ายกันแต่ครอบคลุม
+       กว่า จนงง). ยิง action "fulfillPreOrderItems" (พหูพจน์) ไปที่
+       handleFulfillPreOrderItems_ ฝั่ง backend. รับเฉพาะรายการที่สถานะ
+       "แจ้งยอดแล้ว รอโอน" เท่านั้น (ที่ยัง "รอสินค้า" จะไม่ถูกส่งเข้ามาที่นี่เลย)
        ตามที่ Wing ยืนยันไว้ — กันขายของที่ยังไม่มาจริง -->
   <div id="poBulkFulfillModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 flex flex-col gap-3 max-h-[90vh] overflow-y-auto">
@@ -1796,9 +1801,20 @@
   <div id="oneBillPickupModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 flex flex-col gap-3 max-h-[90vh] overflow-y-auto">
       <h3 class="font-semibold text-gray-800 text-lg flex items-center gap-2">
-        <i class="fa-solid fa-box-open text-pink-600"></i> รับของจอง — <span id="oneBillPickupCustomerName" class="text-pink-700"></span>
+        <i class="fa-solid fa-box-open text-pink-600"></i> รับของจอง
       </h3>
-      <p class="text-sm text-gray-500 -mt-2">เลือกรายการที่จะรับวันนี้ แล้วสแกน/พิมพ์บาร์โค้ดจริงให้ครบทุกชิ้น — ระบบจะหักมัดจำที่จ่ายไว้แล้วให้อัตโนมัติตอนบันทึกบิล</p>
+      <!-- Name/code called out as solid badges (2026-09, per Wing's approved
+           mockup) — plain text here used to blend into the "รับของจอง —"
+           label next to it. -->
+      <div class="flex items-center gap-2 flex-wrap -mt-2">
+        <span id="oneBillPickupCustomerName" class="font-bold text-white bg-pink-700 rounded-md px-2.5 py-1 text-sm"></span>
+        <span id="oneBillPickupCustomerCode" class="font-mono font-bold text-pink-700 bg-white border-2 border-pink-700 rounded-md px-2 py-0.5 text-xs"></span>
+      </div>
+      <p class="text-sm text-gray-500 -mt-1">เลือกรายการที่จะรับวันนี้ แล้วสแกน/พิมพ์บาร์โค้ดจริงให้ครบทุกชิ้น — ระบบจะหักมัดจำที่จ่ายไว้แล้วให้อัตโนมัติตอนบันทึกบิล</p>
+      <p class="text-xs text-gray-400 -mt-1.5 flex items-center gap-4 flex-wrap">
+        <span><span class="inline-block w-2 h-2 rounded-full bg-sky-600 mr-1"></span>แจ้งยอดแล้ว → ติ๊กให้อัตโนมัติ</span>
+        <span><span class="inline-block w-2 h-2 rounded-full bg-amber-500 mr-1"></span>รอสินค้า → ว่างไว้ ติ๊กเองถ้าจะขาย</span>
+      </p>
 
       <div id="oneBillPickupChecklist" class="flex flex-col gap-2"></div>
 
@@ -4147,6 +4163,31 @@ function calculateGrandTotal() {
   return cart.reduce((sum, item) => sum + collectAmount(item), 0);
 }
 
+// Patches ONE row's derived numbers (Price column + any tagged readout,
+// e.g. "Balance Due"/"เก็บวันนี้") in place, by text content only — never
+// touches the <input> DOM nodes. Used instead of a full renderCart() for
+// every keystroke in a "data-rerender" field (Pre-Order Price / มัดจำที่
+// รับไปแล้ว on Rec rows), because renderCart() rebuilds the whole table via
+// innerHTML, which destroys the very input the cashier is typing into and
+// drops keyboard focus off of it after every single character (2026-09,
+// per Wing: could only ever get one digit into "Pre-Order Price" before
+// focus jumped away). See typeFieldsHtml()'s readout()/field() helpers and
+// cartRowHtml()'s "row-price-display" cell for the other half of this.
+function refreshRowDisplay(id) {
+  const item = cart.find((i) => i.id === id);
+  if (!item) return;
+  const row = document.querySelector(`tr[data-row-id="${id}"]`);
+  if (row) {
+    const priceCell = row.querySelector(".row-price-display");
+    if (priceCell) priceCell.textContent = formatMoney(collectAmount(item));
+    const balanceDue = row.querySelector('[data-readout="balanceDue"]');
+    if (balanceDue) balanceDue.textContent = formatMoney(Math.max((Number(item.agreed) || 0) - (Number(item.deposit) || 0), 0));
+    const todayCollect = row.querySelector('[data-readout="todayCollect"]');
+    if (todayCollect) todayCollect.textContent = formatMoney(Math.max((Number(item.agreed) || 0) - (Number(item.deposit) || 0), 0));
+  }
+  renderGrandTotal();
+}
+
 function renderCart() {
   const tbody = document.getElementById("cartTableBody");
 
@@ -4201,11 +4242,22 @@ function renderCart() {
           renderGrandTotal();
         } else if (field === "remark") {
           item.remark = input.value;
+        } else if (field === "barcode") {
+          // Plain string field, same as name/remark — no parseFloat, and no
+          // rerender (this box only shows up while needsInfo/name is still
+          // blank, and typing a name doesn't rerender the row either, for
+          // the same reason: avoid rebuilding the very input being typed
+          // into mid-keystroke).
+          item.barcode = input.value;
         } else {
           // agreed / deposit (pre only — rec's deposit is read-only) / wsPrice / spPrice
           item[field] = parseFloat(input.value) || 0;
           if (input.hasAttribute("data-rerender")) {
-            renderCart(); // this row's OTHER displayed fields (e.g. Balance Due) depend on this one
+            // Patch this row's OTHER displayed fields (e.g. Balance Due) in
+            // place — NOT a full renderCart(), which would rebuild every
+            // input in the table (including this very one) and steal focus
+            // away mid-keystroke. See refreshRowDisplay() above.
+            refreshRowDisplay(id);
           } else {
             renderGrandTotal();
           }
@@ -4236,10 +4288,20 @@ function typeFieldsHtml(item) {
              class="cart-edit-input w-24 text-right border border-gray-200 rounded px-2 py-1 text-xs bg-white"
              data-id="${item.id}" data-field="${name}" ${opts || ""}>
     </div>`;
-  const readout = (label, value) => `
+  // readoutKey (optional) tags this readout with data-readout so
+  // refreshRowDisplay() can update its number in place after a sibling
+  // data-rerender field changes — WITHOUT calling the full renderCart(),
+  // which would destroy and recreate every input in the table (including
+  // whichever one the cashier is mid-keystroke in) and silently steal
+  // focus back out. See refreshRowDisplay() below / the cart-edit-input
+  // "input" handler for the other half of this (2026-09, per Wing: typing
+  // into "Pre-Order Price" on a pulled Rec row only ever accepted one
+  // digit before focus jumped away — this was the actual cause).
+  const readout = (label, value, readoutKey) => `
     <div class="flex flex-col gap-0.5">
       <label class="text-[10px] font-semibold text-gray-500 whitespace-nowrap">${label}</label>
-      <div class="text-xs font-bold text-emerald-800 pt-1.5">${formatMoney(value)}</div>
+      <div class="text-xs font-bold text-emerald-800 pt-1.5"
+           ${readoutKey ? `data-readout="${readoutKey}" data-id="${item.id}"` : ""}>${formatMoney(value)}</div>
     </div>`;
 
   if (item.type === "pre") {
@@ -4256,7 +4318,7 @@ function typeFieldsHtml(item) {
     return `<div class="mt-1.5 p-2 rounded-lg bg-white/70 border border-dashed border-pink-300 flex flex-wrap gap-3">
       ${field("Pre-Order Price", "agreed", item.agreed, 'data-rerender')}
       ${readout("Deposit Paid", item.deposit)}
-      ${readout("Balance Due", Math.max(item.agreed - item.deposit, 0))}
+      ${readout("Balance Due", Math.max(item.agreed - item.deposit, 0), "balanceDue")}
     </div>`;
   }
   if (item.type === "rec" && !item.lineId) {
@@ -4272,7 +4334,7 @@ function typeFieldsHtml(item) {
       <div class="flex flex-wrap gap-3">
         ${field("Pre-Order Price", "agreed", item.agreed, 'data-rerender')}
         ${field("มัดจำที่รับไปแล้ว", "deposit", item.deposit, 'data-rerender')}
-        ${readout("เก็บวันนี้", Math.max((Number(item.agreed) || 0) - (Number(item.deposit) || 0), 0))}
+        ${readout("เก็บวันนี้", Math.max((Number(item.agreed) || 0) - (Number(item.deposit) || 0), 0), "todayCollect")}
       </div>
       <div class="text-[10px] text-pink-700 leading-snug">⚠️ กรอกเอง — ระบบจะไม่ไปปิดสถานะรายการจองจริงในชีต PreOrders ให้อัตโนมัติ กรุณาไปปิดสถานะ/ตัดยอดในชีตเองภายหลัง</div>
     </div>`;
@@ -4301,7 +4363,7 @@ function cartRowHtml(item) {
     : "";
 
   return `
-    <tr class="border-b last:border-b-0 ${needsInfo ? "bg-amber-50" : style.row}">
+    <tr data-row-id="${item.id}" class="border-b last:border-b-0 ${needsInfo ? "bg-amber-50" : style.row}">
       <td class="py-3">
         <div class="flex items-start gap-2">
           <span class="w-8 h-8 rounded bg-emerald-50 text-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -4314,7 +4376,24 @@ function cartRowHtml(item) {
                           focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 focus:bg-white
                           rounded px-2 py-1 ${needsInfo ? "placeholder-amber-500" : ""}">
             <div class="flex items-center gap-2 flex-wrap px-2 mt-0.5">
-              <span class="text-xs text-gray-400">${escapeHtml(item.barcode)}</span>
+              ${
+                // Barcode display (2026-09, per Wing: was a small grey span
+                // easy to miss — now a big pill the same text-size class as
+                // the item name, in a distinct color so it still reads as
+                // "this is the barcode" at a glance. When this row's name
+                // wasn't found in the product database (needsInfo), the
+                // barcode field is actually just whatever was scanned/typed
+                // — still worth showing, but also worth letting staff
+                // correct it right here instead of only the name/price, so
+                // it becomes an editable box instead of a read-only pill.
+                needsInfo
+                  ? `<input type="text" data-id="${item.id}" data-field="barcode" value="${escapeHtml(item.barcode)}"
+                       placeholder="ยังไม่มีบาร์โค้ด — พิมพ์หรือยิงสแกนเนอร์ใส่ตรงนี้ได้เลย"
+                       class="cart-edit-input font-mono text-xs sm:text-sm font-bold text-amber-800 bg-amber-50
+                              border-2 border-dashed border-amber-300 rounded-md px-2 py-1 w-full sm:w-64
+                              focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-500">`
+                  : bigBarcodePill_(item.barcode)
+              }
               <select data-id="${item.id}" class="row-type-select text-[10px] font-bold rounded-full border px-2 py-0.5 ${style.select}" ${item.lineId ? "disabled title='ผูกกับรายการจองจริง เอาออกได้เฉพาะด้วยปุ่มลบ 🗑'" : ""}>
                 <option value="branch" ${item.type === "branch" ? "selected" : ""}>${escapeHtml(branchLabel)}</option>
                 <option value="pre" ${item.type === "pre" ? "selected" : ""}>Pre</option>
@@ -4348,7 +4427,7 @@ function cartRowHtml(item) {
                  class="cart-edit-input w-24 text-right bg-transparent border border-transparent hover:border-gray-200
                         focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 focus:bg-white rounded px-2 py-1">
                ${item.qty > 1 ? `<div class="line-total-hint text-xs text-gray-400 mt-1">= ${formatMoney(item.price * item.qty)} THB</div>` : ""}`
-            : `<div class="font-semibold px-2 py-1">${formatMoney(collectAmount(item))}</div>`
+            : `<div class="row-price-display font-semibold px-2 py-1">${formatMoney(collectAmount(item))}</div>`
         }
       </td>
       <td class="py-3 text-center">
@@ -4673,57 +4752,14 @@ function lookupCustomerCode() {
   }
 }
 
-// "📦 ดึงรายการพรีของลูกค้านี้" บนหน้าพิมพ์ขายหลัก — added 2026-09. ใช้รหัส
-// ลูกค้าที่พิมพ์ไว้ในช่อง customerCodeInput ตัวเดียวกับที่ใช้ตอนขายอยู่แล้ว
-// ไปดึงเฉพาะรายการพรีที่สถานะ "แจ้งยอดแล้ว รอโอน" (พร้อมขายจริง) — รายการที่
-// ยัง "รอสินค้า" จะไม่ถูกดึงมาให้เลือกเลย กันขายของที่ยังไม่มาจริงตามที่ Wing
-// ยืนยันไว้ — แล้วเปิด poBulkFulfillModal (โมดัลเดียวกับปุ่ม "ปิดบิล X รายการ"
-// ในหน้า ตามลูกค้า) ให้เลือก/สแกนบาร์โค้ดจริง/ปิดบิลเป็นใบเดียวจากตรงนี้ได้เลย
-// โดยไม่ต้องสลับไปแท็บพรีออเดอร์.
-async function pullPreOrdersForSaleCustomer() {
-  const code = document.getElementById("customerCodeInput").value.trim();
-  if (!code) {
-    showToast("กรุณาพิมพ์/สแกนรหัสลูกค้าก่อน", "error");
-    return;
-  }
-  const scriptUrl = getAppsScriptUrl();
-  if (scriptUrl === "YOUR_URL_HERE") {
-    showToast("กรุณาวางลิงก์ Apps Script Web App ที่แท็บ Settings ก่อน", "error");
-    return;
-  }
-  if (!currentStaff) return;
-
-  const btn = document.getElementById("pullPreOrdersBtn");
-  const originalHtml = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-
-  try {
-    const response = await fetch(scriptUrl, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "getPreOrders", pin: currentStaff.pin, branch: getBranchCode() })
-    });
-    const result = await response.json();
-    if (!result || result.status !== "success") {
-      throw new Error((result && result.message) || "โหลดรายการพรีออเดอร์ไม่สำเร็จ");
-    }
-    const invoiced = (result.lines || []).filter(
-      (l) => normalizeCustomerCode(l.customerCode) === normalizeCustomerCode(code) && l.status === PO_STATUS_INVOICED_LABEL
-    );
-    if (invoiced.length === 0) {
-      showToast("ไม่มีรายการพรีออเดอร์ที่พร้อมขาย (แจ้งยอดแล้ว) สำหรับรหัสนี้", "error");
-      return;
-    }
-    openPoBulkFulfillModal(invoiced);
-  } catch (err) {
-    console.error(err);
-    showToast("ดึงรายการพรีไม่สำเร็จ: " + err.message, "error");
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = originalHtml;
-  }
-}
+// The old green "📦 ดึงรายการพรีของลูกค้านี้" button/handler
+// (pullPreOrdersForSaleCustomer) that used to live here was removed
+// 2026-09 per Wing — it opened a separate immediate bill via
+// poBulkFulfillModal, overlapping confusingly with the pink "📥 ดึงรายการ
+// จองของลูกค้านี้ใส่ตะกร้า" button below (openOneBillPickupModal), which now
+// covers both WAITING and INVOICED lines from one place. poBulkFulfillModal
+// itself is untouched — it's still opened from the Pre-Order tab's own
+// "ปิดบิล X รายการ" button (see openPoBulkFulfillModal's other caller).
 
 /* =================================================================
    PULL CUSTOMER'S PRE-ORDERS INTO THE CART AS "Rec" ROWS (2026-09)
@@ -4780,12 +4816,25 @@ async function openOneBillPickupModal() {
       showToast("ไม่มีรายการพรีออเดอร์ที่ยังไม่ปิดบิลสำหรับรหัสนี้ (หรือเพิ่มเข้าบิลนี้ไปหมดแล้ว)", "error");
       return;
     }
+    // Sort so already-invoiced ("แจ้งยอดแล้ว", ready-to-sell) lines group
+    // first and pre-check by default; "รอสินค้า" lines sort after and stay
+    // unchecked, so selling something that hasn't gone through "แจ้งยอด"
+    // yet takes a deliberate tick (2026-09, per approved mockup
+    // pos_rec_pickup_redesign_mockup.html — Array.prototype.sort is stable,
+    // so relative order within each status group is otherwise unchanged).
+    const rank_ = (l) => (l.status === PO_STATUS_INVOICED_LABEL ? 0 : 1);
+    eligible.sort((a, b) => rank_(a) - rank_(b));
     oneBillPickupState = {
       lines: eligible,
-      checked: new Set(eligible.map((l) => l.lineId)), // all pre-checked, same convenience default as poBulkFulfillModal
-      barcodes: new Map()
+      checked: new Set(eligible.filter((l) => l.status === PO_STATUS_INVOICED_LABEL).map((l) => l.lineId)),
+      // Pre-fill the pickup-barcode-confirm box from whatever barcode this
+      // line already had on file (itemBarcode, captured at booking/scan
+      // time) instead of always starting blank — "ถ้ามีอยู่แล้วให้โชว์" per
+      // Wing. Still editable/overridable, same box as before.
+      barcodes: new Map(eligible.filter((l) => l.itemBarcode).map((l) => [l.lineId, l.itemBarcode]))
     };
     document.getElementById("oneBillPickupCustomerName").textContent = eligible[0].customerName || "ลูกค้าขาจร";
+    document.getElementById("oneBillPickupCustomerCode").textContent = eligible[0].customerCode || code;
     hideOneBillPickupModalError();
     renderOneBillPickupChecklist();
     document.getElementById("oneBillPickupModal").classList.remove("hidden");
@@ -4807,7 +4856,12 @@ function renderOneBillPickupChecklist() {
   const state = oneBillPickupState;
   if (!state) return;
   const box = document.getElementById("oneBillPickupChecklist");
-  box.innerHTML = state.lines
+
+  // Group headers (2026-09, per approved mockup) — state.lines is already
+  // sorted invoiced-first by openOneBillPickupModal(), so a header is
+  // inserted whenever the status changes from the previous line.
+  let lastGroup = null;
+  const rowsHtml = state.lines
     .map((l) => {
       const checked = state.checked.has(l.lineId);
       const barcodeVal = state.barcodes.get(l.lineId) || "";
@@ -4819,12 +4873,34 @@ function renderOneBillPickupChecklist() {
         l.status === PO_STATUS_INVOICED_LABEL
           ? '<span class="bg-sky-100 text-sky-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">แจ้งยอดแล้ว</span>'
           : '<span class="bg-amber-100 text-amber-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">รอสินค้า</span>';
+
+      let groupHeaderHtml = "";
+      if (l.status !== lastGroup) {
+        lastGroup = l.status;
+        groupHeaderHtml =
+          l.status === PO_STATUS_INVOICED_LABEL
+            ? '<div class="text-[10px] font-bold tracking-wide text-gray-500 uppercase pt-1">✓ ติ๊กไว้ให้แล้ว — แจ้งยอดแล้ว พร้อมขาย</div>'
+            : '<div class="text-[10px] font-bold tracking-wide text-gray-500 uppercase pt-1">รอสินค้า — ยังไม่แจ้งยอด (ติ๊กเองถ้าจะขายเลย)</div>';
+      }
+
       return `
+      ${groupHeaderHtml}
       <div class="border-2 rounded-lg px-3 py-2 transition ${checked ? "border-sky-500 bg-sky-50" : "border-gray-200"}">
-        <label class="flex items-center gap-3 text-sm cursor-pointer">
-          <input type="checkbox" class="onebill-pickup-checkbox w-4 h-4" data-line-id="${escapeHtml(l.lineId)}" ${checked ? "checked" : ""}>
-          <span class="flex-1">${escapeHtml(l.itemName)} <span class="text-gray-400 text-xs">x${l.qty}</span> ${statusPill}</span>
-          <span class="text-xs text-gray-500">${formatMoney(remain)}</span>
+        <label class="flex items-start gap-3 text-sm cursor-pointer">
+          <input type="checkbox" class="onebill-pickup-checkbox w-4 h-4 mt-0.5" data-line-id="${escapeHtml(l.lineId)}" ${checked ? "checked" : ""}>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-medium">${escapeHtml(l.itemName)}</span>
+              <span class="text-gray-400 text-xs">x${l.qty}</span>
+              ${bigBarcodePill_(l.itemBarcode)}
+              ${statusPill}
+            </div>
+            <div class="flex items-center gap-4 flex-wrap mt-1 text-[11px]">
+              <span class="text-gray-500">ราคาคนจอง <b class="text-gray-800">${l.agreedTotal ? formatMoney(l.agreedTotal) : "—"}</b></span>
+              <span class="text-gray-500">มัดจำแล้ว <b class="text-gray-800">${formatMoney(l.depositAmount)}</b></span>
+              <span class="text-gray-500">คงเหลือ <b class="${checked ? "text-pink-700" : "text-gray-800"}">${l.agreedTotal ? formatMoney(remain) : "—"}</b></span>
+            </div>
+          </div>
         </label>
         ${
           checked
@@ -4836,6 +4912,7 @@ function renderOneBillPickupChecklist() {
       </div>`;
     })
     .join("");
+  box.innerHTML = rowsHtml;
 
   box.querySelectorAll(".onebill-pickup-checkbox").forEach((cb) => {
     cb.addEventListener("change", () => {
@@ -4931,7 +5008,6 @@ function setupOneBillPickupModal() {
 
 function setupCustomerSection() {
   setupDeliveryButtons();
-  document.getElementById("pullPreOrdersBtn").addEventListener("click", pullPreOrdersForSaleCustomer);
   setupOneBillPickupModal();
 
   const codeInput = document.getElementById("customerCodeInput");
@@ -9469,13 +9545,13 @@ function setupPreOrderFulfillModal() {
    request: หลังปิดโต๊ะ "แจ้งยอดแล้ว รอโอน" ไว้แล้ว (ไม่ว่าจะผ่าน แจ้งยอดรวม /
    ของเข้ารอบนี้ / แจ้งยอดทีละชิ้นแบบเดิม) พอลูกค้าจ่ายจริง อยากเลือกได้ว่าจะ
    ปิดกี่รายการพร้อมกัน แล้วออกเป็นใบเสร็จเดียว (ตรงข้ามกับ poFulfillModal
-   ด้านบนที่ปิดได้ทีละ 1 รายการ/1 ใบเสร็จเท่านั้น). ใช้ร่วมกันจาก 2 ทางเข้า:
-     - ปุ่ม "ปิดบิล X รายการ" ในหน้า ตามลูกค้า (renderPreOrderCustomerView)
-     - ปุ่ม "ดึงรายการพรีของลูกค้านี้" ในหน้าพิมพ์ขายหลัก (pullPreOrdersForSaleCustomer)
-       — จงใจไม่ผสมเข้ากับตะกร้า (cart) ของหน้าพิมพ์ขายเลย เพื่อไม่ต้องแตะ
-       โครงสร้างตะกร้าที่คีย์ด้วย barcode ซึ่งใช้กับการขายจริงทุกวันอยู่แล้ว —
-       ออกเป็นบิลของตัวเองแยกต่างหาก ถ้าลูกค้าจะซื้อของอื่นเพิ่มด้วยก็คิดแยกบิล
-       ปกติ.
+   ด้านบนที่ปิดได้ทีละ 1 รายการ/1 ใบเสร็จเท่านั้น). เรียกจากปุ่ม "ปิดบิล X รายการ"
+   ในหน้า ตามลูกค้า (renderPreOrderCustomerView) เท่านั้นตอนนี้ — เดิมยังเรียกได้
+   จากปุ่ม "ดึงรายการพรีของลูกค้านี้" สีเขียวในหน้าพิมพ์ขายหลักด้วย (แยกเป็นบิล
+   ของตัวเอง ไม่ผสมกับตะกร้า) แต่ปุ่มนั้นถูกถอดออกไปแล้ว 2026-09 ตามที่ Wing ขอ
+   เพราะซ้อนทับกับปุ่ม "📥 ดึงรายการจองของลูกค้านี้ใส่ตะกร้า" (oneBillOpenPickupBtn
+   / openOneBillPickupModal ด้านล่าง) จนงง — ปุ่มนั้นครอบคลุมกว่าเพราะดึงได้ทั้ง
+   "รอสินค้า" และ "แจ้งยอดแล้ว" เข้าตะกร้าบิลเดียวกันเลย.
    ----------------------------------------------------------------- */
 let poBulkFulfillState = null;         // { lines, checked:Set, barcodes:Map } while the modal is open
 let poBulkFulfillDeliveryMethod = "pickup";
@@ -12926,6 +13002,20 @@ function storewdBarcodeChip_(barcode) {
   return barcode
     ? `<span class="bg-slate-100 border border-slate-300 text-slate-700 font-mono text-[12px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap">${escapeHtml(barcode)}</span>`
     : `<span class="bg-gray-50 border border-dashed border-gray-300 text-gray-400 text-[11px] px-1.5 py-0.5 rounded whitespace-nowrap">ไม่มีบาร์โค้ด</span>`;
+}
+
+// Bigger, bluer barcode pill — same text-size class as an item name, in a
+// color distinct from both the name and storewdBarcodeChip_'s grey chip
+// above, so it reads as "this is the barcode" at a glance without having
+// to be small/muted to do it (2026-09, per Wing's approved mockup
+// pos_rec_pickup_redesign_mockup.html). Used in the POS cart row header
+// (cartRowHtml) and the "📥 ดึงรายการจองของลูกค้านี้" pickup checklist
+// (renderOneBillPickupChecklist) — storewdBarcodeChip_ above is left as-is
+// for the Store Withdrawal / WS draft screens, which Wing didn't ask to change.
+function bigBarcodePill_(barcode) {
+  return barcode
+    ? `<span class="font-mono text-sm sm:text-base font-bold text-sky-800 bg-sky-50 border border-sky-300 rounded-md px-2 py-0.5 whitespace-nowrap">${escapeHtml(barcode)}</span>`
+    : `<span class="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-dashed border-amber-300 rounded-md px-1.5 py-0.5 whitespace-nowrap">ไม่มีบาร์โค้ด</span>`;
 }
 
 // Qty badge — big, bold, tabular-nums, sitting at the FAR RIGHT of the
