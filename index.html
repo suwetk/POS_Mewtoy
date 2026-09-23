@@ -8403,11 +8403,26 @@ function preOrderLineActionButtons(line) {
     );
   }
   const fulfillTitle = line.status === PO_STATUS_INVOICED_LABEL ? "ยืนยันรับเงิน + ออกบิล" : "ปิดออเดอร์ทันที";
+  // 2026-09, per Wing: a booking opened as a "Pre" row inside a combined
+  // POS bill (alongside a normal sale and/or a "Rec" pickup) carries that
+  // bill's transaction id here — same "ดูบิล" icon as the DONE/fulfilled
+  // case above, so it's visible at a glance which sale this booking was
+  // opened together with. Blank for a plain standalone booking, so the
+  // icon simply doesn't show for those.
+  const openedWithBillBtn = line.openedWithTransactionId
+    ? poIconBtn_(
+        "po-view-bill-btn bg-gray-100 hover:bg-gray-200 text-gray-500",
+        "fa-receipt",
+        "เปิดจองพร้อมบิล " + line.openedWithTransactionId,
+        `data-transaction-id="${escapeHtml(line.openedWithTransactionId)}"`
+      )
+    : "";
   return `
     <div class="flex items-center gap-1.5">
       ${poIconBtn_("po-fulfill-btn bg-emerald-50 hover:bg-emerald-100 text-emerald-700", "fa-receipt", fulfillTitle, `data-line-id="${escapeHtml(line.lineId)}"`)}
       ${poIconBtn_("po-add-deposit-btn bg-sky-50 hover:bg-sky-100 text-sky-700", "fa-hand-holding-dollar", "เพิ่มมัดจำ", `data-line-id="${escapeHtml(line.lineId)}"`)}
       ${poIconBtn_("po-cancel-btn bg-red-50 hover:bg-red-100 text-red-600", "fa-xmark", "ยกเลิกใบจอง", `data-line-id="${escapeHtml(line.lineId)}"`)}
+      ${openedWithBillBtn}
     </div>`;
 }
 
