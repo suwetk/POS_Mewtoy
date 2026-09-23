@@ -526,11 +526,13 @@
           </button>
         </div>
 
-        <!-- รหัสลูกค้า: พิมพ์/สแกนรหัส แล้วดึงชื่อ-เบอร์-ที่อยู่มาเติมให้อัตโนมัติ
-             ถ้าไม่เจอ (ลูกค้าขาจร) ก็พิมพ์ข้อมูลเองในช่องด้านล่างได้เลย -->
-        <label class="block text-xs text-gray-500 mb-1">รหัสลูกค้า (เช่น C001) — เว้นว่างได้ถ้าเป็นลูกค้าขาจร</label>
+        <!-- รหัสลูกค้า: พิมพ์/สแกนรหัส หรือเบอร์โทร หรือชื่อ Facebook/LINE
+             (2026-09, per Wing — ดู findCustomer() ในไฟล์นี้) แล้วดึงรหัส-ชื่อ-
+             เบอร์-ที่อยู่มาเติมให้อัตโนมัติ ถ้าไม่เจอ (ลูกค้าขาจร) ก็พิมพ์ข้อมูลเอง
+             ในช่องด้านล่างได้เลย -->
+        <label class="block text-xs text-gray-500 mb-1">รหัสลูกค้า / เบอร์โทร / ชื่อ Facebook-LINE — เว้นว่างได้ถ้าเป็นลูกค้าขาจร</label>
         <input id="customerCodeInput" type="text" autocomplete="off"
-               placeholder="พิมพ์/สแกนรหัสลูกค้า..."
+               placeholder="พิมพ์/สแกนรหัส, เบอร์โทร หรือชื่อ Facebook/LINE..."
                class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 mb-1
                       focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
         <p id="customerNotFoundHint" class="hidden text-xs text-amber-600 mb-2">
@@ -932,8 +934,8 @@
           </div>
 
           <div>
-            <label class="block text-xs text-gray-500 mb-1">รหัสลูกค้า (เว้นว่างได้ถ้าเป็นลูกค้าขาจร)</label>
-            <input id="poCustomerCodeInput" type="text" autocomplete="off" placeholder="พิมพ์/สแกนรหัสลูกค้า..."
+            <label class="block text-xs text-gray-500 mb-1">รหัสลูกค้า / เบอร์โทร / ชื่อ Facebook-LINE (เว้นว่างได้ถ้าเป็นลูกค้าขาจร)</label>
+            <input id="poCustomerCodeInput" type="text" autocomplete="off" placeholder="พิมพ์/สแกนรหัส, เบอร์โทร หรือชื่อ Facebook/LINE..."
                    class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 mb-1
                           focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
             <p id="poCustomerNotFoundHint" class="hidden text-xs text-amber-600 mb-1">
@@ -985,6 +987,7 @@
                              focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
                 <option value="cash">เงินสด</option>
                 <option value="transfer">โอน (TT)</option>
+                <option value="credit">บัตรเครดิต</option>
               </select>
             </div>
             <input id="poItemExpectedArrivalInput" type="text" placeholder="คาดว่าของเข้า (ถ้าทราบ) เช่น ~20 ต.ค. 69"
@@ -1370,8 +1373,8 @@
             <h2 class="font-semibold text-gray-700">👤 ลูกค้า (พ่อค้าส่ง)</h2>
 
             <div>
-              <label class="block text-xs text-gray-500 mb-1">รหัสลูกค้า (เว้นว่างได้ถ้ายังไม่มีในลิสต์ — พิมพ์ชื่อเองด้านล่าง)</label>
-              <input id="wsCustomerCodeInput" type="text" autocomplete="off" placeholder="พิมพ์/สแกนรหัสลูกค้า..."
+              <label class="block text-xs text-gray-500 mb-1">รหัสลูกค้า / เบอร์โทร / ชื่อ Facebook-LINE (เว้นว่างได้ถ้ายังไม่มีในลิสต์ — พิมพ์ชื่อเองด้านล่าง)</label>
+              <input id="wsCustomerCodeInput" type="text" autocomplete="off" placeholder="พิมพ์/สแกนรหัส, เบอร์โทร หรือชื่อ Facebook/LINE..."
                      class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 mb-1
                             focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
               <p id="wsCustomerNotFoundHint" class="hidden text-xs text-amber-600 mb-1">
@@ -1837,6 +1840,7 @@
                          focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-500">
             <option value="cash">เงินสด</option>
             <option value="transfer">โอน (TT)</option>
+            <option value="credit">บัตรเครดิต</option>
           </select>
         </div>
       </div>
@@ -3295,7 +3299,8 @@ let productMap = new Map();   // barcode (string) -> { barcode, name, price, sho
                                // (price2/cost/yen are only ever DISPLAYED to Master-role staff — see
                                // updateProductCheckAdminColumns — but are present in every product object)
 let productList = [];         // flat array of the same products, for name search
-let customerMap = new Map();  // customer code (string) -> { code, name, phone, address }
+let customerMap = new Map();  // customer code (string) -> { code, name, phone, socialName, address }
+let customerList = [];        // flat array of the same customers, for phone/social-name search (2026-09)
 // Cart row "type" (2026-09, per Wing's approved mockup at
 // pos_cart_type_variants.html — matches that prototype exactly):
 //   branch — plain sale at the logged-in branch's price. DEFAULT for every
@@ -3496,13 +3501,69 @@ function clearCustomerCache() {
   });
 }
 
+// Customer codes (e.g. "C001") are matched case-insensitively everywhere —
+// the customer master sheet has some typed in lowercase, and staff typing
+// a code by hand (or a barcode label printed years ago) don't always match
+// its exact stored case either. 2026-09, per Wing. Use this wherever a
+// typed/scanned customer code is compared against another one (a
+// PreOrders line's own customerCode, a customer record's code, etc.) —
+// never compare the raw strings directly.
+function normalizeCustomerCode(code) {
+  return String(code || "").trim().toUpperCase();
+}
+
+// The Map is keyed by the normalized code so "C001"/"c001"/"C001 " all
+// resolve to the same customer; the returned object's own .code/.name/etc.
+// are untouched, still exactly as stored on the sheet — only the lookup
+// key is normalized.
 function rebuildCustomerMemoryIndexes(customers) {
   customerMap = new Map();
-  customers.forEach((c) => customerMap.set(String(c.code), c));
+  customerList = customers;
+  customers.forEach((c) => customerMap.set(normalizeCustomerCode(c.code), c));
 }
 
 function findCustomerByCode(code) {
-  return customerMap.get(String(code)) || null;
+  return customerMap.get(normalizeCustomerCode(code)) || null;
+}
+
+// Keeps only digits, so "081-234-5678", "081 234 5678" and "0812345678"
+// all compare equal — phone numbers get typed in whatever punctuation is
+// handy, and shouldn't have to match keystroke-for-keystroke to work.
+function normalizePhoneDigits(phone) {
+  return String(phone || "").replace(/\D/g, "");
+}
+
+// Every "type something to pull up a customer" box in the app (POS,
+// เปิดจองใหม่, ขายส่ง) used to only understand a customer CODE. 2026-09,
+// per Wing: staff often only have the customer's phone number, or their
+// Facebook/LINE display name (from Column E — see readCustomers_ on the
+// backend), not their code — so this tries, in order: exact code match
+// (unchanged, cheapest, checked first), then an exact phone match (digits
+// only, so punctuation doesn't matter), then an exact Facebook/LINE name
+// match (case/space-insensitive). Deliberately exact-only at every step,
+// never a partial/substring match — a name or phone digit string could
+// easily be a substring of a different customer's, and silently
+// autofilling the WRONG customer's address into a delivery is worse than
+// just not finding a match. Returns null (same "not found" as before) the
+// moment none of the three matches anything.
+function findCustomer(query) {
+  const byCode = findCustomerByCode(query);
+  if (byCode) return byCode;
+
+  const trimmed = String(query || "").trim();
+  if (!trimmed) return null;
+
+  const phoneDigits = normalizePhoneDigits(trimmed);
+  if (phoneDigits) {
+    const byPhone = customerList.find((c) => normalizePhoneDigits(c.phone) === phoneDigits);
+    if (byPhone) return byPhone;
+  }
+
+  const nameQuery = trimmed.toLowerCase();
+  const bySocial = customerList.find((c) => String(c.socialName || "").trim().toLowerCase() === nameQuery);
+  if (bySocial) return bySocial;
+
+  return null;
 }
 
 /* =================================================================
@@ -3882,20 +3943,25 @@ function setupScanInput() {
   if (!isAnyOverlayVisible()) input.focus();
   document.addEventListener("click", (e) => {
     if (isAnyOverlayVisible()) return;
-    // Re-focus whenever the user clicks anywhere that isn't an interactive
-    // control. "select" is excluded alongside button/input (2026-09, fixed
-    // per Wing's report) — a cart row's type dropdown (M1/Pre/Rec/WS/SP) is
-    // a <select>, not a <button> or <input>, so without this exclusion this
-    // handler yanked focus back to the scan box the instant it was clicked,
-    // closing the dropdown before a choice could be made.
-    if (
-      !e.target.closest("button") &&
-      !e.target.closest("input") &&
-      !e.target.closest("select") &&
-      !e.target.closest("#cameraModal")
-    ) {
-      input.focus();
-    }
+    if (e.target.closest("#cameraModal")) return;
+    // Re-focus the scan box whenever a click ends up landing on plain page
+    // chrome (nothing focusable) — but leave it alone if the click actually
+    // focused a real form control. This used to be a hand-maintained list
+    // of excluded tags (button/input, then +select 2026-09 for the cart
+    // row's type dropdown), which kept missing tags one at a time — most
+    // recently <textarea> (2026-09, per Wing: clicking the delivery
+    // address/remark box — both <textarea>, not <input> — immediately lost
+    // focus back to the scan box, making it impossible to type an address).
+    // Checking document.activeElement after the click actually resolves
+    // instead of guessing from the clicked tag fixes that whole class of
+    // bug at once, for every current and future form field. A short
+    // setTimeout(0) is needed because the browser hasn't necessarily moved
+    // focus onto the clicked element until after this handler returns.
+    setTimeout(() => {
+      const active = document.activeElement;
+      const isFormControl = active && ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(active.tagName);
+      if (!isFormControl) input.focus();
+    }, 0);
   });
 
   input.addEventListener("keydown", (e) => {
@@ -4182,11 +4248,33 @@ function typeFieldsHtml(item) {
       ${field("ค่ามัดจำ (วันนี้)", "deposit", item.deposit)}
     </div>`;
   }
-  if (item.type === "rec") {
+  if (item.type === "rec" && item.lineId) {
+    // Real pulled pre-order (via the "ดึงรายการจองของลูกค้านี้" button) —
+    // the backend re-reads its own agreed/deposit from the real sheet row
+    // by lineId and ignores whatever is shown here, so this stays read-only
+    // display only. Unchanged from before.
     return `<div class="mt-1.5 p-2 rounded-lg bg-white/70 border border-dashed border-pink-300 flex flex-wrap gap-3">
       ${field("Pre-Order Price", "agreed", item.agreed, 'data-rerender')}
       ${readout("Deposit Paid", item.deposit)}
       ${readout("Balance Due", Math.max(item.agreed - item.deposit, 0))}
+    </div>`;
+  }
+  if (item.type === "rec" && !item.lineId) {
+    // Manual "Rec (กรอกเอง)" — no real lineId, so this does NOT go through
+    // pickupLines/handleSaveOneBillTransaction_ and will NOT mark any real
+    // PreOrder row as fulfilled automatically. It posts as an ordinary sale
+    // line (via cartItemsForSale) whose amount is agreed-price minus the
+    // deposit already collected earlier — exactly what's left to collect
+    // today. Wing must still go close out the real row in the PreOrders
+    // sheet by hand afterward; the warning banner below is there so that's
+    // never a silent trap.
+    return `<div class="mt-1.5 p-2 rounded-lg bg-white/70 border border-dashed border-pink-300 flex flex-col gap-2">
+      <div class="flex flex-wrap gap-3">
+        ${field("Pre-Order Price", "agreed", item.agreed, 'data-rerender')}
+        ${field("มัดจำที่รับไปแล้ว", "deposit", item.deposit, 'data-rerender')}
+        ${readout("เก็บวันนี้", Math.max((Number(item.agreed) || 0) - (Number(item.deposit) || 0), 0))}
+      </div>
+      <div class="text-[10px] text-pink-700 leading-snug">⚠️ กรอกเอง — ระบบจะไม่ไปปิดสถานะรายการจองจริงในชีต PreOrders ให้อัตโนมัติ กรุณาไปปิดสถานะ/ตัดยอดในชีตเองภายหลัง</div>
     </div>`;
   }
   if (item.type === "ws") {
@@ -4230,7 +4318,7 @@ function cartRowHtml(item) {
               <select data-id="${item.id}" class="row-type-select text-[10px] font-bold rounded-full border px-2 py-0.5 ${style.select}" ${item.lineId ? "disabled title='ผูกกับรายการจองจริง เอาออกได้เฉพาะด้วยปุ่มลบ 🗑'" : ""}>
                 <option value="branch" ${item.type === "branch" ? "selected" : ""}>${escapeHtml(branchLabel)}</option>
                 <option value="pre" ${item.type === "pre" ? "selected" : ""}>Pre</option>
-                <option value="rec" ${item.type === "rec" ? "selected" : ""} ${item.lineId ? "" : "disabled"}>Rec</option>
+                <option value="rec" ${item.type === "rec" ? "selected" : ""}>Rec${item.lineId ? "" : " (กรอกเอง)"}</option>
                 <option value="ws" ${item.type === "ws" ? "selected" : ""}>WS</option>
                 <option value="sp" ${item.type === "sp" ? "selected" : ""}>SP</option>
               </select>
@@ -4272,21 +4360,22 @@ function cartRowHtml(item) {
 }
 
 // A row's type only changes via this dropdown (never silently) — flips in
-// sensible defaults the first time a row becomes "Pre"/"WS"/"SP" (agreed/
-// wsPrice/spPrice default to whatever price it already had) so the inline
-// fields never start blank. Switching AWAY from "Rec" does not clear
-// lineId — switching back is harmless and re-shows the same real data —
-// but the dropdown itself only re-offers "Rec" while lineId is still set.
+// sensible defaults the first time a row becomes "Pre"/"WS"/"SP"/"Rec"
+// (agreed/wsPrice/spPrice default to whatever price it already had, and
+// deposit defaults to 0 — set at row creation in addOrIncrementCartItem)
+// so the inline fields never start blank. Switching AWAY from "Rec" does
+// not clear lineId — switching back is harmless and re-shows the same
+// real data. A row with a real lineId (pulled via "ดึงรายการจองของลูกค้า
+// นี้") has its whole dropdown disabled in cartRowHtml, so this function
+// only ever sees a manual type change on a self-scanned row — including a
+// manual switch TO "rec" (2026-09: unlocked at Wing's request so she can
+// close a pickup by hand — typing in the agreed price / old deposit
+// herself — when the real pull flow can't be used, e.g. a live customer
+// waiting while data migrates). See typeFieldsHtml()'s manual-rec branch
+// for the warning that this does not auto-close the real PreOrders row.
 function setRowType(id, type) {
   const item = cart.find((i) => i.id === id);
   if (!item) return;
-  if (type === "rec" && !item.lineId) {
-    // Shouldn't be reachable (the <option> is disabled without a lineId),
-    // but guard anyway — "Rec" only ever comes from the pull-preorders flow.
-    showToast('เลือก "Rec" ได้เฉพาะรายการที่ดึงมาจากปุ่ม "ดึงรายการจองของลูกค้านี้ใส่ตะกร้า" เท่านั้น', "error");
-    renderCart();
-    return;
-  }
   item.type = type;
   renderCart();
 }
@@ -4546,13 +4635,17 @@ function clearCustomerAutofill() {
   document.getElementById("customerNotFoundHint").classList.add("hidden");
 }
 
-// Looks up the typed customer code in the local cache and, if found,
-// autofills Name / Phone / Address. The fields stay freely editable
-// afterward (e.g. to correct a stale address, or fill in a walk-in
-// customer's details by hand when no code matches). If the code is
-// cleared out entirely, Name/Phone/Address reset back to blank too —
-// there's no separate "Clear" button, deleting the code IS the clear
-// action (back to a plain/general walk-in sale).
+// Looks up the typed value in the local cache — a customer code, OR (2026-09,
+// per Wing) a phone number or Facebook/LINE name — and if found, autofills
+// Code / Name / Phone / Address. The fields stay freely editable afterward
+// (e.g. to correct a stale address, or fill in a walk-in customer's details
+// by hand when nothing matches). If the field is cleared out entirely,
+// Name/Phone/Address reset back to blank too — there's no separate "Clear"
+// button, emptying it IS the clear action (back to a plain/general walk-in
+// sale). When the match came from a phone/name rather than the code itself,
+// the code box is snapped to that customer's real code — so what actually
+// gets saved on the bill is always the real code, not a phone number or
+// Facebook name sitting in the "Customer Code" column.
 function lookupCustomerCode() {
   const codeInput = document.getElementById("customerCodeInput");
   const nameInput = document.getElementById("customerNameInput");
@@ -4566,15 +4659,16 @@ function lookupCustomerCode() {
     return;
   }
 
-  const customer = findCustomerByCode(code);
+  const customer = findCustomer(code);
   if (customer) {
     notFoundHint.classList.add("hidden");
+    if (customer.code) codeInput.value = customer.code;
     nameInput.value = customer.name || "";
     phoneInput.value = customer.phone || "";
     addressInput.value = customer.address || "";
   } else {
-    // Unknown code — leave whatever the cashier already typed alone
-    // (walk-in customer) and just flag that no match was found.
+    // Unknown code/phone/name — leave whatever the cashier already typed
+    // alone (walk-in customer) and just flag that no match was found.
     notFoundHint.classList.remove("hidden");
   }
 }
@@ -4615,7 +4709,7 @@ async function pullPreOrdersForSaleCustomer() {
       throw new Error((result && result.message) || "โหลดรายการพรีออเดอร์ไม่สำเร็จ");
     }
     const invoiced = (result.lines || []).filter(
-      (l) => l.customerCode === code && l.status === PO_STATUS_INVOICED_LABEL
+      (l) => normalizeCustomerCode(l.customerCode) === normalizeCustomerCode(code) && l.status === PO_STATUS_INVOICED_LABEL
     );
     if (invoiced.length === 0) {
       showToast("ไม่มีรายการพรีออเดอร์ที่พร้อมขาย (แจ้งยอดแล้ว) สำหรับรหัสนี้", "error");
@@ -4678,7 +4772,7 @@ async function openOneBillPickupModal() {
     const alreadyInBill = new Set(cart.filter((i) => i.type === "rec").map((i) => i.lineId));
     const eligible = (result.lines || []).filter(
       (l) =>
-        l.customerCode === code &&
+        normalizeCustomerCode(l.customerCode) === normalizeCustomerCode(code) &&
         (l.status === PO_STATUS_WAITING_LABEL || l.status === PO_STATUS_INVOICED_LABEL) &&
         !alreadyInBill.has(l.lineId)
     );
@@ -4904,11 +4998,13 @@ function cartItemsForSale(rows) {
 // EXISTING transactionId instead of a brand-new "sale" — every other
 // field (items/customer/payment) is extracted exactly the same way
 // either way, so a fresh sale and an edited one can never drift apart.
-// Only ever called when the cart has no "Pre"/"Rec" rows (submitTransaction
-// routes to buildOneBillPayload() instead the moment either exists) — a
-// cart of plain "branch"/"ws"/"sp" rows still posts the same "sale" action
-// it always has, so the by-far-most-common case (a normal sale, with no
-// pre-order booking or pickup involved) is untouched byte-for-byte.
+// Only ever called when the cart has no "Pre" row and no real (lineId)
+// "Rec" row (submitTransaction routes to buildOneBillPayload() instead the
+// moment either exists) — a cart of plain "branch"/"ws"/"sp" rows, or a
+// manual "Rec (กรอกเอง)" row with no lineId, still posts the same "sale"
+// action it always has, so the by-far-most-common case (a normal sale,
+// with no pre-order booking or verified pickup involved) is untouched
+// byte-for-byte.
 function buildPayload(overrides) {
   const grandTotal = calculateGrandTotal();
   const nonCashSum = getNonCashSum();
@@ -4971,8 +5067,14 @@ function buildOneBillPayload() {
   const changeGiven = activeMethods.has("cash") ? Math.max(cashValue - remainingForCash, 0) : 0;
   const transferApplied = getSplitInputValue("transfer");
 
-  const saleRows = cart.filter((i) => i.type === "branch" || i.type === "ws" || i.type === "sp");
-  const recRows = cart.filter((i) => i.type === "rec");
+  // A "Rec" row only becomes a pickupLine (re-read server-side by lineId)
+  // when it was actually pulled from a real PreOrder record. A manual
+  // "Rec (กรอกเอง)" row (2026-09, no lineId) has no real record to re-read,
+  // so it's treated as an ordinary sale line instead — its collectAmount()
+  // (agreed price minus the deposit typed in) is exactly what's left to
+  // collect today, same math as a real Rec, just not backend-verified.
+  const saleRows = cart.filter((i) => i.type === "branch" || i.type === "ws" || i.type === "sp" || (i.type === "rec" && !i.lineId));
+  const recRows = cart.filter((i) => i.type === "rec" && i.lineId);
   const preRows = cart.filter((i) => i.type === "pre");
 
   // A "Pre" row's deposit is part of "money to collect today" (grandTotal
@@ -5037,8 +5139,11 @@ function buildOneBillPayload() {
 // empty-name booking anyway; catching it here gives a clearer message).
 function validateCartForSubmit() {
   for (const item of cart) {
-    if (item.type === "rec" && !String(item.barcode || "").trim()) {
+    if (item.type === "rec" && item.lineId && !String(item.barcode || "").trim()) {
       return 'รายการ "' + (item.name || item.lineId) + '" (Rec) ไม่มีบาร์โค้ดจริง — กรุณาลบแล้วดึงรายการจองใหม่อีกครั้ง';
+    }
+    if (item.type === "rec" && !item.lineId && !((Number(item.agreed) || 0) > 0)) {
+      return 'รายการ "' + item.name + '" (Rec กรอกเอง) ต้องระบุ Pre-Order Price มากกว่า 0';
     }
     if (item.type === "pre" && (!item.name || !String(item.name).trim())) {
       return "กรุณาใส่ชื่อสินค้าให้ครบทุกแถวที่เป็น Pre";
@@ -5082,7 +5187,7 @@ async function submitTransaction() {
   // Falls back to the untouched buildPayload()/"sale" path whenever it
   // doesn't — by far the most common case, and a plain (or WS/SP-only)
   // cart stays byte-for-byte what it always was.
-  const isOneBillCheckout = cart.some((i) => i.type === "rec" || i.type === "pre");
+  const isOneBillCheckout = cart.some((i) => i.type === "pre" || (i.type === "rec" && i.lineId));
   const payload = isOneBillCheckout ? buildOneBillPayload() : buildPayload();
 
   try {
@@ -7626,7 +7731,7 @@ function renderPreOrderDraftItems() {
     <div class="bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-sm flex justify-between items-center">
       <div>
         <div class="flex items-center flex-wrap gap-y-1">${storewdBarcodeChip_(item.itemBarcode)}<span class="font-semibold text-emerald-800">${escapeHtml(item.itemName)}</span></div>
-        <div class="text-xs text-gray-400 mt-0.5">จำนวน ${item.qty} · ราคาตกลง ${formatMoney(item.agreedTotal)} · มัดจำ ${formatMoney(item.depositAmount)} (${item.depositMethod === "transfer" ? "โอน" : "เงินสด"})</div>
+        <div class="text-xs text-gray-400 mt-0.5">จำนวน ${item.qty} · ราคาตกลง ${formatMoney(item.agreedTotal)} · มัดจำ ${formatMoney(item.depositAmount)} (${item.depositMethod === "transfer" ? "โอน" : item.depositMethod === "credit" ? "บัตรเครดิต" : "เงินสด"})</div>
       </div>
       <button type="button" class="po-remove-draft-item text-gray-400 hover:text-red-500 font-bold px-2" data-idx="${idx}">✕</button>
     </div>`
@@ -8167,8 +8272,9 @@ function setDefaultPoOpenedAt() {
     "T" + pad(now.getHours()) + ":" + pad(now.getMinutes());
 }
 
-// Same lookup-by-code pattern as the POS tab's customer section (see
-// lookupCustomerCode) but against this form's own separate input ids.
+// Same lookup pattern as the POS tab's customer section (see
+// lookupCustomerCode — also matches by phone/Facebook-LINE name, 2026-09)
+// but against this form's own separate input ids.
 function lookupPoCustomerCode() {
   const codeInput = document.getElementById("poCustomerCodeInput");
   const notFoundHint = document.getElementById("poCustomerNotFoundHint");
@@ -8177,9 +8283,10 @@ function lookupPoCustomerCode() {
     notFoundHint.classList.add("hidden");
     return;
   }
-  const customer = findCustomerByCode(code);
+  const customer = findCustomer(code);
   if (customer) {
     notFoundHint.classList.add("hidden");
+    if (customer.code) codeInput.value = customer.code;
     document.getElementById("poCustomerNameInput").value = customer.name || "";
     document.getElementById("poCustomerPhoneInput").value = customer.phone || "";
     document.getElementById("poCustomerAddressInput").value = customer.address || "";
@@ -8255,7 +8362,7 @@ function preOrderDepositSummaryText(line) {
   const history = line.depositHistory || [];
   if (history.length === 0) return "ยังไม่รับมัดจำ";
   const parts = history.map(
-    (d) => (d.paidAt || "").slice(5, 10) + " " + formatMoney(d.amount) + " " + (d.method === "transfer" ? "โอน" : "เงินสด")
+    (d) => (d.paidAt || "").slice(5, 10) + " " + formatMoney(d.amount) + " " + (d.method === "transfer" ? "โอน" : d.method === "credit" ? "บัตรเครดิต" : "เงินสด")
   );
   return "มัดจำรวม " + formatMoney(line.depositAmount) + " (" + parts.join(" · ") + ")";
 }
@@ -8500,7 +8607,10 @@ function renderPreOrderCustomerView() {
 
   const groups = new Map();
   matches.forEach((line) => {
-    const key = (line.customerCode || "") + "|" + (line.customerName || "") + "|" + (line.customerPhone || "");
+    // Group key uses the NORMALIZED customer code (2026-09, per Wing) so
+    // "C001" and "c001" — the same customer typed with different casing on
+    // different visits — land in one group instead of being split in two.
+    const key = normalizeCustomerCode(line.customerCode) + "|" + (line.customerName || "") + "|" + (line.customerPhone || "");
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(line);
   });
@@ -10418,7 +10528,8 @@ function buildArrivalQueue() {
   );
   const groups = new Map();
   matches.forEach((line) => {
-    const key = (line.customerCode || "") + "|" + (line.customerName || "") + "|" + (line.customerPhone || "");
+    // Same normalized-code grouping key as renderPreOrderCustomerView above.
+    const key = normalizeCustomerCode(line.customerCode) + "|" + (line.customerName || "") + "|" + (line.customerPhone || "");
     if (!groups.has(key)) {
       groups.set(key, {
         key: key,
@@ -10742,7 +10853,8 @@ function setupWSViewTabs() {
 
 /* ---------------- ออกบิลใหม่ (draft-items builder) ---------------- */
 
-// Same lookup-by-code pattern as the pre-order tab's customer section.
+// Same lookup pattern as the pre-order tab's customer section (also
+// matches by phone/Facebook-LINE name, 2026-09).
 function lookupWSCustomerCode() {
   const codeInput = document.getElementById("wsCustomerCodeInput");
   const notFoundHint = document.getElementById("wsCustomerNotFoundHint");
@@ -10751,9 +10863,10 @@ function lookupWSCustomerCode() {
     notFoundHint.classList.add("hidden");
     return;
   }
-  const customer = findCustomerByCode(code);
+  const customer = findCustomer(code);
   if (customer) {
     notFoundHint.classList.add("hidden");
+    if (customer.code) codeInput.value = customer.code;
     document.getElementById("wsCustomerNameInput").value = customer.name || "";
     document.getElementById("wsCustomerPhoneInput").value = customer.phone || "";
   } else {
@@ -11411,7 +11524,9 @@ function renderWSBalanceView() {
   // brand-new reseller without a code yet won't group perfectly).
   const groups = new Map();
   matches.forEach((invoice) => {
-    const key = invoice.customerCode || ("name:" + invoice.customerName + "|" + invoice.customerPhone);
+    // Normalized (case-insensitive) code, same as the pre-order customer
+    // views — 2026-09, per Wing.
+    const key = normalizeCustomerCode(invoice.customerCode) || ("name:" + invoice.customerName + "|" + invoice.customerPhone);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(invoice);
   });
