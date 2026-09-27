@@ -4143,9 +4143,79 @@ function changeQty(id, delta) {
   if (!item) return;
   item.qty += delta;
   if (item.qty <= 0) {
+    // Row actually disappears — nothing to patch in place, a full rebuild
+    // is the only option here.
     cart = cart.filter((i) => i.id !== id);
+    renderCart();
+  } else {
+    // Patch this one row's numbers in place instead of renderCart(). A full
+    // renderCart() rebuilds every row via innerHTML, which destroys the very
+    // .qty-btn <button> that was just clicked — with that button gone from
+    // the DOM, the global "keep the barcode scan box focused" click handler
+    // (setupScanInput(), above) finds no real form control focused anymore
+    // and steals focus back to the scan box (2026-09, per Wing: clicking
+    // +/- in the cart kept bouncing focus back to the barcode scanner input).
+    // Same root cause and same fix pattern as refreshRowDisplay() below.
+    refreshQtyDisplay(id);
   }
-  renderCart();
+}
+
+// Patches the numbers that depend on qty (Price column, the "= xx THB"
+// line-total hint, grand total) WITHOUT touching the qty field's own value —
+// used while the cashier is actively typing a quantity directly into it
+// (2026-09, per Wing: added direct typing so large quantities don't need
+// repeated + clicks). Rewriting the input's .value on every keystroke would
+// fight the cursor — e.g. typing "50" would get its leading digit re-set
+// mid-type — so this leaves that one field alone and only patches the
+// other, read-only bits of the row. See refreshQtyDisplay() below for the
+// version that also normalizes the qty field itself.
+function refreshQtyDependents(id) {
+  const item = cart.find((i) => i.id === id);
+  if (!item) return;
+  const row = document.querySelector(`tr[data-row-id="${id}"]`);
+  if (row) {
+    const priceCell = row.querySelector(".row-price-display");
+    if (priceCell) priceCell.textContent = formatMoney(collectAmount(item));
+
+    // "branch" rows show a "= xx THB" hint only once qty > 1 (see
+    // cartRowHtml) — qty can cross that threshold either way, so
+    // create/update/remove the hint element to match.
+    let hint = row.querySelector(".line-total-hint");
+    if (item.type === "branch" && item.qty > 1) {
+      const text = "= " + formatMoney(item.price * item.qty) + " THB";
+      if (hint) {
+        hint.textContent = text;
+      } else {
+        const priceInput = row.querySelector('.cart-edit-input[data-field="price"]');
+        if (priceInput) {
+          hint = document.createElement("div");
+          hint.className = "line-total-hint text-xs text-gray-400 mt-1";
+          hint.textContent = text;
+          priceInput.insertAdjacentElement("afterend", hint);
+        }
+      }
+    } else if (hint) {
+      hint.remove();
+    }
+  }
+  renderGrandTotal();
+}
+
+// Patches ONE row's quantity field itself (in addition to everything
+// refreshQtyDependents() covers) — safe to call whenever the cashier is NOT
+// actively mid-keystroke in that field, e.g. right after a +/- button click,
+// or once direct typing is finalized on blur/Enter. See changeQty() above
+// for why a full renderCart() here is exactly what caused +/- to steal focus
+// back to the barcode scan box.
+function refreshQtyDisplay(id) {
+  const item = cart.find((i) => i.id === id);
+  if (!item) return;
+  const row = document.querySelector(`tr[data-row-id="${id}"]`);
+  if (row) {
+    const qtyEl = row.querySelector(".row-qty-input");
+    if (qtyEl) qtyEl.value = item.qty;
+  }
+  refreshQtyDependents(id);
 }
 
 function removeFromCart(id) {
@@ -4240,6 +4310,20 @@ function renderCart() {
           const hint = input.parentElement.querySelector(".line-total-hint");
           if (hint) hint.textContent = "= " + formatMoney(item.price * item.qty) + " THB";
           renderGrandTotal();
+        } else if (field === "qty") {
+          // Typing a quantity directly (2026-09, per Wing: so a big quantity
+          // doesn't need repeated + clicks). Only commit while the typed
+          // value is actually a usable positive integer — an empty box or a
+          // stray "0" mid-edit (e.g. backspacing "12" down to "1" then "")
+          // must NOT collapse the total to zero or delete the row while the
+          // cashier is still typing; that only happens once they leave the
+          // field (see the "blur" handler below, which mirrors what
+          // changeQty() does when +/- brings qty down to 0).
+          const parsedQty = parseInt(input.value, 10);
+          if (Number.isFinite(parsedQty) && parsedQty > 0) {
+            item.qty = parsedQty;
+            refreshQtyDependents(id); // NOT refreshQtyDisplay — leave this input's own value alone mid-keystroke
+          }
         } else if (field === "remark") {
           item.remark = input.value;
         } else if (field === "barcode") {
@@ -4261,6 +4345,29 @@ function renderCart() {
           } else {
             renderGrandTotal();
           }
+        }
+      });
+    });
+
+    // Finalize the quantity field once the cashier leaves it (blur) or
+    // presses Enter — normalizes what's on screen (strips a leading zero,
+    // rounds off a stray decimal, etc.) and, matching what the "-" button
+    // already does at qty 0, removes the row if what's left is empty/0/
+    // invalid rather than silently leaving a broken row behind.
+    tbody.querySelectorAll('.row-qty-input').forEach((input) => {
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") input.blur();
+      });
+      input.addEventListener("blur", () => {
+        const id = Number(input.getAttribute("data-id"));
+        const item = cart.find((i) => i.id === id);
+        if (!item) return;
+        const parsedQty = parseInt(input.value, 10);
+        if (!Number.isFinite(parsedQty) || parsedQty <= 0) {
+          removeFromCart(id);
+        } else {
+          item.qty = parsedQty;
+          refreshQtyDisplay(id);
         }
       });
     });
@@ -4414,7 +4521,9 @@ function cartRowHtml(item) {
         <div class="flex items-center justify-center gap-2">
           <button data-action="dec" data-id="${item.id}"
                   class="qty-btn w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-lg font-bold">-</button>
-          <span class="w-6 text-center font-medium">${item.qty}</span>
+          <input type="number" min="1" step="1" value="${item.qty}"
+                 class="cart-edit-input row-qty-input w-14 text-center font-medium border border-gray-200 rounded px-1 py-1"
+                 data-id="${item.id}" data-field="qty">
           <button data-action="inc" data-id="${item.id}"
                   class="qty-btn w-8 h-8 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-lg font-bold">+</button>
         </div>
