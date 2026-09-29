@@ -1870,6 +1870,32 @@
     </div>
   </div>
 
+  <!-- แก้ไขชื่อลูกค้าในรายการจอง (2026-09, per Wing: Customer Name ไม่บังคับตอน
+       เปิดจอง เผื่อลืมกรอก เลยเพิ่มปุ่มแก้ไขทีหลังได้ — เข้าถึงจากปุ่มดินสอบนการ์ด
+       "Pre" ในหน้า Report/Report Master ดู renderPreRowCard_ ด้านล่าง) -->
+  <div id="editPreCustomerModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-5 flex flex-col gap-3">
+      <h3 class="font-semibold text-gray-800 text-lg flex items-center gap-2">
+        <i class="fa-solid fa-pen text-amber-600"></i> แก้ไขชื่อลูกค้า
+      </h3>
+      <p class="text-sm text-gray-500">
+        <span id="editPreCustomerItemDesc" class="text-gray-700"></span>
+      </p>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">ชื่อลูกค้า</label>
+        <input id="editPreCustomerNameInput" type="text"
+               class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500"
+               placeholder="ชื่อลูกค้า">
+      </div>
+      <p id="editPreCustomerModalError" class="text-sm text-red-500 hidden"></p>
+      <div class="flex gap-2 justify-end mt-1">
+        <button id="editPreCustomerCancelBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ยกเลิก</button>
+        <button id="editPreCustomerConfirmBtn" type="button" class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold">✅ บันทึก</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ยกเลิกใบจอง (รายชิ้น) — exact same PIN-approval pattern as voidModal. -->
   <div id="poCancelModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-5 flex flex-col gap-3">
@@ -6990,7 +7016,7 @@ function renderDailySummary(summary) {
   document.getElementById("wsAdvanceSalesPaidToday").textContent = formatMoney(wsAdv.paymentsToday);
   document.getElementById("wsAdvanceSalesStatusLabel").textContent = wsAdv.available ? "" : "ยังไม่เชื่อมไฟล์ PM";
 
-  renderReportBillsList(summary.bills || [], summary.billCount || 0, summary.itemCount || 0);
+  renderReportBillsList(summary.bills || [], summary.billCount || 0, summary.itemCount || 0, summary.preRows || []);
 
   const crossCheckLine = document.getElementById("crossCheckLine");
   if (summary.crossCheckOk) {
@@ -7002,70 +7028,149 @@ function renderDailySummary(summary) {
   }
 }
 
+// One receipt-style card for an ordinary sale bill (mockup approved
+// 2026-09-05) — shared by the single-branch Reports list and the Report
+// Master merged list below (pass showBranch=true for Report Master, which
+// tags every row with its source branch since it spans all of them).
+function saleBillCardHtml_(bill, showBranch) {
+  const time = bill.timestamp
+    ? new Date(bill.timestamp).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+    : "";
+  const deliveryLabel = bill.deliveryMethod === "delivery" ? "จัดส่ง" : "รับหน้าร้าน";
+
+  const itemRows = (bill.items || [])
+    .map((item) => {
+      const qty = Number(item.qty) || 0;
+      const qtyClass =
+        qty > 1
+          ? "justify-self-center bg-orange-600 text-white text-base font-bold px-3.5 py-1 rounded-full"
+          : "justify-self-center bg-gray-100 text-gray-500 text-base font-bold px-3.5 py-1 rounded-full";
+      // Barcode shown right before the name (same font/size as the
+      // name, not a tiny muted label) so cashiers can double-check
+      // they're looking at the right item — a little space, not a
+      // separate column, per Wing's feedback (2026-09).
+      const barcode = String(item.barcode || "").trim();
+      const nameHtml = barcode
+        ? `${escapeHtml(barcode)} &nbsp; ${escapeHtml(item.name || "")}`
+        : escapeHtml(item.name || item.barcode);
+      return `
+        <div class="grid grid-cols-[1fr_80px_110px_110px] items-center gap-2.5 py-2.5 border-b last:border-b-0 border-gray-100 text-[13.5px]">
+          <div class="text-gray-700 leading-snug">${nameHtml}</div>
+          <div class="${qtyClass}">${qty}</div>
+          <div class="text-right text-gray-500">${formatMoney(item.price)}</div>
+          <div class="text-right font-semibold text-gray-700">${formatMoney(item.lineTotal)}</div>
+        </div>`;
+    })
+    .join("");
+
+  return `
+    <div class="border border-gray-100 rounded-xl overflow-hidden">
+      <div class="bg-emerald-50 px-4 py-2.5 flex flex-wrap items-center gap-3">
+        ${showBranch ? `<span class="bg-indigo-600 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">${escapeHtml(bill.branch || "")}</span>` : ""}
+        <span class="font-bold text-emerald-800 text-sm">${escapeHtml(bill.transactionId)}</span>
+        <div class="flex items-center gap-2 text-xs text-gray-500">
+          <span>${time}</span><span class="text-gray-300">·</span>
+          <span>${escapeHtml(bill.cashier)}</span>
+          ${bill.customerName ? `<span class="text-gray-300">·</span><span>${escapeHtml(bill.customerName)}</span>` : ""}
+          <span class="bg-white border border-emerald-100 text-emerald-700 text-[11px] font-semibold px-2.5 py-0.5 rounded-full">${deliveryLabel}</span>
+        </div>
+        <span class="ml-auto font-bold text-emerald-800">${formatMoney(bill.billTotal)}</span>
+      </div>
+      ${bill.remark ? `<div class="px-4 pt-2 text-xs text-amber-700 bg-amber-50 border-b border-amber-100 -mx-0 py-1.5"><i class="fa-solid fa-note-sticky mr-1"></i>${escapeHtml(bill.remark)}</div>` : ""}
+      <div class="px-4">${itemRows}</div>
+    </div>`;
+}
+
+// One card for a Pre-order deposit received TODAY (2026-09, per Wing: the
+// Reports tab only ever showed a bare deposit COUNT — this makes each one
+// a real row, styled distinctly (amber/yellow + a "Pre" tag right after
+// the branch pill, exactly as asked) in the SAME time-ordered list as
+// ordinary sale bills. Backend source: buildDailySummary_'s result.preRows
+// — one row per PreOrderDeposits event today, joined against its PreOrders
+// line for item/customer. The amount shown is the deposit collected TODAY,
+// not the item's full agreed price (matches "เก็บวันนี้" everywhere else
+// in this app). Includes a pencil button to fix/add the customer name
+// (see openEditPreCustomerModal / handleUpdatePreOrderCustomerName_) since
+// that field isn't required at booking time and can end up blank.
+function preRowCardHtml_(pre, showBranch) {
+  const time = pre.timestamp
+    ? new Date(pre.timestamp).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+    : "";
+  const qty = Number(pre.qty) || 0;
+  const qtyClass =
+    qty > 1
+      ? "justify-self-center bg-orange-600 text-white text-base font-bold px-3.5 py-1 rounded-full"
+      : "justify-self-center bg-gray-100 text-gray-500 text-base font-bold px-3.5 py-1 rounded-full";
+  const methodLabel = pre.depositMethod === "transfer" ? "โอน" : pre.depositMethod === "cash" ? "เงินสด" : String(pre.depositMethod || "");
+
+  return `
+    <div class="border border-amber-200 rounded-xl overflow-hidden ring-1 ring-amber-100">
+      <div class="bg-amber-50 px-4 py-2.5 flex flex-wrap items-center gap-3">
+        ${showBranch ? `<span class="bg-indigo-600 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">${escapeHtml(pre.branch || "")}</span>` : ""}
+        <span class="bg-amber-500 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">Pre</span>
+        <span class="font-bold text-amber-800 text-sm">${escapeHtml(pre.customerName || "ลูกค้าขาจร")}</span>
+        <button type="button" class="pre-edit-customer-btn text-amber-500 hover:text-amber-700" data-line-id="${escapeHtml(pre.lineId)}" title="แก้ไขชื่อลูกค้า">
+          <i class="fa-solid fa-pen text-xs"></i>
+        </button>
+        <div class="flex items-center gap-2 text-xs text-gray-500">
+          <span>${time}</span><span class="text-gray-300">·</span>
+          <span>${escapeHtml(pre.cashier || "")}</span>
+          <span class="bg-white border border-amber-200 text-amber-700 text-[11px] font-semibold px-2.5 py-0.5 rounded-full">${methodLabel}</span>
+        </div>
+        <span class="ml-auto font-bold text-amber-700">+${formatMoney(pre.depositAmount)}</span>
+      </div>
+      <div class="px-4">
+        <div class="grid grid-cols-[1fr_80px_1fr] items-center gap-2.5 py-2.5 text-[13.5px]">
+          <div class="text-gray-700 leading-snug">${escapeHtml(pre.itemName || "")}</div>
+          <div class="${qtyClass}">${qty}</div>
+          <div class="text-right text-amber-700 text-xs">มัดจำที่รับวันนี้</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// Wires up every "แก้ไขชื่อลูกค้า" pencil button inside a just-rendered
+// container — shared by both report views below. Looks the clicked row's
+// full data back up from `preRows` (by lineId) rather than trying to
+// smuggle it through the button's markup.
+function wirePreEditButtons_(container, preRows) {
+  container.querySelectorAll(".pre-edit-customer-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const lineId = btn.getAttribute("data-line-id");
+      const pre = preRows.find((p) => p.lineId === lineId);
+      if (pre) openEditPreCustomerModal(pre);
+    });
+  });
+}
+
 // Renders the Reports tab's "รายการขายวันนี้" section as one receipt-style
-// card per bill (mockup approved 2026-09-05) instead of the old single
-// long table — easier to scan where one bill ends and the next begins.
-// Quantity > 1 gets an orange, bold, larger badge so multi-item lines
-// stand out at a glance (also per feedback).
-function renderReportBillsList(bills, billCount, itemCount) {
+// card per bill/Pre-order deposit, merged into a single time-ordered list
+// (2026-09: Pre-order rows added in, see preRowCardHtml_ above — previously
+// this list only ever showed Sales_History bills, and Pre-orders were
+// invisible here entirely).
+function renderReportBillsList(bills, billCount, itemCount, preRows) {
+  preRows = preRows || [];
+  const preCount = preRows.length;
+
   document.getElementById("reportBillsCountLabel").textContent =
-    bills.length > 0 ? `${billCount.toLocaleString()} บิล · ${itemCount.toLocaleString()} ชิ้น` : "";
+    bills.length > 0 || preCount > 0
+      ? `${billCount.toLocaleString()} บิล · ${itemCount.toLocaleString()} ชิ้น` +
+        (preCount > 0 ? ` · ${preCount.toLocaleString()} รายการจอง` : "")
+      : "";
 
   const container = document.getElementById("reportBillsList");
-  if (bills.length === 0) {
+  if (bills.length === 0 && preCount === 0) {
     container.innerHTML = '<p class="py-8 text-center text-gray-400">ไม่มีรายการขายในวันนี้</p>';
     return;
   }
 
-  container.innerHTML = bills
-    .map((bill) => {
-      const time = bill.timestamp
-        ? new Date(bill.timestamp).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
-        : "";
-      const deliveryLabel = bill.deliveryMethod === "delivery" ? "จัดส่ง" : "รับหน้าร้าน";
+  const merged = bills
+    .map((b) => ({ kind: "sale", ts: b.timestamp, html: saleBillCardHtml_(b, false) }))
+    .concat(preRows.map((p) => ({ kind: "pre", ts: p.timestamp, html: preRowCardHtml_(p, false) })));
+  merged.sort((a, b) => (a.ts ? new Date(a.ts).getTime() : 0) - (b.ts ? new Date(b.ts).getTime() : 0));
 
-      const itemRows = (bill.items || [])
-        .map((item) => {
-          const qty = Number(item.qty) || 0;
-          const qtyClass =
-            qty > 1
-              ? "justify-self-center bg-orange-600 text-white text-base font-bold px-3.5 py-1 rounded-full"
-              : "justify-self-center bg-gray-100 text-gray-500 text-base font-bold px-3.5 py-1 rounded-full";
-          // Barcode shown right before the name (same font/size as the
-          // name, not a tiny muted label) so cashiers can double-check
-          // they're looking at the right item — a little space, not a
-          // separate column, per Wing's feedback (2026-09).
-          const barcode = String(item.barcode || "").trim();
-          const nameHtml = barcode
-            ? `${escapeHtml(barcode)} &nbsp; ${escapeHtml(item.name || "")}`
-            : escapeHtml(item.name || item.barcode);
-          return `
-            <div class="grid grid-cols-[1fr_80px_110px_110px] items-center gap-2.5 py-2.5 border-b last:border-b-0 border-gray-100 text-[13.5px]">
-              <div class="text-gray-700 leading-snug">${nameHtml}</div>
-              <div class="${qtyClass}">${qty}</div>
-              <div class="text-right text-gray-500">${formatMoney(item.price)}</div>
-              <div class="text-right font-semibold text-gray-700">${formatMoney(item.lineTotal)}</div>
-            </div>`;
-        })
-        .join("");
-
-      return `
-        <div class="border border-gray-100 rounded-xl overflow-hidden">
-          <div class="bg-emerald-50 px-4 py-2.5 flex flex-wrap items-center gap-3">
-            <span class="font-bold text-emerald-800 text-sm">${escapeHtml(bill.transactionId)}</span>
-            <div class="flex items-center gap-2 text-xs text-gray-500">
-              <span>${time}</span><span class="text-gray-300">·</span>
-              <span>${escapeHtml(bill.cashier)}</span>
-              ${bill.customerName ? `<span class="text-gray-300">·</span><span>${escapeHtml(bill.customerName)}</span>` : ""}
-              <span class="bg-white border border-emerald-100 text-emerald-700 text-[11px] font-semibold px-2.5 py-0.5 rounded-full">${deliveryLabel}</span>
-            </div>
-            <span class="ml-auto font-bold text-emerald-800">${formatMoney(bill.billTotal)}</span>
-          </div>
-          ${bill.remark ? `<div class="px-4 pt-2 text-xs text-amber-700 bg-amber-50 border-b border-amber-100 -mx-0 py-1.5"><i class="fa-solid fa-note-sticky mr-1"></i>${escapeHtml(bill.remark)}</div>` : ""}
-          <div class="px-4">${itemRows}</div>
-        </div>`;
-    })
-    .join("");
+  container.innerHTML = merged.map((entry) => entry.html).join("");
+  wirePreEditButtons_(container, preRows);
 }
 
 /* =================================================================
@@ -7222,64 +7327,33 @@ function renderMasterReport(summary) {
     })
     .join("");
 
-  // Merged bill list across every branch — same receipt-style card as the
-  // single-branch Reports view, plus a branch tag pill per row.
+  // Merged bill + Pre-order list across every branch — same cards as the
+  // single-branch Reports view (saleBillCardHtml_/preRowCardHtml_ above),
+  // plus a branch tag pill per row since this spans all branches at once
+  // (2026-09: Pre-order rows added in — Report Master previously showed
+  // NOTHING pre-order-related, per Wing).
   const bills = summary.bills || [];
+  const preRows = summary.preRows || [];
+  const preCount = preRows.length;
   document.getElementById("mrBillsCountLabel").textContent =
-    bills.length > 0 ? `${(summary.billCount || 0).toLocaleString()} บิล · ${(summary.itemCount || 0).toLocaleString()} ชิ้น` : "";
+    bills.length > 0 || preCount > 0
+      ? `${(summary.billCount || 0).toLocaleString()} บิล · ${(summary.itemCount || 0).toLocaleString()} ชิ้น` +
+        (preCount > 0 ? ` · ${preCount.toLocaleString()} รายการจอง` : "")
+      : "";
 
   const container = document.getElementById("mrBillsList");
-  if (bills.length === 0) {
+  if (bills.length === 0 && preCount === 0) {
     container.innerHTML = '<p class="py-8 text-center text-gray-400">ไม่มีรายการขายในวันนี้</p>';
     return;
   }
 
-  container.innerHTML = bills
-    .map((bill) => {
-      const time = bill.timestamp
-        ? new Date(bill.timestamp).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
-        : "";
-      const deliveryLabel = bill.deliveryMethod === "delivery" ? "จัดส่ง" : "รับหน้าร้าน";
+  const merged = bills
+    .map((b) => ({ ts: b.timestamp, html: saleBillCardHtml_(b, true) }))
+    .concat(preRows.map((p) => ({ ts: p.timestamp, html: preRowCardHtml_(p, true) })));
+  merged.sort((a, b) => (a.ts ? new Date(a.ts).getTime() : 0) - (b.ts ? new Date(b.ts).getTime() : 0));
 
-      const itemRows = (bill.items || [])
-        .map((item) => {
-          const qty = Number(item.qty) || 0;
-          const qtyClass =
-            qty > 1
-              ? "justify-self-center bg-orange-600 text-white text-base font-bold px-3.5 py-1 rounded-full"
-              : "justify-self-center bg-gray-100 text-gray-500 text-base font-bold px-3.5 py-1 rounded-full";
-          const barcode = String(item.barcode || "").trim();
-          const nameHtml = barcode
-            ? `${escapeHtml(barcode)} &nbsp; ${escapeHtml(item.name || "")}`
-            : escapeHtml(item.name || item.barcode);
-          return `
-            <div class="grid grid-cols-[1fr_80px_110px_110px] items-center gap-2.5 py-2.5 border-b last:border-b-0 border-gray-100 text-[13.5px]">
-              <div class="text-gray-700 leading-snug">${nameHtml}</div>
-              <div class="${qtyClass}">${qty}</div>
-              <div class="text-right text-gray-500">${formatMoney(item.price)}</div>
-              <div class="text-right font-semibold text-gray-700">${formatMoney(item.lineTotal)}</div>
-            </div>`;
-        })
-        .join("");
-
-      return `
-        <div class="border border-gray-100 rounded-xl overflow-hidden">
-          <div class="bg-emerald-50 px-4 py-2.5 flex flex-wrap items-center gap-3">
-            <span class="bg-indigo-600 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">${escapeHtml(bill.branch || "")}</span>
-            <span class="font-bold text-emerald-800 text-sm">${escapeHtml(bill.transactionId)}</span>
-            <div class="flex items-center gap-2 text-xs text-gray-500">
-              <span>${time}</span><span class="text-gray-300">·</span>
-              <span>${escapeHtml(bill.cashier)}</span>
-              ${bill.customerName ? `<span class="text-gray-300">·</span><span>${escapeHtml(bill.customerName)}</span>` : ""}
-              <span class="bg-white border border-emerald-100 text-emerald-700 text-[11px] font-semibold px-2.5 py-0.5 rounded-full">${deliveryLabel}</span>
-            </div>
-            <span class="ml-auto font-bold text-emerald-800">${formatMoney(bill.billTotal)}</span>
-          </div>
-          ${bill.remark ? `<div class="px-4 pt-2 text-xs text-amber-700 bg-amber-50 border-b border-amber-100 py-1.5"><i class="fa-solid fa-note-sticky mr-1"></i>${escapeHtml(bill.remark)}</div>` : ""}
-          <div class="px-4">${itemRows}</div>
-        </div>`;
-    })
-    .join("");
+  container.innerHTML = merged.map((entry) => entry.html).join("");
+  wirePreEditButtons_(container, preRows);
 }
 
 /* =================================================================
@@ -9979,6 +10053,103 @@ function setupPreOrderAddDepositModal() {
   });
   document.getElementById("poAddDepositModal").addEventListener("click", (e) => {
     if (e.target.id === "poAddDepositModal") closePreOrderAddDepositModal();
+  });
+}
+
+/* ---------------- แก้ไขชื่อลูกค้า (2026-09, per Wing) — Customer Name isn't
+   required at booking time (see handleCreatePreOrder_), so a line can sit
+   with a blank/wrong name until someone fixes it. Opened from the pencil
+   button on a "Pre" card in Report/Report Master — see renderPreRowCard_.
+   { lineId, itemName, qty, customerName } is enough; doesn't need the full
+   PreOrders line object the other modals above use. ---------------- */
+
+let editPreCustomerTarget = null; // { lineId, itemName, qty, customerName } currently targeted
+
+function openEditPreCustomerModal(pre) {
+  editPreCustomerTarget = pre;
+  document.getElementById("editPreCustomerItemDesc").textContent = pre.itemName + " x" + pre.qty;
+  document.getElementById("editPreCustomerNameInput").value =
+    pre.customerName && pre.customerName !== "ลูกค้าขาจร" ? pre.customerName : "";
+  hideEditPreCustomerModalError();
+  document.getElementById("editPreCustomerModal").classList.remove("hidden");
+  document.getElementById("editPreCustomerNameInput").focus();
+}
+
+function closeEditPreCustomerModal() {
+  editPreCustomerTarget = null;
+  document.getElementById("editPreCustomerModal").classList.add("hidden");
+}
+
+function showEditPreCustomerModalError(msg) {
+  const el = document.getElementById("editPreCustomerModalError");
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+function hideEditPreCustomerModalError() {
+  const el = document.getElementById("editPreCustomerModalError");
+  el.classList.add("hidden");
+  el.textContent = "";
+}
+
+async function submitEditPreCustomerName() {
+  const target = editPreCustomerTarget;
+  if (!target) return;
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl === "YOUR_URL_HERE") {
+    showEditPreCustomerModalError("กรุณาวางลิงก์ Apps Script Web App ที่แท็บ Settings ก่อน");
+    return;
+  }
+
+  const customerName = document.getElementById("editPreCustomerNameInput").value.trim();
+
+  const btn = document.getElementById("editPreCustomerConfirmBtn");
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+  hideEditPreCustomerModalError();
+
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        action: "updatePreOrderCustomerName",
+        pin: currentStaff ? currentStaff.pin : "",
+        branch: getBranchCode(),
+        lineId: target.lineId,
+        customerName: customerName
+      })
+    });
+    const result = await response.json();
+    if (!result || result.status !== "success") {
+      throw new Error((result && result.message) || "บันทึกชื่อลูกค้าไม่สำเร็จ");
+    }
+    showToast("บันทึกชื่อลูกค้าเรียบร้อยแล้ว", "success");
+    closeEditPreCustomerModal();
+    // Refresh whichever report view is currently on screen so the card
+    // shows the new name right away, instead of only on the next reload.
+    if (reportViewMode === "master") loadMasterReport();
+    else loadDailySummary();
+  } catch (err) {
+    console.error(err);
+    showEditPreCustomerModalError(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
+
+function setupEditPreCustomerModal() {
+  document.getElementById("editPreCustomerCancelBtn").addEventListener("click", closeEditPreCustomerModal);
+  document.getElementById("editPreCustomerConfirmBtn").addEventListener("click", submitEditPreCustomerName);
+  document.getElementById("editPreCustomerNameInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submitEditPreCustomerName();
+    }
+  });
+  document.getElementById("editPreCustomerModal").addEventListener("click", (e) => {
+    if (e.target.id === "editPreCustomerModal") closeEditPreCustomerModal();
   });
 }
 
@@ -14528,6 +14699,7 @@ async function init() {
   setupLoginBranchCodeConfig();
   setupVoidModal();
   setupEditApprovalModal();
+  setupEditPreCustomerModal();
   setupProductCheckSearch();
   setupPreOrderTab();
   setupWSTab();
