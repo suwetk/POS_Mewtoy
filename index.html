@@ -7109,8 +7109,10 @@ function preRowCardHtml_(pre, showBranch) {
         ${showBranch ? `<span class="bg-indigo-600 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">${escapeHtml(pre.branch || "")}</span>` : ""}
         <span class="bg-amber-500 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">Pre</span>
         <span class="font-bold text-amber-800 text-sm">${escapeHtml(pre.customerName || "ลูกค้าขาจร")}</span>
-        <button type="button" class="pre-edit-customer-btn text-amber-500 hover:text-amber-700" data-line-id="${escapeHtml(pre.lineId)}" title="แก้ไขชื่อลูกค้า">
-          <i class="fa-solid fa-pen text-xs"></i>
+        <button type="button"
+                class="pre-edit-customer-btn inline-flex items-center gap-1 bg-white border border-amber-300 text-amber-700 hover:bg-amber-100 hover:border-amber-400 text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
+                data-line-id="${escapeHtml(pre.lineId)}" title="แก้ไขชื่อลูกค้า">
+          <i class="fa-solid fa-pen text-[10px]"></i> แก้ไขชื่อ
         </button>
         <div class="flex items-center gap-2 text-xs text-gray-500">
           <span>${time}</span><span class="text-gray-300">·</span>
