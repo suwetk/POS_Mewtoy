@@ -1343,6 +1343,7 @@
     <div class="flex flex-wrap items-center gap-2">
       <button data-ws-view="list" class="ws-view-btn text-sm font-semibold px-4 py-2 rounded-lg transition">🧾 บิลขายส่ง</button>
       <button data-ws-view="balance" class="ws-view-btn text-sm font-semibold px-4 py-2 rounded-lg transition">👤 ยอดค้างชำระ</button>
+      <button data-ws-view="history" class="ws-view-btn text-sm font-semibold px-4 py-2 rounded-lg transition">📅 ประวัติ/ค้นหา</button>
       <div class="ml-auto flex items-center gap-2">
         <!-- Populated by populateWSBranchSelect() — mirrors
              populateReportBranchSelect() exactly: own branch (always first,
@@ -1538,6 +1539,80 @@
              class="w-full border-2 border-gray-200 rounded-lg px-4 py-2.5 mb-4
                     focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
       <div id="wsBalanceViewResults" class="flex flex-col gap-3"></div>
+    </div>
+
+    <!-- ============ มุมมองที่ 4: ประวัติ/ค้นหา (2026-10, per Wing) ============
+         3 มุมมองย่อยที่สลับกันได้ ใช้ lastLoadedWSInvoices ชุดเดียวกับ 2
+         มุมมองข้างบน (fetch-flat, group/filter client-side เหมือนทุกที่ใน
+         แอปนี้) ไม่มีการยิง API เพิ่ม — กดบิลไหนก็เปิด #billPreviewModal
+         เดิม (ผ่าน buildWSBillObject_) เหมือนปุ่ม "🖨️ พิมพ์" ใน มุมมองที่ 1
+         ทุกอย่าง ไม่ได้สร้างระบบพิมพ์แยกใหม่ -->
+    <div id="wsView-history" class="ws-view hidden bg-white rounded-xl shadow p-4">
+      <div class="flex flex-wrap gap-1.5 mb-4" id="wsHistorySubTabs">
+        <button data-ws-history-mode="buyer" class="ws-history-tab-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">👤 เลือกพ่อค้าส่ง</button>
+        <button data-ws-history-mode="item" class="ws-history-tab-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">📦 ค้นหาตามสินค้า</button>
+        <button data-ws-history-mode="month" class="ws-history-tab-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">📅 เลือกบิลตามปี/เดือน</button>
+      </div>
+
+      <!-- ---- มุมมองย่อย: เลือกพ่อค้าส่ง ---- -->
+      <div id="wsHistoryMode-buyer" class="ws-history-mode">
+        <div id="wsHistoryBuyerStep-list">
+          <input id="wsHistoryBuyerSearchInput" type="text" placeholder="🔍 กรองรายชื่อ (ไม่พิมพ์ก็ได้ — เห็นพ่อค้าส่งทุกคนด้านล่าง)"
+                 class="w-full border-2 border-gray-200 rounded-lg px-4 py-2.5 mb-3 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+          <div id="wsHistoryBuyerListResults" class="flex flex-col gap-2"></div>
+        </div>
+        <div id="wsHistoryBuyerStep-detail" class="hidden">
+          <div class="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
+            <span id="wsHistoryBackToBuyerList" class="text-sky-700 font-semibold cursor-pointer hover:underline">👤 เลือกพ่อค้าส่ง</span>
+            <span class="text-gray-300">›</span>
+            <span id="wsHistorySelectedBuyerName" class="font-bold text-gray-700">-</span>
+          </div>
+          <div id="wsHistorySelectedBuyerHeader" class="border-2 border-gray-100 rounded-xl px-4 py-3 mb-3 flex items-center justify-between gap-3"></div>
+          <input id="wsHistoryBuyerItemFilterInput" type="text" placeholder="🔍 กรองเฉพาะบิลที่มีสินค้านี้ เช่น ชื่อสินค้า, บาร์โค้ด..."
+                 class="w-full border-2 border-gray-200 rounded-lg px-4 py-2.5 mb-3 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+          <div id="wsHistoryMonthGroupsContainer"></div>
+        </div>
+      </div>
+
+      <!-- ---- มุมมองย่อย: ค้นหาตามสินค้า (ทุกคน) ---- -->
+      <div id="wsHistoryMode-item" class="ws-history-mode hidden">
+        <div class="flex gap-2 relative">
+          <input id="wsHistoryItemSearchInput" type="text" placeholder="พิมพ์ชื่อสินค้า / บาร์โค้ด..."
+                 class="flex-1 border-2 border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+          <button type="button" id="wsHistoryBuyerFilterBtn"
+                  class="flex-shrink-0 flex items-center gap-1.5 border-2 border-gray-200 rounded-lg px-3.5 text-xs font-semibold text-gray-600 hover:border-violet-400 hover:text-violet-700 transition">
+            👥 เลือกพ่อค้าส่ง <i class="fa-solid fa-caret-down"></i>
+          </button>
+          <div id="wsHistoryBuyerFilterDropdown" class="hidden absolute right-0 top-[calc(100%+6px)] z-30 bg-white rounded-xl shadow-lg border border-gray-100 w-64 max-h-72 overflow-y-auto p-1.5"></div>
+        </div>
+        <div id="wsHistoryActiveBuyerFilterChip" class="hidden items-center gap-2 bg-violet-100 text-violet-700 text-xs font-semibold px-3 py-1.5 rounded-full mt-2.5 w-fit">
+          <span>กำลังกรองเฉพาะ: <b id="wsHistoryActiveBuyerFilterName">-</b></span>
+          <button type="button" id="wsHistoryClearBuyerFilterBtn" class="w-4 h-4 rounded-full bg-white/70 hover:bg-white flex items-center justify-center text-[10px]">✕</button>
+        </div>
+        <div id="wsHistoryItemSearchResults" class="flex flex-col gap-2 mt-3"></div>
+        <p class="text-[11px] text-gray-400 mt-2 leading-relaxed">ผลลัพธ์แสดงทุกบิลของทุกพ่อค้าส่งที่มีสินค้านี้อยู่ เรียงวันที่ล่าสุดก่อน — กดแถวเพื่อดู/พิมพ์บิล</p>
+      </div>
+
+      <!-- ---- มุมมองย่อย: เลือกบิลตามปี/เดือน ---- -->
+      <div id="wsHistoryMode-month" class="ws-history-mode hidden">
+        <div id="wsHistoryMonthStep-grid">
+          <div class="flex items-center justify-center gap-4 mb-4">
+            <button type="button" id="wsHistoryYearPrevBtn" class="w-8 h-8 rounded-full border-2 border-gray-200 text-gray-500 hover:border-indigo-600 hover:text-indigo-600 font-bold">‹</button>
+            <div class="text-lg font-bold text-gray-700 min-w-[70px] text-center" id="wsHistoryYearLabel">-</div>
+            <button type="button" id="wsHistoryYearNextBtn" class="w-8 h-8 rounded-full border-2 border-gray-200 text-gray-500 hover:border-indigo-600 hover:text-indigo-600 font-bold">›</button>
+          </div>
+          <div class="grid grid-cols-3 sm:grid-cols-4 gap-2.5" id="wsHistoryMonthGrid"></div>
+          <p class="text-[11px] text-gray-400 mt-3 leading-relaxed">เลือกเดือนที่มีบิล (ตัวเลขในวงกลมคือจำนวนบิลของเดือนนั้น รวมทุกพ่อค้าส่ง) เดือนที่ไม่มีบิลจะกดไม่ได้</p>
+        </div>
+        <div id="wsHistoryMonthStep-detail" class="hidden">
+          <div class="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
+            <span id="wsHistoryBackToMonthGrid" class="text-sky-700 font-semibold cursor-pointer hover:underline">📅 เลือกเดือน</span>
+            <span class="text-gray-300">›</span>
+            <span id="wsHistoryMonthDetailTitle" class="font-bold text-gray-700">-</span>
+          </div>
+          <div id="wsHistoryMonthDetailList"></div>
+        </div>
+      </div>
     </div>
 
   </section>
@@ -7122,10 +7197,10 @@ function preRowCardHtml_(pre, showBranch) {
         <span class="ml-auto font-bold text-amber-700">+${formatMoney(pre.depositAmount)}</span>
       </div>
       <div class="px-4">
-        <div class="grid grid-cols-[1fr_80px_1fr] items-center gap-2.5 py-2.5 text-[13.5px]">
+        <div class="grid grid-cols-[1fr_80px_110px_110px] items-center gap-2.5 py-2.5 text-[13.5px]">
           <div class="text-gray-700 leading-snug">${escapeHtml(pre.itemName || "")}</div>
           <div class="${qtyClass}">${qty}</div>
-          <div class="text-right text-amber-700 text-xs">มัดจำที่รับวันนี้</div>
+          <div class="col-span-2 text-right text-amber-700 text-xs">มัดจำที่รับวันนี้</div>
         </div>
       </div>
     </div>`;
@@ -7153,10 +7228,14 @@ function wirePreEditButtons_(container, preRows) {
 function renderReportBillsList(bills, billCount, itemCount, preRows) {
   preRows = preRows || [];
   const preCount = preRows.length;
+  // 2026-10: "ชิ้น" count must include Pre-order qty too, otherwise this
+  // header number doesn't match the merged bill+pre-order list shown below
+  // it (per Wing: pre-order items were missing from the total).
+  const preQtySum = preRows.reduce((sum, p) => sum + (Number(p.qty) || 0), 0);
 
   document.getElementById("reportBillsCountLabel").textContent =
     bills.length > 0 || preCount > 0
-      ? `${billCount.toLocaleString()} บิล · ${itemCount.toLocaleString()} ชิ้น` +
+      ? `${billCount.toLocaleString()} บิล · ${(itemCount + preQtySum).toLocaleString()} ชิ้น` +
         (preCount > 0 ? ` · ${preCount.toLocaleString()} รายการจอง` : "")
       : "";
 
@@ -7337,9 +7416,12 @@ function renderMasterReport(summary) {
   const bills = summary.bills || [];
   const preRows = summary.preRows || [];
   const preCount = preRows.length;
+  // 2026-10: include Pre-order qty in the "ชิ้น" total here too, same fix
+  // as the single-branch Reports view (renderReportBillsList above).
+  const preQtySum = preRows.reduce((sum, p) => sum + (Number(p.qty) || 0), 0);
   document.getElementById("mrBillsCountLabel").textContent =
     bills.length > 0 || preCount > 0
-      ? `${(summary.billCount || 0).toLocaleString()} บิล · ${(summary.itemCount || 0).toLocaleString()} ชิ้น` +
+      ? `${(summary.billCount || 0).toLocaleString()} บิล · ${((summary.itemCount || 0) + preQtySum).toLocaleString()} ชิ้น` +
         (preCount > 0 ? ` · ${preCount.toLocaleString()} รายการจอง` : "")
       : "";
 
@@ -11112,7 +11194,7 @@ let wsDraftItems = [];       // [{barcode, name, qty, price, discountPct}] — l
 let wsSuggestionMatches = []; // current dropdown matches for wsItemNameInput (name-search path)
 let wsHighlightIndex = -1;    // index into wsSuggestionMatches highlighted via ↓/↑, -1 = none yet
 let lastLoadedWSInvoices = []; // flat list from the last "getWSInvoices" fetch — every status included
-let wsViewMode = "list";     // "list" | "balance"
+let wsViewMode = "list";     // "list" | "balance" | "history"
 let wsStatusFilter = "all";  // active pill in the บิลขายส่ง view
 let wsPaymentInvoice = null; // the WS invoice object currently targeted by wsPaymentModal
 let wsVoidInvoiceId = null;  // targeted by wsVoidModal
@@ -11199,7 +11281,8 @@ async function loadWSInvoices() {
 
 function renderCurrentWSView() {
   if (wsViewMode === "list") renderWSInvoiceList();
-  else renderWSBalanceView();
+  else if (wsViewMode === "balance") renderWSBalanceView();
+  else if (wsViewMode === "history") renderWSHistoryCurrentMode();
 }
 
 function switchWSView(mode) {
@@ -11960,6 +12043,507 @@ function setupWSBalanceSearch() {
   document.getElementById("wsBalanceSearchInput").addEventListener("input", renderWSBalanceView);
 }
 
+/* ---------------- มุมมองที่ 4: ประวัติ/ค้นหา (2026-10, per Wing) ----------------
+   3 มุมมองย่อยสลับกันได้ ("buyer" / "item" / "month"), ทั้งหมดอ่านจาก
+   lastLoadedWSInvoices ชุดเดียวกับมุมมองอื่น — ไม่มี API เพิ่ม. การคลิก
+   แถวบิลไหนก็ตาม เปิด #billPreviewModal เดิมผ่าน buildWSBillObject_
+   (เหมือนปุ่ม "🖨️ พิมพ์" ใน มุมมองที่ 1 ทุกอย่าง) จึงได้ระบบพิมพ์ +
+   สรุปยอดรับชำระ (paymentHistory → paymentLines) มาฟรีโดยไม่ต้องสร้าง
+   โค้ดพิมพ์แยกใหม่เลย — ตามที่ Wing ขอ (ข้อ 2, 2026-10).
+
+   รูปแบบเดือน "Oct /26" (อังกฤษย่อ + ปี 2 หลัก) ใช้ทั้ง 3 มุมมองย่อย ตามที่
+   Wing ขอให้ไม่สับสนกับ พ.ศ./ค.ศ. — เดือนใหม่สุดขึ้นก่อนเสมอทุกที่. */
+
+let wsHistoryMode = "buyer"; // "buyer" | "item" | "month"
+let wsHistorySelectedBuyerKey = null;
+let wsHistoryOpenMonthKeys = new Set();
+let wsHistoryItemBuyerFilter = null; // { key, name } or null = ทุกคน
+let wsHistoryPickerYear = null;      // ปี ค.ศ. ของตาราง "เลือกบิลตามปี/เดือน"
+
+const WS_HISTORY_ENG_MONTH = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function wsHistoryMonthTileLabel_(ym) {
+  const parts = ym.split("-");
+  const y = Number(parts[0]), m = Number(parts[1]);
+  return WS_HISTORY_ENG_MONTH[m] + " /" + String(y).slice(-2);
+}
+
+// จัดกลุ่มตามพ่อค้าส่ง — ใช้ normalizeCustomerCode เดียวกับ renderWSBalanceView
+// (รหัสว่าง fallback เป็นชื่อ+เบอร์ เพื่อให้พ่อค้าส่งใหม่ที่ยังไม่มีรหัสในชีท
+// ลูกค้า ก็ยังจัดกลุ่มบิลของตัวเองได้ถูกต้อง)
+function wsHistoryBuyerKey_(invoice) {
+  return normalizeCustomerCode(invoice.customerCode) || "name:" + invoice.customerName + "|" + invoice.customerPhone;
+}
+function wsHistoryGroupByBuyer_(list) {
+  const groups = new Map();
+  list.forEach((inv) => {
+    const key = wsHistoryBuyerKey_(inv);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(inv);
+  });
+  return groups;
+}
+
+function wsHistoryHighlight_(text, q) {
+  const t = String(text || "");
+  if (!q) return escapeHtml(t);
+  const idx = t.toLowerCase().indexOf(q.toLowerCase());
+  if (idx === -1) return escapeHtml(t);
+  return (
+    escapeHtml(t.slice(0, idx)) +
+    '<mark class="bg-amber-200 text-amber-800 rounded px-0.5">' +
+    escapeHtml(t.slice(idx, idx + q.length)) +
+    "</mark>" +
+    escapeHtml(t.slice(idx + q.length))
+  );
+}
+
+// แถวบิลที่ใช้ร่วมกันทั้ง มุมมองย่อย "buyer" (ในแต่ละเดือน) และ "month"
+// (ข้ามพ่อค้าส่งทุกคน — showBuyer=true ถึงจะโชว์ชื่อลูกค้าบนแถว)
+function wsHistoryBillRowHtml_(inv, showBuyer, highlightQ) {
+  const matchBadge = highlightQ
+    ? '<span class="inline-block bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full ml-1.5">มีสินค้าที่ค้นหา</span>'
+    : "";
+  return `
+    <div class="ws-history-bill-row flex items-center justify-between gap-3 bg-gray-50 hover:bg-sky-50 border border-transparent hover:border-sky-400 rounded-lg px-3 py-2.5 cursor-pointer transition" data-invoice-id="${escapeHtml(inv.invoiceId)}">
+      <div class="min-w-0">
+        <div class="font-semibold text-gray-700 text-[13px] truncate">${escapeHtml(inv.billTitle || inv.invoiceId)}${matchBadge}</div>
+        ${showBuyer ? `<div class="text-[11px] text-violet-700 font-semibold">👤 ${escapeHtml(inv.customerName || "-")}</div>` : ""}
+        <div class="text-[10.5px] text-gray-400 font-mono">${escapeHtml(inv.invoiceId)} · ${escapeHtml((inv.createdAt || "").slice(0, 10))}</div>
+      </div>
+      <div class="text-right flex-shrink-0 flex items-center gap-2.5">
+        <div class="font-bold text-gray-700 text-[13px]">${formatMoney(inv.grandTotal)}</div>
+        ${wsStatusBadge(inv.status)}
+      </div>
+    </div>`;
+}
+
+// กดแถวไหนก็เปิดพรีวิว/พิมพ์บิลเดิมของแอป (ของเดิม ไม่ได้สร้างใหม่) —
+// เดียวกับปุ่ม "🖨️ พิมพ์" ใน มุมมองที่ 1 เป๊ะๆ รวมถึงสรุปยอดรับชำระ
+// (paymentLines) ที่ buildWSBillObject_ ดึงจาก paymentHistory ให้อยู่แล้ว.
+function wireWSHistoryBillRowClicks_(container) {
+  container.querySelectorAll(".ws-history-bill-row").forEach((el) => {
+    el.addEventListener("click", () => {
+      const invoice = lastLoadedWSInvoices.find((i) => i.invoiceId === el.getAttribute("data-invoice-id"));
+      if (invoice) openBillPreview(buildWSBillObject_(false, invoice));
+    });
+  });
+}
+
+function switchWSHistoryMode(mode) {
+  wsHistoryMode = mode;
+  document.querySelectorAll(".ws-history-tab-btn").forEach((btn) => {
+    const active = btn.getAttribute("data-ws-history-mode") === mode;
+    btn.classList.toggle("bg-emerald-700", active);
+    btn.classList.toggle("text-white", active);
+    btn.classList.toggle("bg-gray-100", !active);
+    btn.classList.toggle("text-gray-500", !active);
+  });
+  document.querySelectorAll(".ws-history-mode").forEach((el) => {
+    el.classList.toggle("hidden", el.id !== "wsHistoryMode-" + mode);
+  });
+  renderWSHistoryCurrentMode();
+}
+
+function renderWSHistoryCurrentMode() {
+  if (wsHistoryMode === "buyer") {
+    if (wsHistorySelectedBuyerKey) renderWSHistoryMonthGroups();
+    else renderWSHistoryBuyerList();
+  } else if (wsHistoryMode === "item") {
+    renderWSHistoryItemSearchResults();
+  } else if (wsHistoryMode === "month") {
+    renderWSHistoryMonthPicker();
+  }
+}
+
+/* ---- มุมมองย่อย: เลือกพ่อค้าส่ง -> บิลรายเดือน ---- */
+
+function renderWSHistoryBuyerList() {
+  const q = document.getElementById("wsHistoryBuyerSearchInput").value.trim().toLowerCase();
+  const groups = wsHistoryGroupByBuyer_(lastLoadedWSInvoices);
+  const container = document.getElementById("wsHistoryBuyerListResults");
+
+  let rows = Array.from(groups.entries()).map(([key, invoices]) => ({ key, invoices, first: invoices[0] }));
+  if (q) {
+    rows = rows.filter(
+      (r) =>
+        (r.first.customerName || "").toLowerCase().includes(q) ||
+        (r.first.customerPhone || "").toLowerCase().includes(q) ||
+        (r.first.customerCode || "").toLowerCase().includes(q)
+    );
+  }
+  rows.sort((a, b) => (a.first.customerName || "").localeCompare(b.first.customerName || "", "th"));
+
+  if (rows.length === 0) {
+    container.innerHTML = `<p class="text-center text-gray-400 py-10 text-sm">${
+      lastLoadedWSInvoices.length === 0 ? "ยังไม่มีบิลขายส่ง หรือยังไม่ได้กด \"รีเฟรช\"" : "ไม่พบพ่อค้าส่งที่ตรงกับคำค้นนี้"
+    }</p>`;
+    return;
+  }
+
+  container.innerHTML = rows
+    .map((r) => {
+      const initial = (r.first.customerName || "?").trim().charAt(0) || "?";
+      const total = r.invoices.reduce((s, i) => s + (Number(i.grandTotal) || 0), 0);
+      return `
+        <div class="ws-history-buyer-row flex items-center justify-between gap-3 border-2 border-gray-100 hover:border-emerald-200 hover:bg-emerald-50 rounded-xl px-4 py-3 cursor-pointer transition" data-buyer-key="${escapeHtml(r.key)}">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center font-bold flex-shrink-0">${escapeHtml(initial)}</div>
+            <div>
+              <div class="font-semibold text-gray-700 text-sm">${escapeHtml(r.first.customerName || "-")}</div>
+              <div class="text-[11px] text-gray-400">${escapeHtml(r.first.customerPhone || "")}${r.first.customerCode ? " · รหัส " + escapeHtml(r.first.customerCode) : ""}</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="font-bold text-indigo-600 text-sm">${r.invoices.length} บิล</div>
+            <div class="text-[10.5px] text-gray-400">รวม ${formatMoney(total)} บาท</div>
+          </div>
+        </div>`;
+    })
+    .join("");
+
+  container.querySelectorAll(".ws-history-buyer-row").forEach((el) => {
+    el.addEventListener("click", () => wsHistorySelectBuyer(el.getAttribute("data-buyer-key")));
+  });
+}
+
+function wsHistorySelectBuyer(key) {
+  wsHistorySelectedBuyerKey = key;
+  wsHistoryOpenMonthKeys = new Set();
+  document.getElementById("wsHistoryBuyerStep-list").classList.add("hidden");
+  document.getElementById("wsHistoryBuyerStep-detail").classList.remove("hidden");
+  document.getElementById("wsHistoryBuyerItemFilterInput").value = "";
+
+  const groups = wsHistoryGroupByBuyer_(lastLoadedWSInvoices);
+  const invoices = groups.get(key) || [];
+  const first = invoices[0];
+  if (!first) return;
+  document.getElementById("wsHistorySelectedBuyerName").textContent = first.customerName || "-";
+
+  const initial = (first.customerName || "?").trim().charAt(0) || "?";
+  const totalDue = invoices.reduce((s, i) => s + (Number(i.amountDue) || 0), 0);
+  document.getElementById("wsHistorySelectedBuyerHeader").innerHTML = `
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center font-bold flex-shrink-0">${escapeHtml(initial)}</div>
+      <div>
+        <div class="font-semibold text-gray-700 text-sm">${escapeHtml(first.customerName || "-")}</div>
+        <div class="text-[11px] text-gray-400">${escapeHtml(first.customerPhone || "")}${first.customerCode ? " · รหัส " + escapeHtml(first.customerCode) : ""}</div>
+      </div>
+    </div>
+    <div class="text-right">
+      <div class="font-bold text-sm" style="color:${totalDue > 0 ? "#d97706" : "#059669"}">${totalDue > 0 ? formatMoney(totalDue) + " ค้าง" : "ไม่มีค้างชำระ"}</div>
+      <div class="text-[10.5px] text-gray-400">${invoices.length} บิลทั้งหมด</div>
+    </div>`;
+
+  renderWSHistoryMonthGroups();
+}
+
+function wsHistoryBackToBuyerList() {
+  document.getElementById("wsHistoryBuyerStep-list").classList.remove("hidden");
+  document.getElementById("wsHistoryBuyerStep-detail").classList.add("hidden");
+  wsHistorySelectedBuyerKey = null;
+}
+
+function renderWSHistoryMonthGroups() {
+  if (!wsHistorySelectedBuyerKey) return;
+  const itemQ = document.getElementById("wsHistoryBuyerItemFilterInput").value.trim().toLowerCase();
+  const groups = wsHistoryGroupByBuyer_(lastLoadedWSInvoices);
+  let invoices = (groups.get(wsHistorySelectedBuyerKey) || []).slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  if (itemQ) {
+    invoices = invoices.filter((inv) =>
+      (inv.items || []).some((it) => (it.name || "").toLowerCase().includes(itemQ) || String(it.barcode || "").includes(itemQ))
+    );
+  }
+
+  const container = document.getElementById("wsHistoryMonthGroupsContainer");
+  if (invoices.length === 0) {
+    container.innerHTML = `<p class="text-center text-gray-400 py-10 text-sm">${itemQ ? "ไม่พบบิลที่มีสินค้านี้ของพ่อค้าส่งคนนี้" : "ยังไม่มีบิลของพ่อค้าส่งคนนี้"}</p>`;
+    return;
+  }
+
+  const byMonth = new Map();
+  invoices.forEach((inv) => {
+    const ym = (inv.createdAt || "").slice(0, 7);
+    if (!byMonth.has(ym)) byMonth.set(ym, []);
+    byMonth.get(ym).push(inv);
+  });
+  // เดือนใหม่สุดขึ้นก่อนเสมอ (เหมือนทุกลิสต์อื่นในแอปนี้)
+  const months = Array.from(byMonth.keys()).sort().reverse();
+
+  // พิมพ์ค้นหาสินค้าแล้ว เปิดทุกเดือนที่เจอให้เห็นผลทันที ไม่ต้องกดไล่เอง
+  if (itemQ) months.forEach((m) => wsHistoryOpenMonthKeys.add(m));
+
+  container.innerHTML = months
+    .map((ym) => {
+      const list = byMonth.get(ym);
+      const total = list.reduce((s, i) => s + (Number(i.grandTotal) || 0), 0);
+      const isOpen = wsHistoryOpenMonthKeys.has(ym);
+      const billsHtml = list.map((inv) => wsHistoryBillRowHtml_(inv, false, itemQ)).join("");
+      return `
+        <div class="mb-2">
+          <div class="ws-history-month-toggle flex items-center justify-between border-2 ${isOpen ? "border-indigo-600 bg-indigo-50" : "border-gray-100"} rounded-xl px-4 py-3 cursor-pointer transition" data-ym="${escapeHtml(ym)}">
+            <div class="font-semibold text-gray-700 text-sm flex items-center gap-2">
+              <i class="fa-solid fa-chevron-right text-[11px] text-gray-400 transition-transform ${isOpen ? "rotate-90 text-indigo-600" : ""}"></i>
+              ${escapeHtml(wsHistoryMonthTileLabel_(ym))} <span class="text-xs text-gray-400 font-normal">· ${list.length} บิล</span>
+            </div>
+            <div class="font-bold text-indigo-700 text-sm">${formatMoney(total)} บาท</div>
+          </div>
+          <div class="${isOpen ? "" : "hidden"} border-l-2 border-indigo-100 ml-4 pl-2 mt-1.5 flex flex-col gap-1.5">${billsHtml}</div>
+        </div>`;
+    })
+    .join("");
+
+  container.querySelectorAll(".ws-history-month-toggle").forEach((el) => {
+    el.addEventListener("click", () => {
+      const ym = el.getAttribute("data-ym");
+      if (wsHistoryOpenMonthKeys.has(ym)) wsHistoryOpenMonthKeys.delete(ym);
+      else wsHistoryOpenMonthKeys.add(ym);
+      renderWSHistoryMonthGroups();
+    });
+  });
+  wireWSHistoryBillRowClicks_(container);
+}
+
+/* ---- มุมมองย่อย: ค้นหาตามสินค้า (ทุกคน) + ตัวกรองพ่อค้าส่งไม่บังคับ ---- */
+
+function renderWSHistoryBuyerFilterDropdownOptions() {
+  const dd = document.getElementById("wsHistoryBuyerFilterDropdown");
+  const groups = wsHistoryGroupByBuyer_(lastLoadedWSInvoices);
+  const rows = Array.from(groups.entries()).map(([key, invoices]) => ({ key, invoices, first: invoices[0] }));
+  rows.sort((a, b) => (a.first.customerName || "").localeCompare(b.first.customerName || "", "th"));
+
+  const opts = rows
+    .map((r) => {
+      const initial = (r.first.customerName || "?").trim().charAt(0) || "?";
+      return `
+        <div class="ws-history-buyer-filter-opt flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-violet-100 cursor-pointer" data-buyer-key="${escapeHtml(r.key)}" data-buyer-name="${escapeHtml(r.first.customerName || "")}">
+          <div class="w-7 h-7 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center font-bold text-xs flex-shrink-0">${escapeHtml(initial)}</div>
+          <div>
+            <div class="font-semibold text-gray-700 text-[13px]">${escapeHtml(r.first.customerName || "-")}</div>
+            <div class="text-[10.5px] text-gray-400">${r.invoices.length} บิล${r.first.customerCode ? " · รหัส " + escapeHtml(r.first.customerCode) : ""}</div>
+          </div>
+        </div>`;
+    })
+    .join("");
+  dd.innerHTML =
+    opts +
+    `<div id="wsHistoryClearBuyerFilterOpt" class="text-rose-600 font-semibold text-xs border-t border-gray-100 mt-1 pt-2 px-2.5 py-1.5 cursor-pointer hover:bg-rose-50 rounded-lg">✕ ล้างตัวกรอง (ดูทุกคน)</div>`;
+
+  dd.querySelectorAll(".ws-history-buyer-filter-opt").forEach((el) => {
+    el.addEventListener("click", () => wsHistorySelectItemBuyerFilter(el.getAttribute("data-buyer-key"), el.getAttribute("data-buyer-name")));
+  });
+  const clearOpt = document.getElementById("wsHistoryClearBuyerFilterOpt");
+  if (clearOpt) clearOpt.addEventListener("click", wsHistoryClearBuyerFilter);
+}
+
+function wsHistorySelectItemBuyerFilter(key, name) {
+  wsHistoryItemBuyerFilter = { key, name };
+  document.getElementById("wsHistoryBuyerFilterDropdown").classList.add("hidden");
+  const btn = document.getElementById("wsHistoryBuyerFilterBtn");
+  btn.classList.add("border-violet-600", "bg-violet-100", "text-violet-700");
+  const chip = document.getElementById("wsHistoryActiveBuyerFilterChip");
+  chip.classList.remove("hidden");
+  chip.classList.add("flex");
+  document.getElementById("wsHistoryActiveBuyerFilterName").textContent = name;
+  renderWSHistoryItemSearchResults();
+}
+
+function wsHistoryClearBuyerFilter() {
+  wsHistoryItemBuyerFilter = null;
+  document.getElementById("wsHistoryBuyerFilterDropdown").classList.add("hidden");
+  const btn = document.getElementById("wsHistoryBuyerFilterBtn");
+  btn.classList.remove("border-violet-600", "bg-violet-100", "text-violet-700");
+  const chip = document.getElementById("wsHistoryActiveBuyerFilterChip");
+  chip.classList.add("hidden");
+  chip.classList.remove("flex");
+  renderWSHistoryItemSearchResults();
+}
+
+function renderWSHistoryItemHits_(container, hits, q) {
+  if (hits.length === 0) {
+    container.innerHTML = `<p class="text-center text-gray-400 py-10 text-sm">${wsHistoryItemBuyerFilter ? "พ่อค้าส่งคนนี้ยังไม่เคยสั่งสินค้านี้" : "ยังไม่มีพ่อค้าส่งคนไหนสั่งสินค้านี้"}</p>`;
+    return;
+  }
+  const buyerCount = new Set(hits.map((h) => h.inv.customerCode || h.inv.customerName)).size;
+  container.innerHTML =
+    `<p class="text-[11px] text-gray-400 mb-1">พบ ${hits.length} รายการ${wsHistoryItemBuyerFilter ? "" : " จาก " + buyerCount + " พ่อค้าส่ง"}</p>` +
+    hits
+      .map(
+        (h) => `
+      <div class="ws-history-bill-row flex items-center justify-between gap-3 border-2 border-gray-100 hover:border-sky-500 hover:bg-sky-50 rounded-xl px-4 py-2.5 cursor-pointer transition" data-invoice-id="${escapeHtml(h.inv.invoiceId)}">
+        <div class="min-w-0">
+          <div class="font-semibold text-gray-700 text-[13.5px] truncate">${wsHistoryHighlight_(h.item.name, q)}</div>
+          <div class="text-[11px] text-violet-700 font-semibold">👤 ${escapeHtml(h.inv.customerName || "-")}</div>
+          <div class="text-[10.5px] text-gray-400">${escapeHtml(h.inv.billTitle || h.inv.invoiceId)} · ${escapeHtml((h.inv.createdAt || "").slice(0, 10))} ${wsStatusBadge(h.inv.status)}</div>
+        </div>
+        <div class="text-right flex-shrink-0">
+          <div class="font-bold text-indigo-600 text-sm">${h.item.qty} ชิ้น</div>
+          <div class="text-[10.5px] text-gray-400">@${formatMoney(h.item.price)}</div>
+        </div>
+      </div>`
+      )
+      .join("");
+
+  wireWSHistoryBillRowClicks_(container);
+}
+
+function renderWSHistoryItemSearchResults() {
+  const q = document.getElementById("wsHistoryItemSearchInput").value.trim().toLowerCase();
+  const container = document.getElementById("wsHistoryItemSearchResults");
+
+  let pool = lastLoadedWSInvoices;
+  if (wsHistoryItemBuyerFilter) {
+    pool = pool.filter((inv) => wsHistoryBuyerKey_(inv) === wsHistoryItemBuyerFilter.key);
+  }
+
+  if (!q) {
+    if (wsHistoryItemBuyerFilter) {
+      // เลือกพ่อค้าส่งไว้แต่ยังไม่พิมพ์ชื่อสินค้า — ไล่ดูทุกอย่างที่คนนี้เคยสั่งได้เลย
+      const hits = [];
+      pool.forEach((inv) => (inv.items || []).forEach((it) => hits.push({ inv, item: it })));
+      hits.sort((a, b) => new Date(b.inv.createdAt) - new Date(a.inv.createdAt));
+      renderWSHistoryItemHits_(container, hits, "");
+      return;
+    }
+    container.innerHTML = `<p class="text-center text-gray-400 py-10 text-sm">พิมพ์ชื่อสินค้าหรือบาร์โค้ดเพื่อค้นหาว่าใครเคยสั่งไปบ้าง หรือกด "👥 เลือกพ่อค้าส่ง" เพื่อดูของคนใดคนหนึ่งก่อน</p>`;
+    return;
+  }
+
+  const hits = [];
+  pool.forEach((inv) =>
+    (inv.items || []).forEach((it) => {
+      if ((it.name || "").toLowerCase().includes(q) || String(it.barcode || "").includes(q)) {
+        hits.push({ inv, item: it });
+      }
+    })
+  );
+  hits.sort((a, b) => new Date(b.inv.createdAt) - new Date(a.inv.createdAt));
+  renderWSHistoryItemHits_(container, hits, q);
+}
+
+/* ---- มุมมองย่อย: เลือกบิลตามปี/เดือน (ทุกคน) ---- */
+
+function wsHistoryGetYearsWithData_() {
+  const years = new Set(
+    lastLoadedWSInvoices.map((i) => Number((i.createdAt || "").slice(0, 4))).filter((y) => !isNaN(y) && y > 0)
+  );
+  return Array.from(years).sort();
+}
+
+function wsHistoryShiftYear(delta) {
+  wsHistoryPickerYear += delta;
+  renderWSHistoryMonthPickerGrid_();
+}
+
+function renderWSHistoryMonthPicker() {
+  if (wsHistoryPickerYear === null) {
+    const years = wsHistoryGetYearsWithData_();
+    wsHistoryPickerYear = years.length ? years[years.length - 1] : new Date().getFullYear();
+  }
+  renderWSHistoryMonthPickerGrid_();
+}
+
+function renderWSHistoryMonthPickerGrid_() {
+  document.getElementById("wsHistoryYearLabel").textContent = wsHistoryPickerYear; // ปี ค.ศ. ตรงๆ ตามที่ Wing ขอ
+
+  const countsByYm = new Map();
+  const amtByYm = new Map();
+  lastLoadedWSInvoices.forEach((inv) => {
+    const ym = (inv.createdAt || "").slice(0, 7);
+    if (!ym) return;
+    countsByYm.set(ym, (countsByYm.get(ym) || 0) + 1);
+    amtByYm.set(ym, (amtByYm.get(ym) || 0) + (Number(inv.grandTotal) || 0));
+  });
+
+  const grid = document.getElementById("wsHistoryMonthGrid");
+  let tiles = "";
+  // เดือนใหม่สุดขึ้นก่อนเสมอ: ธ.ค. -> ม.ค. ไม่ใช่ ม.ค. -> ธ.ค.
+  for (let m = 12; m >= 1; m--) {
+    const ym = wsHistoryPickerYear + "-" + String(m).padStart(2, "0");
+    const count = countsByYm.get(ym) || 0;
+    const hasData = count > 0;
+    tiles += `
+      <div class="ws-history-month-tile flex flex-col items-center gap-1.5 border-2 rounded-xl px-2 py-3 transition ${
+        hasData ? "border-gray-100 cursor-pointer hover:border-indigo-600 hover:bg-indigo-50" : "border-gray-100 opacity-40 cursor-default"
+      }" ${hasData ? `data-ym="${ym}"` : ""}>
+        <div class="font-semibold text-gray-700 text-[13px]">${wsHistoryMonthTileLabel_(ym)}</div>
+        <div class="w-7 h-7 rounded-full font-bold text-xs flex items-center justify-center ${hasData ? "bg-indigo-600 text-white" : "bg-gray-200 text-gray-400"}">${count}</div>
+        <div class="text-[10px] text-gray-400">${hasData ? formatMoney(amtByYm.get(ym)) : "-"}</div>
+      </div>`;
+  }
+  grid.innerHTML = tiles;
+
+  grid.querySelectorAll(".ws-history-month-tile[data-ym]").forEach((el) => {
+    el.addEventListener("click", () => wsHistorySelectPickerMonth(el.getAttribute("data-ym")));
+  });
+}
+
+function wsHistorySelectPickerMonth(ym) {
+  document.getElementById("wsHistoryMonthStep-grid").classList.add("hidden");
+  document.getElementById("wsHistoryMonthStep-detail").classList.remove("hidden");
+  document.getElementById("wsHistoryMonthDetailTitle").textContent = wsHistoryMonthTileLabel_(ym);
+
+  const invoices = lastLoadedWSInvoices
+    .filter((inv) => (inv.createdAt || "").slice(0, 7) === ym)
+    .slice()
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const container = document.getElementById("wsHistoryMonthDetailList");
+  if (invoices.length === 0) {
+    container.innerHTML = `<p class="text-center text-gray-400 py-10 text-sm">ไม่มีบิลในเดือนนี้</p>`;
+    return;
+  }
+  const buyerCount = new Set(invoices.map((i) => i.customerCode || i.customerName)).size;
+  const total = invoices.reduce((s, i) => s + (Number(i.grandTotal) || 0), 0);
+
+  container.innerHTML =
+    `<p class="text-[11px] text-gray-400 mb-2">${invoices.length} บิล จาก ${buyerCount} พ่อค้าส่ง · รวม ${formatMoney(total)} บาท</p>` +
+    `<div class="flex flex-col gap-1.5">` +
+    invoices.map((inv) => wsHistoryBillRowHtml_(inv, true, "")).join("") +
+    `</div>`;
+
+  wireWSHistoryBillRowClicks_(container);
+}
+
+function wsHistoryBackToMonthGrid() {
+  document.getElementById("wsHistoryMonthStep-grid").classList.remove("hidden");
+  document.getElementById("wsHistoryMonthStep-detail").classList.add("hidden");
+}
+
+/* ---- setup (wiring) ---- */
+
+function setupWSHistoryView() {
+  document.querySelectorAll(".ws-history-tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => switchWSHistoryMode(btn.getAttribute("data-ws-history-mode")));
+  });
+  switchWSHistoryMode("buyer"); // ตั้งสีปุ่ม/ซ่อน-โชว์ panel ให้ถูกต้องตั้งแต่แรก
+
+  document.getElementById("wsHistoryBuyerSearchInput").addEventListener("input", renderWSHistoryBuyerList);
+  document.getElementById("wsHistoryBackToBuyerList").addEventListener("click", wsHistoryBackToBuyerList);
+  document.getElementById("wsHistoryBuyerItemFilterInput").addEventListener("input", renderWSHistoryMonthGroups);
+
+  document.getElementById("wsHistoryItemSearchInput").addEventListener("input", renderWSHistoryItemSearchResults);
+  document.getElementById("wsHistoryBuyerFilterBtn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    const dd = document.getElementById("wsHistoryBuyerFilterDropdown");
+    const willOpen = dd.classList.contains("hidden");
+    if (willOpen) renderWSHistoryBuyerFilterDropdownOptions();
+    dd.classList.toggle("hidden", !willOpen);
+  });
+  document.addEventListener("click", (e) => {
+    const dd = document.getElementById("wsHistoryBuyerFilterDropdown");
+    const btn = document.getElementById("wsHistoryBuyerFilterBtn");
+    if (dd && !dd.classList.contains("hidden") && !dd.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+      dd.classList.add("hidden");
+    }
+  });
+  document.getElementById("wsHistoryClearBuyerFilterBtn").addEventListener("click", wsHistoryClearBuyerFilter);
+
+  document.getElementById("wsHistoryYearPrevBtn").addEventListener("click", () => wsHistoryShiftYear(-1));
+  document.getElementById("wsHistoryYearNextBtn").addEventListener("click", () => wsHistoryShiftYear(1));
+  document.getElementById("wsHistoryBackToMonthGrid").addEventListener("click", wsHistoryBackToMonthGrid);
+}
+
 /* ---------------- wsPaymentModal ("รับชำระ") ---------------- */
 
 function openWSPaymentModal(invoice) {
@@ -12168,6 +12752,7 @@ function setupWSTab() {
   setupWSViewTabs();
   setupWSStatusFilterPills();
   setupWSBalanceSearch();
+  setupWSHistoryView();
   setupWSPaymentModal();
   setupWSVoidModal();
   setupWSPaymentMethodButtons();
