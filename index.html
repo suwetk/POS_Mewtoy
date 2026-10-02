@@ -7722,15 +7722,24 @@ function renderChannelSalesMonth() {
       ${manualCell("web", web)}
       <td class="px-2 py-1.5 text-right text-indigo-700 font-medium border-l border-gray-100 bg-indigo-50/40">${formatMoney(wsAuto)}</td>
       ${manualCell("wsManual", wsManual)}
-      <td class="px-2 py-1.5 text-right font-semibold text-gray-600">${formatMoney(wsTotal)}</td>
-      <td class="px-2 py-1.5 text-right font-bold text-emerald-700 border-l border-gray-100">${formatMoney(rowTotal)}</td>
+      <td class="px-2 py-1.5 text-right font-semibold text-gray-600 cs-ws-total" data-date="${day.date}">${formatMoney(wsTotal)}</td>
+      <td class="px-2 py-1.5 text-right font-bold text-emerald-700 border-l border-gray-100 cs-row-total" data-date="${day.date}">${formatMoney(rowTotal)}</td>
     </tr>`;
   }).join("");
 
   document.getElementById("csDayRows").innerHTML = rowsHtml;
   wireChannelSalesManualInputs_();
 
-  // ---- แถวรวมท้ายตาราง ----
+  applyChannelSalesTotalsUI_(branchTotals, totals, todayTotal);
+}
+
+// อัปเดตแถวรวมท้ายตาราง + การ์ด KPI + การ์ดย่อยแยกช่องทาง — แยกออกมาจาก
+// renderChannelSalesMonth() เพื่อให้ recomputeChannelSalesLive_() (อัปเดตสด
+// ขณะพิมพ์ ไม่ build ตาราง/input ใหม่) เรียกใช้ร่วมกันได้ ไม่ต้อง copy โค้ดซ้ำ
+function applyChannelSalesTotalsUI_(branchTotals, totals, todayTotal) {
+  const branches = BRANCH_LIST;
+  const today = csTodayDateStr_();
+
   const branchTotalCells = branches.map((b, i) =>
     `<td class="px-2 py-1.5 text-right${i === 0 ? " border-l border-gray-200" : ""}">${formatMoney(branchTotals[b])}</td>`
   ).join("");
@@ -7778,10 +7787,72 @@ function renderChannelSalesMonth() {
     </div>`).join("");
 }
 
-// ผูก change event ให้ input ช่องพิมพ์เองทุกช่อง — แก้ไขแล้ว debounce บันทึก
-// ทั้งแถว (วันที่นั้น) หลังจากหยุดพิมพ์ไปสักครู่ ไม่ต้องกดปุ่ม "บันทึก" เอง
+// คำนวณยอดรวม "สด" ทุกครั้งที่พิมพ์ (ผูกกับ input event ของทุกช่อง) — อ่านค่า
+// ล่าสุดตรงจาก DOM input โดยตรง (ยังไม่ต้องรอบันทึกขึ้น backend เสร็จ) แล้ว
+// อัปเดตเฉพาะตัวเลข "รวม WS"/"รวมทั้งวัน" ของแถวนั้น + แถวรวมท้ายตาราง + การ์ด
+// KPI เท่านั้น — "ไม่" build <input> ใหม่ทั้งตาราง กัน focus/cursor หลุดระหว่าง
+// พิมพ์ (ต่างจาก renderChannelSalesMonth() ที่ build ใหม่ทั้งหมด ใช้ตอนโหลด/
+// บันทึกเสร็จเท่านั้น)
+function recomputeChannelSalesLive_() {
+  const branches = BRANCH_LIST;
+  const today = csTodayDateStr_();
+  const totals = { shopeeTH: 0, shopeeMY: 0, shopeePH: 0, lazada: 0, web: 0, wsAuto: 0, wsManual: 0, wsTotal: 0, grand: 0 };
+  const branchTotals = {};
+  branches.forEach((b) => { branchTotals[b] = 0; });
+  let todayTotal = 0;
+
+  const getInputVal_ = (dateStr, field, fallback) => {
+    const el = document.querySelector(`#csDayRows .cs-manual-input[data-date="${dateStr}"][data-field="${field}"]`);
+    if (!el) return Number(fallback) || 0;
+    return Number(el.value) || 0;
+  };
+
+  csLastLoadedDays.forEach((day) => {
+    if (day.date > today) return; // แถวอนาคต ล็อกไว้ ไม่มี input ให้อ่าน
+
+    const branchVals = branches.map((b) => Number((day.branchTotals || {})[b]) || 0);
+    branches.forEach((b, i) => { branchTotals[b] += branchVals[i]; });
+    const branchSum = branchVals.reduce((s, v) => s + v, 0);
+
+    const shopeeTH = getInputVal_(day.date, "shopeeTH", day.shopeeTH);
+    const shopeeMY = getInputVal_(day.date, "shopeeMY", day.shopeeMY);
+    const shopeePH = getInputVal_(day.date, "shopeePH", day.shopeePH);
+    const lazada = getInputVal_(day.date, "lazada", day.lazada);
+    const web = getInputVal_(day.date, "web", day.web);
+    const wsManual = getInputVal_(day.date, "wsManual", day.wsManual);
+    const wsAuto = Number(day.wsAuto) || 0;
+    const wsTotal = wsAuto + wsManual;
+
+    totals.shopeeTH += shopeeTH;
+    totals.shopeeMY += shopeeMY;
+    totals.shopeePH += shopeePH;
+    totals.lazada += lazada;
+    totals.web += web;
+    totals.wsAuto += wsAuto;
+    totals.wsManual += wsManual;
+    totals.wsTotal += wsTotal;
+
+    const rowTotal = branchSum + shopeeTH + shopeeMY + shopeePH + lazada + web + wsTotal;
+    totals.grand += rowTotal;
+    if (day.date === today) todayTotal = rowTotal;
+
+    const wsTotalCell = document.querySelector(`#csDayRows .cs-ws-total[data-date="${day.date}"]`);
+    if (wsTotalCell) wsTotalCell.textContent = formatMoney(wsTotal);
+    const rowTotalCell = document.querySelector(`#csDayRows .cs-row-total[data-date="${day.date}"]`);
+    if (rowTotalCell) rowTotalCell.textContent = formatMoney(rowTotal);
+  });
+
+  applyChannelSalesTotalsUI_(branchTotals, totals, todayTotal);
+}
+
+// ผูก event ให้ input ช่องพิมพ์เองทุกช่อง — "input" (ทุกครั้งที่พิมพ์) อัปเดต
+// ยอดรวมทันทีแบบสดๆ ผ่าน recomputeChannelSalesLive_(), ส่วน "change" (ตอนออก
+// จากช่อง/blur) จะ debounce แล้วบันทึกขึ้น backend จริงผ่าน
+// scheduleSaveChannelSalesDay_() — แยกสองอย่างออกจากกัน เพื่อให้ยอดรวมขึ้น
+// ทันทีที่พิมพ์โดยไม่ต้องรอ network round-trip
 function wireChannelSalesManualInputs_() {
   document.querySelectorAll("#csDayRows .cs-manual-input").forEach((input) => {
+    input.addEventListener("input", recomputeChannelSalesLive_);
     input.addEventListener("change", () => {
       scheduleSaveChannelSalesDay_(input.getAttribute("data-date"));
     });
