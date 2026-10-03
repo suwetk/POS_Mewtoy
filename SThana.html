@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ใบสั่งงานช่างฝังพลอย</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anuphan:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: workbench — big-touch form on the left, the printable drawing sheet on the right, gem-cut guide below */
+:root{
+  --bg:#EDF0F3; --panel:#FFFFFF; --ink:#18202C; --muted:#5A6576; --line:#CBD3DD;
+  --accent:#23479E; --accent-soft:#E3E9F7; --ok:#1E7A4F; --warn:#9A5B00;
+  --display:'Anuphan','IBM Plex Sans Thai',Tahoma,sans-serif;
+  --body:'IBM Plex Sans Thai','Sarabun',Tahoma,sans-serif;
+  --mono:'IBM Plex Mono',Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12161D; --panel:#1B212B; --ink:#E7ECF3; --muted:#9AA6B6; --line:#323C4A;
+  --accent:#8EA8EE; --accent-soft:#25304A; --ok:#5FC694; --warn:#E3A84B; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12161D; --panel:#1B212B; --ink:#E7ECF3; --muted:#9AA6B6; --line:#323C4A;
+  --accent:#8EA8EE; --accent-soft:#25304A; --ok:#5FC694; --warn:#E3A84B; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.6;padding-inline:16px;padding-block:20px 48px}
+.wrap{max-width:1240px;margin:0 auto;display:grid;gap:28px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.25}
+h1{font-size:clamp(1.6rem,4vw,2.3rem);font-weight:700}
+h2{font-size:1.4rem;font-weight:700}
+h3{font-size:1.1rem;font-weight:600}
+p{margin:0}
+.intro{display:grid;gap:10px}
+.intro p{color:var(--muted);max-width:62ch}
+.steps{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:6px 0 0}
+.steps li{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px 14px 4px 6px;display:flex;align-items:center;gap:8px;font-size:.95rem}
+.steps b{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--panel);font-family:var(--mono);font-size:.85rem}
+.main{display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:900px){.main{grid-template-columns:1fr}}
+.form{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;display:grid;gap:18px}
+.group{display:grid;gap:8px}
+.group>label,.glabel{font-weight:600;font-size:1rem}
+.hint{font-size:.88rem;color:var(--muted)}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.chip{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;border:2px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;font-size:.9rem;line-height:1.3;cursor:pointer;text-align:center}
+.chip svg{width:44px;height:44px}
+.chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.chip:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+input,select,textarea{font:inherit;font-size:1.05rem;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-width:0}
+input[type=color]{padding:2px;height:48px;cursor:pointer}
+textarea{min-height:90px;resize:vertical}
+.row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.num{display:grid;gap:4px}
+.num span{font-size:.9rem;color:var(--muted)}
+.num input{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:1.2rem;text-align:center}
+.sample{background:var(--accent-soft);border-radius:8px;padding:8px 12px;font-size:.92rem}
+.sheetcol{display:grid;gap:14px;min-width:0}
+.sheet{background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 10px 30px rgba(20,30,50,.12);overflow:hidden}
+.sheet svg{display:block;width:100%;height:auto}
+.actions{display:flex;flex-wrap:wrap;gap:10px}
+.btn{font:inherit;font-weight:600;font-size:1.02rem;padding:12px 20px;border-radius:10px;border:2px solid var(--accent);cursor:pointer;background:var(--panel);color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--panel)}
+.btn.danger{border-color:var(--warn);color:var(--warn)}
+.status{font-size:.95rem;color:var(--ok);min-height:1.4em}
+.export{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:12px}
+.export img{border:1px solid var(--line);border-radius:6px;max-width:420px;width:100%;background:#fff}
+.guide{display:grid;gap:16px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:10px;align-content:start}
+.card .pics{display:flex;gap:10px;justify-content:center;background:#fff;border-radius:8px;padding:8px}
+.card .pics svg{width:46%;height:auto;max-width:130px}
+.card ul{margin:0;padding-left:1.1em;display:grid;gap:4px;font-size:.95rem}
+.card .en{font-family:var(--mono);font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tips{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;display:grid;gap:10px}
+.tips ol{margin:0;padding-left:1.3em;display:grid;gap:6px}
+.foot{color:var(--muted);font-size:.88rem}
+@media print{body{background:#fff;padding:0}.intro,.form,.actions,.status,.export,.guide,.tips{display:none!important}.main{display:block}.sheet{border:0;box-shadow:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="intro">
+    <h1>ใบสั่งงานช่างฝังพลอย</h1>
+    <p>กรอกข้อมูลพลอยทางซ้าย ภาพแบบ (มุมบน + มุมข้าง + ตัวเลขขนาด) จะวาดให้เองทันที แล้วกดปุ่ม “ทำเป็นรูปส่งช่าง” เพื่อบันทึกรูปไปส่งทาง LINE</p>
+    <ol class="steps">
+      <li><b>1</b>เลือกรูปทรง</li>
+      <li><b>2</b>เลือกแบบเจียระไน</li>
+      <li><b>3</b>ใส่ขนาด (มม.)</li>
+      <li><b>4</b>กดทำเป็นรูปส่งช่าง</li>
+    </ol>
+  </header>
+
+  <section class="main">
+    <form class="form" id="f" autocomplete="off">
+      <p class="sample" id="sampleNote">ตอนนี้เป็น <b>ข้อมูลตัวอย่าง</b> (พลอยสีน้ำเงิน 30×22×8 มม.) แก้เป็นของจริงได้เลย</p>
+
+      <div class="group">
+        <span class="glabel">1. รูปทรงพลอย (มองจากด้านบน)</span>
+        <div class="chips" id="shapeChips"></div>
+      </div>
+
+      <div class="group">
+        <span class="glabel">2. แบบเจียระไน</span>
+        <div class="chips" id="cutChips"></div>
+      </div>
+
+      <div class="group">
+        <span class="glabel">3. ขนาด (มิลลิเมตร)</span>
+        <div class="row3">
+          <label class="num" for="w"><span>กว้าง (W)</span><input id="w" type="number" inputmode="decimal" step="0.01" min="0"></label>
+          <label class="num" for="l"><span>ยาว (L)</span><input id="l" type="number" inputmode="decimal" step="0.01" min="0"></label>
+          <label class="num" for="d"><span>ลึก</span><input id="d" type="number" inputmode="decimal" step="0.01" min="0"></label>
+        </div>
+        <p class="hint" id="roundHint" hidden>ทรงกลม: ช่อง “ยาว” จะเท่ากับ “กว้าง” ให้อัตโนมัติ</p>
+      </div>
+
+      <div class="row2">
+        <div class="group"><label for="stoneId">รหัสพลอย</label><input id="stoneId"></div>
+        <div class="group"><label for="qty">จำนวน (เม็ด)</label><input id="qty" type="number" min="1" inputmode="numeric"></div>
+      </div>
+      <div class="group"><label for="material">ชนิด / สีพลอย</label><input id="material" placeholder="เช่น ไพลินสีน้ำเงิน, โกเมน, บุษราคัม"></div>
+      <div class="row2">
+        <div class="group"><label for="carat">น้ำหนัก (กะรัต)</label><input id="carat" type="number" step="0.01" min="0" inputmode="decimal" placeholder="ไม่ใส่ก็ได้"></div>
+        <div class="group"><label for="gemColor">สีในภาพ</label><input id="gemColor" type="color"></div>
+      </div>
+      <div class="group">
+        <label for="setting">แบบการฝัง</label>
+        <select id="setting">
+          <option>หนามเตย 4 เขี้ยว (4-Prong)</option>
+          <option>หนามเตย 6 เขี้ยว (6-Prong)</option>
+          <option>ฝังหุ้ม (Bezel)</option>
+          <option>ฝังหุ้มครึ่ง (Half Bezel)</option>
+          <option>ฝังไข่ปลา (Pavé)</option>
+          <option>ฝังราง (Channel)</option>
+          <option>ให้ช่างแนะนำ</option>
+        </select>
+      </div>
+      <div class="group"><label for="metal">ตัวเรือน / โลหะ</label>
+        <input id="metal" list="metals" placeholder="เช่น ทอง 18K, เงิน 925">
+        <datalist id="metals"><option value="ทองคำ 18K"><option value="ทองคำ 14K"><option value="ทองคำขาว 18K"><option value="เงิน 925"><option value="เงิน 925 ชุบทอง"><option value="ทองคำ 96.5%"></datalist>
+      </div>
+      <div class="row2">
+        <div class="group"><label for="customer">ลูกค้า</label><input id="customer"></div>
+        <div class="group"><label for="deadline">กำหนดส่ง</label><input id="deadline" type="date"></div>
+      </div>
+      <div class="row2">
+        <div class="group"><label for="jobNo">เลขที่งาน</label><input id="jobNo"></div>
+        <div class="group"><label for="date">วันที่สั่ง</label><input id="date" type="date"></div>
+      </div>
+      <div class="group"><label for="shop">ชื่อร้าน / ผู้สั่งงาน</label><input id="shop"></div>
+      <div class="group"><label for="notes">หมายเหตุถึงช่าง</label><textarea id="notes" placeholder="เช่น ขอบ่ารองก้นให้แน่น, หันด้านยาวตามแนวนิ้ว"></textarea></div>
+      <button type="button" class="btn danger" id="resetBtn">เริ่มใบใหม่ (ล้างข้อมูล)</button>
+    </form>
+
+    <div class="sheetcol">
+      <div class="sheet" id="sheet" aria-label="ภาพใบสั่งงาน"></div>
+      <div class="actions">
+        <button type="button" class="btn primary" id="pngBtn">ทำเป็นรูปส่งช่าง</button>
+        <button type="button" class="btn" id="printBtn">พิมพ์ใบงาน</button>
+        <button type="button" class="btn" id="copyBtn">คัดลอกข้อความ (ส่ง LINE)</button>
+      </div>
+      <p class="status" id="status" role="status"></p>
+      <div class="export" id="exportBox" hidden>
+        <h3>รูปพร้อมส่งแล้ว</h3>
+        <p>มือถือ: <b>กดค้างที่รูป</b> แล้วเลือก “บันทึกรูป” · คอมพิวเตอร์: <b>คลิกขวาที่รูป</b> แล้วเลือก “บันทึกรูปภาพ” จากนั้นส่งรูปให้ช่างทาง LINE</p>
+        <a class="btn primary" id="dlLink" download="ใบสั่งงานช่าง.png" style="justify-self:start;text-decoration:none">ดาวน์โหลดรูป</a>
+        <img id="pngOut" alt="ใบสั่งงานช่างแบบรูปภาพ">
+      </div>
+    </div>
+  </section>
+
+  <section class="guide">
+    <h2>รู้จักแบบเจียระไน (อธิบายให้ช่างเข้าใจตรงกัน)</h2>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section class="tips">
+    <h2>วิธีวัดพลอยให้ช่างทำงานง่าย</h2>
+    <ol>
+      <li>ใช้ <b>เวอร์เนียร์</b> วัดเป็นมิลลิเมตร ใส่ทศนิยม 1–2 ตำแหน่ง เช่น 7.85</li>
+      <li><b>ยาว (L)</b> วัดด้านที่ยาวที่สุด · <b>กว้าง (W)</b> วัดด้านที่ตั้งฉากกับด้านยาว</li>
+      <li><b>ลึก</b> วัดจากหน้าบนสุด (หน้าโต๊ะ) ลงไปถึงก้นพลอย</li>
+      <li>พลอยเม็ดจริงอาจไม่เท่ากันทุกเม็ด ถ้าเป็นชุด ให้วัดทุกเม็ดหรือส่งพลอยตัวจริงให้ช่างลองบ่าก่อน</li>
+      <li>ภาพในใบงานวาด <b>ตามสัดส่วน ไม่ใช่ขนาดจริง</b> ให้ช่างยึดตัวเลข มม. เป็นหลัก</li>
+    </ol>
+    <p class="foot">คำแนะนำเรื่องแบบฝังในหน้านี้เป็นแนวทางทั่วไป ควรให้ช่างยืนยันอีกครั้งก่อนลงมือทำ</p>
+  </section>
+</div>
+
+<script>
+const SHAPES={oval:'ไข่ (Oval)',round:'กลม (Round)',cushion:'หมอน (Cushion)',pear:'หยดน้ำ (Pear)',marquise:'เม็ดข้าว (Marquise)',emerald:'สี่เหลี่ยมตัดมุม (Emerald)'};
+const CUTS={brilliant:'เหลี่ยมเพชร (Modified Brilliant)',step:'ขั้นบันได (Step Cut)',rose:'ก้นแบน (Rose Cut)',cab:'หลังเบี้ย (Cabochon)'};
+const SETTING_TIP={brilliant:'ก้นแหลม: ช่างต้องเจาะบ่าให้ลึกพอรับก้น',step:'ก้นเป็นสัน: ระวังมุมแตกเวลาบีบเขี้ยว',rose:'ก้นแบน: วางบนบ่าเรียบได้เลย เหมาะฝังหุ้ม',cab:'ก้นแบน หน้าโค้ง: นิยมฝังหุ้มหรือหนามเตย'};
+const today=new Date();const iso=d=>d.toISOString().slice(0,10);
+const pad=n=>String(n).padStart(2,'0');
+const DEFAULTS={shop:'เจ้ปู',jobNo:'J'+String(today.getFullYear()).slice(2)+pad(today.getMonth()+1)+pad(today.getDate())+'-01',date:iso(today),customer:'',stoneId:'BS-001',material:'พลอยสีน้ำเงิน (ตัวอย่าง)',shape:'oval',cut:'rose',w:30,l:22,d:8,carat:'',qty:1,gemColor:'#2b5fc7',setting:'ฝังหุ้ม (Bezel)',metal:'เงิน 925',deadline:'',notes:'ตัวอย่าง: พลอยก้นแบน หน้าเจียแบบ Rose Cut ขอบ่ารองก้นเต็มแผ่น',sample:true};
+const FIELDS=['shop','jobNo','date','customer','stoneId','material','w','l','d','carat','qty','gemColor','setting','metal','deadline','notes'];
+const KEY='jpuu-gem-order-v1';
+let st;
+try{st=Object.assign({},DEFAULTS,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){st=Object.assign({},DEFAULTS)}
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=v=>{const n=parseFloat(v);return isFinite(n)?(+n.toFixed(2)).toString():'—'};
+const thDate=v=>{if(!v)return '—';const d=new Date(v+'T00:00:00');return isNaN(d)?v:d.toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'})};
+
+/* ---------- geometry (mm, origin at centre, y down) ---------- */
+function outline(shape,a,b){
+  const P=[],N=240;
+  if(shape==='emerald'){const c=.28*Math.min(a,b);return [[-a+c,-b],[a-c,-b],[a,-b+c],[a,b-c],[a-c,b],[-a+c,b],[-a,b-c],[-a,-b+c]];}
+  if(shape==='marquise'){for(let i=0;i<=N/2;i++){const y=-b+2*b*i/(N/2);P.push([a*(1-(y/b)**2),y])}for(let i=1;i<N/2;i++){const y=b-2*b*i/(N/2);P.push([-a*(1-(y/b)**2),y])}return P;}
+  if(shape==='pear'){const raw=[];for(let i=0;i<N;i++){const t=2*Math.PI*i/N;raw.push([Math.sin(t)*Math.pow(Math.sin(t/2),1.3),-Math.cos(t)])}
+    const xs=raw.map(p=>p[0]),mx=Math.max(...xs.map(Math.abs));return raw.map(([x,y])=>[x/mx*a,y*b]);}
+  const n=shape==='cushion'?3.4:2;
+  for(let i=0;i<N;i++){const t=2*Math.PI*i/N,c=Math.cos(t),s=Math.sin(t);P.push([a*Math.sign(c)*Math.pow(Math.abs(c),2/n),b*Math.sign(s)*Math.pow(Math.abs(s),2/n)])}
+  return P;
+}
+function ray(poly,th){const dx=Math.cos(th),dy=Math.sin(th);let best=0;
+  for(let i=0;i<poly.length;i++){const p=poly[i],q=poly[(i+1)%poly.length];const ex=q[0]-p[0],ey=q[1]-p[1];const den=dx*ey-dy*ex;if(Math.abs(den)<1e-12)continue;
+    const t=(p[0]*ey-p[1]*ex)/den,u=(p[0]*dy-p[1]*dx)/den;if(t>0&&u>=-1e-9&&u<=1+1e-9&&t>best)best=t;}
+  return [dx*best,dy*best];}
+const sc=(p,k)=>[p[0]*k,p[1]*k];
+const ring=(poly,n,k,off=0)=>Array.from({length:n},(_,i)=>sc(ray(poly,-Math.PI/2+2*Math.PI*(i+off)/n),k));
+
+function topGeom(shape,cut,a,b){
+  const poly=outline(shape,a,b),lines=[],rings=[];
+  if(cut==='brilliant'){const n=8,T=ring(poly,n,.55),S=ring(poly,n,.78,.5),G=ring(poly,n,1),GH=ring(poly,n,1,.5);
+    rings.push(T);for(let i=0;i<n;i++){const j=(i+1)%n;lines.push([T[i],S[i]],[S[i],T[j]],[T[i],G[i]],[S[i],G[i]],[S[i],G[j]],[S[i],GH[i]])}}
+  else if(cut==='step'){const ks=[.82,.66,.5];ks.forEach(k=>rings.push(poly.map(p=>sc(p,k))));
+    if(shape==='emerald'){poly.forEach(p=>lines.push([p,sc(p,.5)]))}
+    else{[Math.atan2(-b,a),Math.atan2(-b,-a),Math.atan2(b,a),Math.atan2(b,-a)].forEach(th=>{const g=ray(poly,th);lines.push([g,sc(g,.5)])})}}
+  else if(cut==='rose'){const I=ring(poly,6,.5),G=ring(poly,12,1),C=[0,0];rings.push(I);
+    for(let i=0;i<6;i++){lines.push([C,I[i]],[I[i],G[2*i]],[I[i],G[(2*i+1)%12]],[I[(i+1)%6],G[(2*i+1)%12]])}}
+  else{rings.push({hl:true,pts:ring(poly,24,.62).slice(15,22)})}
+  return {poly,lines,rings};
+}
+function sideGeom(cut,a,D){
+  let poly,lines=[];const L=(x1,y1,x2,y2)=>lines.push([[x1,y1],[x2,y2]]);
+  if(cut==='brilliant'){const ta=.56*a,hc=.3*D,hg=.035*D;poly=[[-ta,0],[ta,0],[a,hc],[a,hc+hg],[0,D],[-a,hc+hg],[-a,hc]];
+    L(-a,hc,a,hc);L(-ta,0,-.6*a,hc);L(ta,0,.6*a,hc);L(0,0,-.2*a,hc);L(0,0,.2*a,hc);L(-.55*a,hc+hg,0,D);L(.55*a,hc+hg,0,D);L(-.2*a,hc+hg,0,D);L(.2*a,hc+hg,0,D);}
+  else if(cut==='step'){const ta=.6*a,hc=.28*D,hg=.035*D,p=D-hc-hg;poly=[[-ta,0],[ta,0],[a,hc],[a,hc+hg],[.62*a,hc+hg+.45*p],[.2*a,D],[-.2*a,D],[-.62*a,hc+hg+.45*p],[-a,hc+hg]];
+    L(-a,hc,a,hc);L(-.8*a,hc*.5,.8*a,hc*.5);L(-.62*a,hc+hg+.45*p,.62*a,hc+hg+.45*p);}
+  else if(cut==='rose'){const g=.86*D;poly=[[-a,D],[a,D],[a,g],[.6*a,.3*D],[.22*a,0],[-.22*a,0],[-.6*a,.3*D],[-a,g]];
+    L(-a,g,a,g);const z=[[-a,g],[-.6*a,.3*D],[-.3*a,g],[0,.3*D],[.3*a,g],[.6*a,.3*D],[a,g]];for(let i=0;i<z.length-1;i++)L(...z[i],...z[i+1]);L(-.6*a,.3*D,.6*a,.3*D);L(0,.3*D,-.22*a,0);L(0,.3*D,.22*a,0);}
+  else{poly=null;L(-a,.92*D,a,.92*D)}
+  return {poly,lines};
+}
+/* ---------- SVG helpers ---------- */
+const INK='#18202C',SOFT='#6B7686';
+function pts(arr,tf){return arr.map(p=>tf(p).map(v=>v.toFixed(2)).join(',')).join(' ')}
+function drawTop(g,tf,fill,sw=1.6,fw=.8){let s=`<polygon points="${pts(g.poly,tf)}" fill="${fill}" fill-opacity=".22" stroke="${INK}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+  g.rings.forEach(r=>{if(r.hl){s+=`<polyline points="${pts(r.pts,tf)}" fill="none" stroke="${fill}" stroke-width="${sw*2.4}" stroke-linecap="round" opacity=".55"/>`}else s+=`<polygon points="${pts(r,tf)}" fill="none" stroke="${INK}" stroke-width="${fw}"/>`});
+  g.lines.forEach(([p,q])=>{const A=tf(p),B=tf(q);s+=`<line x1="${A[0].toFixed(2)}" y1="${A[1].toFixed(2)}" x2="${B[0].toFixed(2)}" y2="${B[1].toFixed(2)}" stroke="${INK}" stroke-width="${fw}"/>`});return s;}
+function drawSide(cut,a,D,tf,fill,sw=1.6,fw=.8){const g=sideGeom(cut,a,D);let s='';
+  if(g.poly)s+=`<polygon points="${pts(g.poly,tf)}" fill="${fill}" fill-opacity=".22" stroke="${INK}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+  else{const P=k=>tf(k).map(v=>v.toFixed(2)).join(' ');s+=`<path d="M${P([-a,D])} L${P([a,D])} L${P([a,.92*D])} C${P([a,.18*D])} ${P([.55*a,0])} ${P([0,0])} C${P([-.55*a,0])} ${P([-a,.18*D])} ${P([-a,.92*D])} Z" fill="${fill}" fill-opacity=".22" stroke="${INK}" stroke-width="${sw}"/>`}
+  g.lines.forEach(([p,q])=>{const A=tf(p),B=tf(q);s+=`<line x1="${A[0].toFixed(2)}" y1="${A[1].toFixed(2)}" x2="${B[0].toFixed(2)}" y2="${B[1].toFixed(2)}" stroke="${INK}" stroke-width="${fw}"/>`});return s;}
+function dimH(x1,x2,y,yFrom,label,above=true){const t=above?y-10:y+24;
+  return `<line x1="${x1}" y1="${yFrom}" x2="${x1}" y2="${y+(above?-6:6)}" stroke="${SOFT}" stroke-width=".8"/><line x1="${x2}" y1="${yFrom}" x2="${x2}" y2="${y+(above?-6:6)}" stroke="${SOFT}" stroke-width=".8"/>
+  <line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${INK}" stroke-width="1" marker-start="url(#ar)" marker-end="url(#ar)"/>
+  <text x="${(x1+x2)/2}" y="${t}" text-anchor="middle" font-family="${MONOF}" font-size="17" font-weight="600" fill="${INK}">${esc(label)}</text>`}
+function dimV(y1,y2,x,xFrom,label,right=true){const tx=right?x+10:x-10;
+  return `<line x1="${xFrom}" y1="${y1}" x2="${x+(right?6:-6)}" y2="${y1}" stroke="${SOFT}" stroke-width=".8"/><line x1="${xFrom}" y1="${y2}" x2="${x+(right?6:-6)}" y2="${y2}" stroke="${SOFT}" stroke-width=".8"/>
+  <line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${INK}" stroke-width="1" marker-start="url(#ar)" marker-end="url(#ar)"/>
+  <text x="${tx}" y="${(y1+y2)/2+6}" text-anchor="${right?'start':'end'}" font-family="${MONOF}" font-size="17" font-weight="600" fill="${INK}">${esc(label)}</text>`}
+const FF="'IBM Plex Sans Thai',Sarabun,Tahoma,sans-serif",MONOF="'IBM Plex Mono',Menlo,Consolas,monospace",DISP="Anuphan,'IBM Plex Sans Thai',Tahoma,sans-serif";
+function wrap(text,max){const out=[];String(text||'').split('\n').forEach(par=>{let segs;
+  try{segs=[...new Intl.Segmenter('th',{granularity:'word'}).segment(par)].map(s=>s.segment)}catch(e){segs=Array.from(par)}
+  let line='';segs.forEach(s=>{if(Array.from(line+s).length>max&&line){out.push(line);line=s.trimStart()}else line+=s});out.push(line)});return out;}
+
+/* ---------- the sheet ---------- */
+function buildSheet(exportSize){
+  const W=parseFloat(st.w),L=parseFloat(st.shape==='round'?st.w:st.l),D=parseFloat(st.d),ok=W>0&&L>0&&D>0;
+  const fill=st.gemColor||'#2b5fc7';
+  let s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1131" ${exportSize?'width="1600" height="2262"':''} font-family="${FF}">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 Z" fill="${INK}"/></marker>
+  <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#E6EBF2" stroke-width="1"/></pattern></defs>
+  <rect width="800" height="1131" fill="#fff"/>
+  <rect x="24" y="24" width="752" height="1083" fill="none" stroke="${INK}" stroke-width="1.5"/>
+  <text x="44" y="66" font-family="${DISP}" font-size="30" font-weight="700" fill="${INK}">ใบสั่งงานช่าง · ฝังพลอย</text>
+  <text x="44" y="96" font-size="16" fill="${SOFT}">${esc(st.shop||'')}</text>
+  <text x="756" y="62" text-anchor="end" font-size="15" fill="${SOFT}">เลขที่งาน</text>
+  <text x="756" y="88" text-anchor="end" font-family="${MONOF}" font-size="20" font-weight="600" fill="${INK}">${esc(st.jobNo||'—')}</text>
+  <text x="756" y="110" text-anchor="end" font-size="14" fill="${SOFT}">วันที่สั่ง ${esc(thDate(st.date))}</text>
+  <line x1="24" y1="124" x2="776" y2="124" stroke="${INK}" stroke-width="1.5"/>
+  <rect x="24" y="124" width="752" height="452" fill="url(#grid)"/>
+  <line x1="430" y1="124" x2="430" y2="576" stroke="${INK}" stroke-width=".8" stroke-dasharray="4 4"/>
+  <text x="44" y="152" font-size="16" font-weight="600" fill="${INK}">มุมบน (Top View)</text>
+  <text x="450" y="152" font-size="16" font-weight="600" fill="${INK}">มุมข้าง (Side View)</text>
+  <line x1="24" y1="576" x2="776" y2="576" stroke="${INK}" stroke-width="1.5"/>`;
+  if(ok){
+    const k=Math.min(250/W,280/L,230/W,250/D),a=W/2,b=L/2;
+    const cx=222,cy=372,tfT=p=>[cx+p[0]*k,cy+p[1]*k];
+    s+=drawTop(topGeom(st.shape,st.cut,a,b),tfT,fill);
+    const l=cx-a*k,r=cx+a*k,t=cy-b*k,bo=cy+b*k;
+    s+=dimH(l,r,t-28,t-4,`W ${fmt(W)} mm`);
+    s+=dimV(t,bo,r+28,r+4,`L ${fmt(L)}`);
+    const sx=600,sTop=372-D*k/2,tfS=p=>[sx+p[0]*k,sTop+p[1]*k];
+    s+=drawSide(st.cut,a,D,tfS,fill);
+    const sl=sx-a*k,sr=sx+a*k;
+    s+=dimV(sTop,sTop+D*k,sl-26,sl-4,`ลึก ${fmt(D)}`,false);
+    s+=dimH(sl,sr,sTop+D*k+28,sTop+D*k+4,`W ${fmt(W)} mm`,false);
+    s+=`<text x="${sx}" y="560" text-anchor="middle" font-size="13" fill="${SOFT}">${esc(SETTING_TIP[st.cut])}</text>`;
+  }else{
+    s+=`<text x="400" y="360" text-anchor="middle" font-size="20" fill="${SOFT}">ใส่ขนาด กว้าง / ยาว / ลึก ให้ครบ เพื่อวาดภาพ</text>`;
+  }
+  s+=`<text x="44" y="566" font-size="13" fill="${SOFT}">ภาพวาดตามสัดส่วน ไม่ใช่ขนาดจริง · ใช้ตัวเลข มม. เป็นหลัก</text>`;
+  const rows=[['รหัสพลอย',st.stoneId],['ชนิด / สีพลอย',st.material],['รูปทรง',SHAPES[st.shape]],['แบบเจียระไน',CUTS[st.cut]],
+    ['ขนาด กว้าง × ยาว',ok?`${fmt(W)} × ${fmt(L)} มม.`:'—'],['ความลึก',ok?`${fmt(D)} มม.`:'—'],['น้ำหนัก',st.carat?`${fmt(st.carat)} กะรัต`:'—'],['จำนวน',`${st.qty||1} เม็ด`],
+    ['แบบการฝัง',st.setting],['ตัวเรือน / โลหะ',st.metal],['ลูกค้า',st.customer],['กำหนดส่ง',thDate(st.deadline)]];
+  rows.forEach((r,i)=>{const col=i%2,row=Math.floor(i/2),x=col?412:44,y=600+row*48;
+    s+=`<text x="${x}" y="${y+14}" font-size="13" fill="${SOFT}">${esc(r[0])}</text><text x="${x}" y="${y+36}" font-size="17" font-weight="600" fill="${INK}">${esc(r[1]||'—')}</text>`;
+    if(col===0)s+=`<line x1="44" y1="${y+46}" x2="756" y2="${y+46}" stroke="#DCE2EA" stroke-width="1"/>`;});
+  const ny=600+6*48+14;
+  s+=`<text x="44" y="${ny+14}" font-size="13" fill="${SOFT}">หมายเหตุถึงช่าง</text><rect x="44" y="${ny+22}" width="712" height="118" fill="none" stroke="#C9D1DC" rx="4"/>`;
+  wrap(st.notes,52).slice(0,4).forEach((ln,i)=>{s+=`<text x="56" y="${ny+48+i*26}" font-size="16" fill="${INK}">${esc(ln)}</text>`});
+  const fy=1060;
+  [['ผู้สั่งงาน',44],['ช่างผู้รับงาน',290],['วันที่รับงาน',536]].forEach(([t,x])=>{s+=`<line x1="${x}" y1="${fy}" x2="${x+210}" y2="${fy}" stroke="${INK}" stroke-width=".8"/><text x="${x}" y="${fy+22}" font-size="13" fill="${SOFT}">${t}</text>`});
+  return s+'</svg>';
+}
+
+/* ---------- chips ---------- */
+function mini(shape,cut,box=44){const g=topGeom(shape,cut,shape==='round'?1:.72,1),k=box*.42,tf=p=>[box/2+p[0]*k,box/2+p[1]*k];
+  return `<svg viewBox="0 0 ${box} ${box}" aria-hidden="true">${drawTop(g,tf,'#5b7fd6',1.1,.5).replaceAll(INK,'currentColor')}</svg>`}
+function chips(id,map,key,iconFn){const el=$(id);el.innerHTML='';Object.entries(map).forEach(([v,label])=>{const b=document.createElement('button');b.type='button';b.className='chip';b.id=`${key}-${v}`;
+  b.setAttribute('aria-pressed',st[key]===v);b.innerHTML=iconFn(v)+`<span>${esc(label)}</span>`;b.onclick=()=>{st[key]=v;st.sample=false;render(true)};el.appendChild(b)})}
+
+/* ---------- guide cards ---------- */
+const GUIDE=[
+ ['step','Step Cut','ขั้นบันได','emerald',['หน้าพลอยเป็นเหลี่ยมยาวขนานกับขอบ ซ้อนกันเป็นชั้นๆ','ดูใส เห็นเนื้อพลอยชัด ประกายน้อยกว่าเหลี่ยมเพชร','ก้นเป็นสันหรือแบนเล็ก มุมพลอยแตกง่าย ช่างต้องระวังตอนบีบเขี้ยว']],
+ ['brilliant','Modified Brilliant','เหลี่ยมเพชร','cushion',['หน้าพลอยเป็นเหลี่ยมสามเหลี่ยมและรูปว่าวรอบหน้าโต๊ะ','ประกายวิบวับมาก นิยมกับพลอยสีส่วนใหญ่','ก้นแหลม ช่างต้องคว้านบ่าหรือเจาะรูใต้ให้ลึกพอรับก้น']],
+ ['rose','Rose Cut','ก้นแบน หน้าเหลี่ยม','oval',['ก้นแบนเรียบ ด้านบนนูนเป็นโดม เจียเป็นสามเหลี่ยมรอบจุดยอด','ตัวเตี้ย วางบนบ่าเรียบได้ ใส่สบายไม่เกี่ยวผ้า','นิยมฝังหุ้ม (Bezel) หรือหนามเตยเตี้ย']],
+ ['cab','Cabochon','หลังเบี้ย','oval',['ไม่มีเหลี่ยม ผิวหน้าโค้งมนเงา ก้นแบน','นิยมกับพลอยทึบหรือพลอยที่มีสาแหรก เช่น หยก มูนสโตน','ฝังหุ้มหรือหนามเตย ตรวจความโค้งของขอบก่อนทำบ่า']]];
+function cards(){$('cards').innerHTML=GUIDE.map(([cut,en,th,shape,pts])=>{const a=shape==='emerald'?.7:.75,tfT=p=>[60+p[0]*44,60+p[1]*44];
+  const top=`<svg viewBox="0 0 120 120">${drawTop(topGeom(shape,cut,a,1),tfT,'#5b7fd6',1.4,.7)}</svg>`;
+  const D=cut==='rose'||cut==='cab'?.55:1.05,tfS=p=>[60+p[0]*44,60-D*22+p[1]*44];
+  const side=`<svg viewBox="0 0 120 120">${drawSide(cut,a,D,tfS,'#5b7fd6',1.4,.7)}</svg>`;
+  return `<article class="card"><div class="pics">${top}${side}</div><div><p class="en">${en}</p><h3>${th}</h3></div><ul>${pts.map(p=>`<li>${p}</li>`).join('')}</ul></article>`}).join('')}
+
+/* ---------- wiring ---------- */
+function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
+function render(rebuildChips){
+  if(rebuildChips){chips('shapeChips',SHAPES,'shape',v=>mini(v,'brilliant'));chips('cutChips',CUTS,'cut',v=>mini('oval',v))}
+  const round=st.shape==='round';$('l').disabled=round;$('roundHint').hidden=!round;if(round)$('l').value=st.w;
+  $('sampleNote').hidden=!st.sample;
+  $('sheet').innerHTML=buildSheet(false);$('exportBox').hidden=true;save();
+}
+function load(){FIELDS.forEach(f=>{const el=$(f);if(el)el.value=st[f]??''})}
+FIELDS.forEach(f=>{const el=$(f);if(!el)return;el.addEventListener('input',()=>{st[f]=el.value;st.sample=false;render(false)})});
+let resetArmed=false;
+$('resetBtn').onclick=()=>{const b=$('resetBtn');if(!resetArmed){resetArmed=true;b.textContent='แตะอีกครั้งเพื่อยืนยันล้างข้อมูล';setTimeout(()=>{resetArmed=false;b.textContent='เริ่มใบใหม่ (ล้างข้อมูล)'},4000);return}
+  resetArmed=false;b.textContent='เริ่มใบใหม่ (ล้างข้อมูล)';const keep={shop:st.shop,setting:st.setting,metal:st.metal};
+  const n=(st.jobNo||'').match(/^(.*-)(\d+)$/);st=Object.assign({},DEFAULTS,keep,{stoneId:'',material:'',w:'',l:'',d:'',notes:'',customer:'',sample:false,date:iso(new Date()),jobNo:n?n[1]+pad(+n[2]+1):DEFAULTS.jobNo});
+  load();render(true);$('status').textContent='เริ่มใบใหม่แล้ว เลขที่งานขยับให้อัตโนมัติ';};
+$('pngBtn').onclick=()=>{const svg=buildSheet(true),img=new Image();$('status').textContent='กำลังทำรูป...';
+  img.onload=()=>{const c=document.createElement('canvas');c.width=1600;c.height=2262;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);
+    try{const u=c.toDataURL('image/png');$('pngOut').src=u;$('dlLink').href=u;$('dlLink').download=(st.jobNo||'ใบสั่งงานช่าง')+'.png';$('exportBox').hidden=false;$('status').textContent='รูปพร้อมแล้ว เลื่อนลงไปบันทึกรูปได้เลย';$('exportBox').scrollIntoView({behavior:'smooth',block:'start'})}
+    catch(e){$('status').textContent='ทำรูปไม่สำเร็จ ลองแคปหน้าจอภาพใบงานแทนได้ครับ'}};
+  img.onerror=()=>{$('status').textContent='ทำรูปไม่สำเร็จ ลองแคปหน้าจอภาพใบงานแทนได้ครับ'};
+  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);};
+$('copyBtn').onclick=()=>{const L=st.shape==='round'?st.w:st.l;
+  const t=`📋 ใบสั่งงานช่าง (${st.shop||''}) เลขที่ ${st.jobNo}\nพลอย: ${st.stoneId||'-'} ${st.material||''}\nรูปทรง: ${SHAPES[st.shape]}\nเจียระไน: ${CUTS[st.cut]}\nขนาด: กว้าง ${fmt(st.w)} × ยาว ${fmt(L)} มม. ลึก ${fmt(st.d)} มม.\nน้ำหนัก: ${st.carat?fmt(st.carat)+' กะรัต':'-'} | จำนวน ${st.qty||1} เม็ด\nแบบฝัง: ${st.setting}\nตัวเรือน: ${st.metal||'-'}\nกำหนดส่ง: ${thDate(st.deadline)}\nหมายเหตุ: ${st.notes||'-'}`;
+  const done=()=>$('status').textContent='คัดลอกแล้ว ไปวางในแชท LINE ได้เลย';
+  if(navigator.clipboard?.writeText){navigator.clipboard.writeText(t).then(done).catch(()=>fallback(t))}else fallback(t);
+  function fallback(t){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done()}catch(e){$('status').textContent='คัดลอกไม่ได้ ลองกดค้างที่ข้อความแล้วคัดลอกเอง'}ta.remove()}};
+$('printBtn').onclick=()=>window.print();
+load();cards();render(true);
+</script>
+
+</body>
+</html>
