@@ -847,6 +847,48 @@
     </div>
   </div>
 
+  <!-- แก้ไขบิล WS (2026-10, per Wing) — modal เดียวกันเป๊ะ ๆ กับ #editApprovalModal
+       ข้างบน (ของบิลขายปกติ) แค่คนละชุด id เพราะคนละ action/คนละฟอร์มกัน (ดู
+       startEditingWSInvoice()/submitEditWSInvoice()) ผู้มีสิทธิ์ (Master) ต้องใส่ PIN
+       ของตัวเองใหม่ทุกครั้งเหมือนกัน ไม่มีการจำสิทธิ์ไว้ล่วงหน้า (ดู handleEditWSInvoice_
+       ฝั่ง backend) -->
+  <div id="wsEditApprovalModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-5 flex flex-col gap-3">
+      <h3 class="font-semibold text-gray-800 text-lg flex items-center gap-2">
+        <i class="fa-solid fa-pen-to-square text-amber-500"></i> บันทึกการแก้ไขบิลขายส่ง
+      </h3>
+      <p class="text-sm text-gray-500">
+        บิลเลขที่ <b id="wsEditApprovalInvoiceId" class="text-gray-700"></b>
+        ยอดใหม่ <b id="wsEditApprovalTotal" class="text-gray-700"></b>
+      </p>
+
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">เหตุผลที่แก้ไข (ถ้ามี)</label>
+        <textarea id="wsEditReasonInput" rows="2"
+                  class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500"
+                  placeholder="เช่น คีย์จำนวน/ราคาผิด, ลูกค้าเปลี่ยนรายการ"></textarea>
+      </div>
+
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">
+          PIN ผู้มีสิทธิ์อนุมัติ (Master) — ให้ผู้มีสิทธิ์ใส่ PIN ของตัวเองตรงนี้
+        </label>
+        <input id="wsEditApproverPinInput" type="password" inputmode="numeric" autocomplete="off" maxlength="8"
+               class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm tracking-widest focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500"
+               placeholder="••••">
+      </div>
+
+      <p id="wsEditApprovalModalError" class="text-sm text-red-500 hidden"></p>
+
+      <div class="flex gap-2 justify-end mt-1">
+        <button id="wsEditApprovalCancelBtn" type="button"
+                class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ยกเลิก</button>
+        <button id="wsEditApprovalConfirmBtn" type="button"
+                class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold">ยืนยันบันทึกการแก้ไข</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ============= TAB: PRODUCTS ("เช็คสินค้า") — browse/search the full
        catalog, built for the case where many items have very similar
        names (e.g. dozens of "RX-78" variants) and a quick barcode-scan
@@ -1485,6 +1527,22 @@
         <div class="bg-white rounded-xl shadow p-4 flex flex-col gap-3 h-fit">
           <h2 class="font-semibold text-gray-700">🧾 สรุปบิลขายส่ง</h2>
 
+          <!-- แก้ไขบิล WS เดิม (2026-10, per Wing: "แก้บิล WS ได้ไหม เหมือนแก้รายการขาย")
+               — เหมือน #editModeBanner ของหน้า POS แต่อยู่ในการ์ดนี้แทน เพราะ WS ไม่มี
+               แนวคิดสลับจอ/บิลสำรองแบบ POS โชว์/ซ่อนจาก updateWSSubmitBarForEditMode()
+               ดู startEditingWSInvoice()/cancelEditingWSInvoice() ด้านล่าง -->
+          <div id="wsEditModeBanner" class="hidden bg-amber-50 border-2 border-amber-300 rounded-xl px-3 py-2 flex flex-wrap items-center justify-between gap-2">
+            <div class="text-xs text-amber-800 font-medium flex items-center gap-1.5">
+              <i class="fa-solid fa-pen-to-square"></i>
+              กำลังแก้ไขบิลเลขที่ <span id="wsEditModeInvoiceId" class="font-bold"></span>
+              <span id="wsEditModeAmountPaidNote"></span>
+            </div>
+            <button id="wsCancelEditModeBtn" type="button"
+                    class="text-xs font-semibold text-amber-700 hover:text-amber-900 underline whitespace-nowrap">
+              ยกเลิกการแก้ไข
+            </button>
+          </div>
+
           <!-- ชื่อบิล — ไม่บังคับ ถ้าเว้นว่างระบบจะใช้วันที่รูปแบบ Aug/8/26 แทนอัตโนมัติ
                (คำนวณ default ที่ backend ตอนสร้างบิล ดู computeWSBillTitle_) โชว์ในหน้า
                "รายการบิลส่ง" เป็นคอลัมน์ใหม่ "ชื่อบิล" -->
@@ -1503,27 +1561,34 @@
             <div class="flex justify-between border-t border-emerald-200 mt-1 pt-1"><span class="text-gray-700 font-semibold">ยอดสุทธิ</span><span id="wsDraftGrandTotal" class="font-bold text-emerald-700">0.00</span></div>
           </div>
 
-          <input id="wsPaidNowInput" type="number" min="0" step="0.01" placeholder="รับชำระวันนี้"
-                 class="w-full border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm
-                        focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
-
-          <!-- วิธีชำระเงิน — ปุ่มเลือก 6 แบบ แทน dropdown เดิม (Wing ขอ 2026-09) -->
-          <div>
-            <label class="block text-[11px] text-gray-400 mb-1">วิธีชำระเงิน</label>
-            <div class="grid grid-cols-3 gap-1.5" id="wsPaymentMethodButtons">
-              <button type="button" data-method="cash" class="ws-invoice-method-btn border-2 rounded-lg py-1.5 text-xs font-semibold transition">💵 เงินสด</button>
-              <button type="button" data-method="tt" class="ws-invoice-method-btn border-2 rounded-lg py-1.5 text-xs font-semibold transition">🏦 TT (โอน)</button>
-              <button type="button" data-method="credit" class="ws-invoice-method-btn border-2 rounded-lg py-1.5 text-xs font-semibold transition">💳 บัตรเครดิต</button>
-              <button type="button" data-method="unpaid" class="ws-invoice-method-btn border-2 rounded-lg py-1.5 text-xs font-semibold transition">🕒 ค้างชำระ</button>
-              <button type="button" data-method="consign" class="ws-invoice-method-btn border-2 rounded-lg py-1.5 text-xs font-semibold transition">📦 ฝากขาย</button>
-              <button type="button" data-method="other" class="ws-invoice-method-btn border-2 rounded-lg py-1.5 text-xs font-semibold transition">✏️ อื่นๆ (ระบุ)</button>
-            </div>
-            <input id="wsPaymentMethodOtherInput" type="text" placeholder="ระบุวิธีชำระเงิน... (ใช้ได้เมื่อเลือก &quot;อื่นๆ&quot;)" disabled
-                   class="w-full mt-1.5 border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-gray-50 text-gray-400
+          <!-- "รับชำระวันนี้" + วิธีชำระเงิน + ค้างชำระ เป็นคนละระบบกับการแก้ไขบิล
+               (คนละปุ่ม 💰 รับชำระ แยกกันคนละ action/WSPayments เลย) — ซ่อนทั้งก้อนนี้ไว้
+               ระหว่างแก้ไขบิลเดิม (ดู updateWSSubmitBarForEditMode()) กันพนักงานสับสนว่า
+               กำลังจะบันทึกรับเงินซ้ำหรือเปล่า ตัวเลขที่จ่ายมาแล้วจริงดูได้จากแบนเนอร์สีเหลือง
+               ด้านบนแทน -->
+          <div id="wsNewInvoicePaymentSection" class="flex flex-col gap-3">
+            <input id="wsPaidNowInput" type="number" min="0" step="0.01" placeholder="รับชำระวันนี้"
+                   class="w-full border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm
                           focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
-          </div>
 
-          <p class="text-xs text-gray-500">ค้างชำระ: <b id="wsDraftAmountDue" class="text-amber-600">0.00</b></p>
+            <!-- วิธีชำระเงิน — ปุ่มเลือก 6 แบบ แทน dropdown เดิม (Wing ขอ 2026-09) -->
+            <div>
+              <label class="block text-[11px] text-gray-400 mb-1">วิธีชำระเงิน</label>
+              <div class="grid grid-cols-3 gap-1.5" id="wsPaymentMethodButtons">
+                <button type="button" data-method="cash" class="ws-invoice-method-btn border-2 rounded-lg py-1.5 text-xs font-semibold transition">💵 เงินสด</button>
+                <button type="button" data-method="tt" class="ws-invoice-method-btn border-2 rounded-lg py-1.5 text-xs font-semibold transition">🏦 TT (โอน)</button>
+                <button type="button" data-method="credit" class="ws-invoice-method-btn border-2 rounded-lg py-1.5 text-xs font-semibold transition">💳 บัตรเครดิต</button>
+                <button type="button" data-method="unpaid" class="ws-invoice-method-btn border-2 rounded-lg py-1.5 text-xs font-semibold transition">🕒 ค้างชำระ</button>
+                <button type="button" data-method="consign" class="ws-invoice-method-btn border-2 rounded-lg py-1.5 text-xs font-semibold transition">📦 ฝากขาย</button>
+                <button type="button" data-method="other" class="ws-invoice-method-btn border-2 rounded-lg py-1.5 text-xs font-semibold transition">✏️ อื่นๆ (ระบุ)</button>
+              </div>
+              <input id="wsPaymentMethodOtherInput" type="text" placeholder="ระบุวิธีชำระเงิน... (ใช้ได้เมื่อเลือก &quot;อื่นๆ&quot;)" disabled
+                     class="w-full mt-1.5 border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-gray-50 text-gray-400
+                            focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+            </div>
+
+            <p class="text-xs text-gray-500">ค้างชำระ: <b id="wsDraftAmountDue" class="text-amber-600">0.00</b></p>
+          </div>
 
           <button id="wsPreviewBtn" type="button"
                   class="w-full border-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 rounded-lg py-2 text-sm font-semibold transition">
@@ -11978,11 +12043,21 @@ let wsStatusFilter = "all";  // active pill in the บิลขายส่ง v
 let wsPaymentInvoice = null; // the WS invoice object currently targeted by wsPaymentModal
 let wsVoidInvoiceId = null;  // targeted by wsVoidModal
 let wsSelectedPaymentMethod = "cash"; // ปุ่มวิธีชำระเงินที่เลือกอยู่ตอนออกบิล WS ใหม่ (2026-09)
+let editingWSInvoiceId = null; // ไม่ null = กำลังแก้ไขบิล WS เดิมอยู่ (ไม่ใช่ออกบิลใหม่) — ดู
+                                 // startEditingWSInvoice()/cancelEditingWSInvoice()/
+                                 // submitEditWSInvoice() ด้านล่าง (2026-10, per Wing)
 
 const WS_STATUS_UNPAID_LABEL = "ค้างชำระ";
 const WS_STATUS_PARTIAL_LABEL = "ชำระบางส่วน";
 const WS_STATUS_PAID_LABEL = "ชำระครบ";
 const WS_STATUS_CANCELLED_LABEL = "ยกเลิก";
+
+// สถานะที่ยังแก้บิลได้ (2026-10, per Wing) — ตอนนี้ขอให้แก้ได้ทุกสถานะไปก่อน แต่บอกไว้
+// ล่วงหน้าว่าในระยะยาวอาจอยากจำกัดไม่ให้แก้บิลที่ชำระครบแล้ว ตั้งใจแยกเป็น array จุดเดียว
+// แบบนี้เพื่อให้ปรับนโยบายทีหลังง่าย (เช่น เอา WS_STATUS_PAID_LABEL ออกจาก array นี้
+// บรรทัดเดียว ก็จะซ่อนปุ่ม ✏️ แก้ไขบิล ของสถานะนั้นทันที) — pos_backend.gs มี array ชื่อ
+// เดียวกัน (WS_EDIT_ALLOWED_STATUSES) ไว้บล็อกจริงฝั่ง backend ต้องแก้คู่กันทั้ง 2 ที่
+const WS_EDIT_ALLOWED_STATUSES = [WS_STATUS_UNPAID_LABEL, WS_STATUS_PARTIAL_LABEL, WS_STATUS_PAID_LABEL];
 
 // วิธีชำระเงิน 6 แบบสำหรับปุ่มเลือกตอนออกบิล WS (แทน dropdown เดิมที่มีแค่ cash/transfer)
 // — ใช้ label เดียวกันทั้งตอนแสดงปุ่ม, พรีวิวบิล, และประวัติการรับชำระ
@@ -12669,6 +12744,14 @@ function updateWSDraftAmountDue() {
 }
 
 async function submitNewWSInvoice() {
+  // แก้บิลเดิมต้องขอ PIN ผู้มีสิทธิ์อนุมัติก่อน เหมือน submitTransaction()/
+  // editingTransactionId ของบิลขายปกติเป๊ะ ๆ — ส่งต่อให้ wsEditApprovalModal แทนที่จะ
+  // ออกบิลใหม่ (2026-10, per Wing)
+  if (editingWSInvoiceId) {
+    openWSEditApprovalModal();
+    return;
+  }
+
   const scriptUrl = getAppsScriptUrl();
   if (scriptUrl === "YOUR_URL_HERE") {
     showToast("กรุณาวางลิงก์ Apps Script Web App ที่แท็บ Settings ก่อน", "error");
@@ -12736,6 +12819,201 @@ async function submitNewWSInvoice() {
   }
 }
 
+/* ---------------- แก้ไขบิล WS เดิม (2026-10, per Wing) ----------------
+   เหมือน startEditingBill()/submitEditSale()/editApprovalModal ของบิลขายปกติทุก
+   อย่าง แต่โหลด/บันทึกกลับผ่านฟอร์ม "ออกบิลใหม่" ของ WS (wsDraftItems + ช่องลูกค้า/
+   ชื่อบิลเดิม) แทนที่จะเป็นตะกร้า POS — ดู WS_EDIT_ALLOWED_STATUSES ด้านบนสำหรับ
+   สถานะที่ยังแก้ได้, handleEditWSInvoice_ ฝั่ง backend สำหรับตรรกะ "ไม่แตะ Amount
+   Paid เดิม" + เคส overpaid หลังแก้ยอด ------------------------------------- */
+
+function startEditingWSInvoice(invoiceId) {
+  const invoice = lastLoadedWSInvoices.find((i) => i.invoiceId === invoiceId);
+  if (!invoice) return;
+  if (!WS_EDIT_ALLOWED_STATUSES.includes(invoice.status)) {
+    showToast("บิลนี้ไม่สามารถแก้ไขได้แล้ว", "error");
+    return;
+  }
+
+  editingWSInvoiceId = invoiceId;
+
+  // โหลดรายการสินค้าเดิมกลับเข้า wsDraftItems — discountOn คำนวณจาก discountPct เดิม
+  // ของแต่ละแถว (>0 = ติ๊กไว้) เพราะ backend ไม่ได้เก็บ discountOn แยก มีแค่ discountPct
+  wsDraftItems = (invoice.items || []).map((it) => ({
+    barcode: it.barcode || "",
+    name: it.name || "",
+    qty: Number(it.qty) || 0,
+    price: Number(it.price) || 0,
+    discountPct: Number(it.discountPct) || 0,
+    discountOn: Number(it.discountPct) > 0
+  }));
+
+  document.getElementById("wsCustomerCodeInput").value = invoice.customerCode || "";
+  document.getElementById("wsCustomerNameInput").value = invoice.customerName || "";
+  document.getElementById("wsCustomerPhoneInput").value = invoice.customerPhone || "";
+  document.getElementById("wsBillTitleInput").value = invoice.billTitle || "";
+  document.getElementById("wsCustomerNotFoundHint").classList.add("hidden");
+  // "รับชำระวันนี้" ไม่เกี่ยวกับการแก้ไขนี้เลย (ดูคอมเมนต์ที่ #wsNewInvoicePaymentSection)
+  // ล้างไว้กันเลขเก่าตกค้างไปโผล่ในพรีวิวบิลระหว่างแก้ไข
+  document.getElementById("wsPaidNowInput").value = "";
+
+  document.getElementById("wsEditModeAmountPaidNote").textContent =
+    invoice.amountPaid > 0 ? "— ลูกค้าจ่ายมาแล้ว " + formatMoney(invoice.amountPaid) + " บาท (ยอดนี้ไม่เปลี่ยนตอนแก้ไข)" : "";
+
+  renderWSDraftItems();
+  updateWSSubmitBarForEditMode();
+  switchWSView("list");
+
+  const builderCard = document.getElementById("wsSubmitBtn");
+  if (builderCard) builderCard.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function cancelEditingWSInvoice(silent) {
+  editingWSInvoiceId = null;
+  wsDraftItems = [];
+  renderWSDraftItems();
+  ["wsCustomerCodeInput", "wsCustomerNameInput", "wsCustomerPhoneInput", "wsBillTitleInput"].forEach(
+    (id) => (document.getElementById(id).value = "")
+  );
+  document.getElementById("wsCustomerNotFoundHint").classList.add("hidden");
+  updateWSSubmitBarForEditMode();
+  if (!silent) showToast("ยกเลิกการแก้ไขบิลแล้ว", "success");
+}
+
+function updateWSSubmitBarForEditMode() {
+  const banner = document.getElementById("wsEditModeBanner");
+  const submitBtn = document.getElementById("wsSubmitBtn");
+  const paymentSection = document.getElementById("wsNewInvoicePaymentSection");
+  if (editingWSInvoiceId) {
+    document.getElementById("wsEditModeInvoiceId").textContent = editingWSInvoiceId;
+    banner.classList.remove("hidden");
+    if (paymentSection) paymentSection.classList.add("hidden");
+    submitBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> บันทึกการแก้ไขบิล ' + escapeHtml(editingWSInvoiceId);
+    submitBtn.classList.remove("bg-emerald-700", "hover:bg-emerald-800");
+    submitBtn.classList.add("bg-amber-600", "hover:bg-amber-700");
+  } else {
+    banner.classList.add("hidden");
+    if (paymentSection) paymentSection.classList.remove("hidden");
+    submitBtn.innerHTML = "🧾 ยืนยันออกบิลขายส่ง";
+    submitBtn.classList.add("bg-emerald-700", "hover:bg-emerald-800");
+    submitBtn.classList.remove("bg-amber-600", "hover:bg-amber-700");
+  }
+}
+
+function openWSEditApprovalModal() {
+  document.getElementById("wsEditApprovalInvoiceId").textContent = editingWSInvoiceId;
+  const grandTotal = wsDraftItems.reduce((s, i) => s + wsLineTotals(i).lineTotal, 0);
+  document.getElementById("wsEditApprovalTotal").textContent = formatMoney(grandTotal);
+  document.getElementById("wsEditReasonInput").value = "";
+  document.getElementById("wsEditApproverPinInput").value = "";
+  hideWSEditApprovalModalError();
+  document.getElementById("wsEditApprovalModal").classList.remove("hidden");
+  document.getElementById("wsEditApproverPinInput").focus();
+}
+
+function closeWSEditApprovalModal() {
+  document.getElementById("wsEditApprovalModal").classList.add("hidden");
+}
+
+function showWSEditApprovalModalError(message) {
+  const el = document.getElementById("wsEditApprovalModalError");
+  el.textContent = message;
+  el.classList.remove("hidden");
+}
+
+function hideWSEditApprovalModalError() {
+  const el = document.getElementById("wsEditApprovalModalError");
+  el.classList.add("hidden");
+  el.textContent = "";
+}
+
+async function submitEditWSInvoice() {
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl === "YOUR_URL_HERE") {
+    showWSEditApprovalModalError("กรุณาวางลิงก์ Apps Script Web App ที่แท็บ Settings ก่อน");
+    return;
+  }
+  if (!editingWSInvoiceId) return;
+
+  const approverPin = document.getElementById("wsEditApproverPinInput").value.trim();
+  if (!approverPin) {
+    showWSEditApprovalModalError("กรุณาใส่ PIN ผู้มีสิทธิ์อนุมัติ");
+    return;
+  }
+  const customerName = document.getElementById("wsCustomerNameInput").value.trim();
+  if (!customerName) {
+    showWSEditApprovalModalError("กรุณาระบุชื่อลูกค้า WS");
+    return;
+  }
+  if (wsDraftItems.length === 0) {
+    showWSEditApprovalModalError("บิลต้องมีอย่างน้อย 1 รายการสินค้า");
+    return;
+  }
+
+  const confirmBtn = document.getElementById("wsEditApprovalConfirmBtn");
+  const originalHtml = confirmBtn.innerHTML;
+  confirmBtn.disabled = true;
+  confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+  hideWSEditApprovalModalError();
+
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        action: "editWSInvoice",
+        pin: currentStaff ? currentStaff.pin : "",
+        branch: getBranchCode(),
+        invoiceId: editingWSInvoiceId,
+        customerCode: document.getElementById("wsCustomerCodeInput").value.trim(),
+        customerName: customerName,
+        customerPhone: document.getElementById("wsCustomerPhoneInput").value.trim(),
+        billTitle: document.getElementById("wsBillTitleInput").value.trim(),
+        items: wsDraftItems.map((i) => ({
+          // ✅-gated เหมือน submitNewWSInvoice() — แถวที่ไม่ติ๊กไม่ส่ง discountPct
+          barcode: i.barcode, name: i.name, qty: i.qty, price: i.price,
+          discountPct: i.discountOn ? i.discountPct : 0
+        })),
+        approverPin: approverPin,
+        editReason: document.getElementById("wsEditReasonInput").value.trim(),
+        requestedBy: currentStaff ? currentStaff.name : ""
+      })
+    });
+    const result = await response.json();
+    if (!result || result.status !== "success") {
+      throw new Error((result && result.message) || "แก้ไขบิลไม่สำเร็จ");
+    }
+    let successMsg = result.message || "แก้ไขบิลเรียบร้อยแล้ว";
+    if (result.overpaidAmount > 0) {
+      successMsg += " — ⚠️ ลูกค้าจ่ายเกินยอดใหม่ไปแล้ว " + formatMoney(result.overpaidAmount) + " บาท กรุณาจัดการคืนเงินนอกระบบ";
+    }
+    showToast(successMsg, "success");
+    closeWSEditApprovalModal();
+    cancelEditingWSInvoice(true); // true = เงียบ ไม่ขึ้น toast "ยกเลิกการแก้ไข" ซ้ำ
+    loadWSInvoices();
+  } catch (err) {
+    console.error(err);
+    showWSEditApprovalModalError(err.message);
+  } finally {
+    confirmBtn.disabled = false;
+    confirmBtn.innerHTML = originalHtml;
+  }
+}
+
+function setupWSEditApprovalModal() {
+  document.getElementById("wsEditApprovalCancelBtn").addEventListener("click", closeWSEditApprovalModal);
+  document.getElementById("wsEditApprovalConfirmBtn").addEventListener("click", submitEditWSInvoice);
+  document.getElementById("wsEditApproverPinInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submitEditWSInvoice();
+    }
+  });
+  document.getElementById("wsCancelEditModeBtn").addEventListener("click", () => cancelEditingWSInvoice(false));
+  document.getElementById("wsEditApprovalModal").addEventListener("click", (e) => {
+    if (e.target.id === "wsEditApprovalModal") closeWSEditApprovalModal();
+  });
+}
+
 /* ---------------- shared per-invoice action buttons ---------------- */
 
 function wsPaymentSummaryText(invoice) {
@@ -12759,9 +13037,13 @@ function wsInvoiceActionButtons(invoice) {
     </div>`;
   }
   const canPay = invoice.status !== WS_STATUS_PAID_LABEL;
+  // 2026-10, per Wing: ✏️ แก้ไขบิล — โชว์เฉพาะสถานะที่ยังแก้ได้ (ดู WS_EDIT_ALLOWED_STATUSES
+  // ด้านบน) บิลที่ถูกยกเลิกไปแล้วเข้า branch ด้านบนไปแล้ว ไม่มาถึงตรงนี้อยู่แล้ว
+  const canEdit = WS_EDIT_ALLOWED_STATUSES.includes(invoice.status);
   return `
     <div class="flex flex-col gap-1.5">
       ${canPay ? `<button type="button" class="ws-payment-btn text-xs bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold px-3 py-1.5 rounded-lg w-full" data-invoice-id="${escapeHtml(invoice.invoiceId)}">💰 รับชำระ</button>` : ""}
+      ${canEdit ? `<button type="button" class="ws-edit-btn text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold px-3 py-1.5 rounded-lg w-full" data-invoice-id="${escapeHtml(invoice.invoiceId)}">✏️ แก้ไขบิล</button>` : ""}
       ${printBtnHtml}
       <button type="button" class="ws-void-btn text-xs bg-red-50 hover:bg-red-100 text-red-600 font-semibold px-3 py-1.5 rounded-lg w-full" data-invoice-id="${escapeHtml(invoice.invoiceId)}">✕ ยกเลิกบิล</button>
     </div>`;
@@ -12773,6 +13055,9 @@ function wireWSActionButtons(container) {
       const invoice = lastLoadedWSInvoices.find((i) => i.invoiceId === btn.getAttribute("data-invoice-id"));
       if (invoice) openWSPaymentModal(invoice);
     });
+  });
+  container.querySelectorAll(".ws-edit-btn").forEach((btn) => {
+    btn.addEventListener("click", () => startEditingWSInvoice(btn.getAttribute("data-invoice-id")));
   });
   container.querySelectorAll(".ws-void-btn").forEach((btn) => {
     btn.addEventListener("click", () => openWSVoidModal(btn.getAttribute("data-invoice-id")));
@@ -12866,7 +13151,10 @@ function renderWSInvoiceList() {
             <div class="font-semibold text-gray-700">${formatMoney(invoice.grandTotal)}</div>
             ${invoice.amountDue > 0 ? `<div class="text-[11px] text-amber-600">ค้าง ${formatMoney(invoice.amountDue)}</div>` : ""}
           </td>
-          <td class="py-2 text-center">${wsStatusBadge(invoice.status)}</td>
+          <td class="py-2 text-center">
+            ${wsStatusBadge(invoice.status)}
+            ${invoice.lastEditedBy ? `<div class="text-[11px] text-gray-400 mt-0.5">แก้ไขล่าสุดโดย ${escapeHtml(invoice.lastEditedBy)}${invoice.editApprovedBy ? " · อนุมัติโดย " + escapeHtml(invoice.editApprovedBy) : ""}${invoice.lastEditedAt ? " · " + escapeHtml(String(invoice.lastEditedAt).slice(0, 16).replace("T", " ")) : ""}</div>` : ""}
+          </td>
           <td class="py-2">${wsInvoiceActionButtons(invoice)}</td>
         </tr>`;
     })
@@ -13680,6 +13968,7 @@ function setupWSTab() {
   setupWSHistoryView();
   setupWSPaymentModal();
   setupWSVoidModal();
+  setupWSEditApprovalModal();
   setupWSPaymentMethodButtons();
 
   document.getElementById("wsBillTitleDefaultHint").textContent = wsDefaultBillTitleText();
