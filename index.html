@@ -38,6 +38,19 @@
   /* Hide scrollbars on the cart table nicely on small screens */
   .cart-scroll { /* no max-height: full list shows, no inner scrollbar (per Wing, 2026-09) */ }
 
+  /* WS draft items table — product name caps at 2 lines instead of running
+     on forever (2026-10, per Wing's approved mockup for the discount
+     checklist). Thai text has no spaces for the browser to find a break
+     at, hence overflow-wrap/word-break alongside the clamp. */
+  .ws-name-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
   /* =================================================================
      BILL PREVIEW / PRINT (added 2026-09) — one shared preview modal
      used by the walk-in cart, WS wholesale invoices, and pre-order
@@ -339,6 +352,15 @@
 
   <!-- ============= TAB: POS (main functional screen) ============= -->
   <section id="tab-pos" class="tab-panel grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- Backup Bill switcher (2026-10, per Wing): a "+ บิลสำรอง" button that
+         opens up to 4 extra, fully independent bills alongside this one —
+         lets a 2nd/3rd/4th/5th customer start paying without touching a
+         still-in-progress cart. Everything else on this tab is unchanged.
+         Filled entirely by renderBackupBillBar(). -->
+    <div class="lg:col-span-3 flex justify-end">
+      <div id="backupBillBar"></div>
+    </div>
 
     <!-- ---------------- LEFT COLUMN (spans 2) ---------------- -->
     <div class="lg:col-span-2 flex flex-col gap-3">
@@ -1382,6 +1404,18 @@
             <h2 class="font-semibold text-gray-700">👤 ลูกค้า (พ่อค้าส่ง)</h2>
 
             <div>
+              <!-- เลือกจากลิสต์ลูกค้าพ่อค้าส่ง (2026-10, per Wing: กดเลือกจะได้ไม่พิมพ์ผิด) —
+                   กรองเฉพาะลูกค้าที่รหัสขึ้นต้นด้วย "CWS" (เช่น CWS001, CWS002...) จาก
+                   customerList เดียวกับทุกหน้าในระบบ (ไม่ใช่ลิสต์แยก ไม่มีชีทใหม่) เลือกแล้ว
+                   เติม Code/Name/Phone ให้อัตโนมัติผ่าน lookupWSCustomerCode() ตัวเดิม —
+                   ดู renderWSCustomerPicker() ด้านล่าง -->
+              <label class="block text-xs text-gray-500 mb-1">เลือกจากลูกค้าพ่อค้าส่ง (รหัส CWS...)</label>
+              <select id="wsCustomerPickSelect"
+                      class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 mb-2 text-sm bg-white
+                             focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+                <option value="">-- เลือกลูกค้าพ่อค้าส่ง --</option>
+              </select>
+
               <label class="block text-xs text-gray-500 mb-1">รหัสลูกค้า / เบอร์โทร / ชื่อ Facebook-LINE (เว้นว่างได้ถ้ายังไม่มีในลิสต์ — พิมพ์ชื่อเองด้านล่าง)</label>
               <input id="wsCustomerCodeInput" type="text" autocomplete="off" placeholder="พิมพ์/สแกนรหัส, เบอร์โทร หรือชื่อ Facebook/LINE..."
                      class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 mb-1
@@ -3540,6 +3574,20 @@ let oneBillPickupState = null; // transient state while oneBillPickupModal (now 
 let deliveryMethod = "pickup"; // "pickup" | "delivery"
 let activeMethods = new Set(); // nothing pre-selected — cashier picks a method themselves (per Wing, 2026-09: defaulting to cash meant an extra step to un-pick it when paying by transfer instead)
 
+// "+ บิลสำรอง" (2026-10, per Wing: a 2nd customer wanting to pay right away
+// shouldn't force clearing out a 1st customer's still-being-decided cart).
+// Up to MAX_BACKUP_BILLS extra bills can be open at once alongside the Main
+// bill, switchable from the small control rendered by renderBackupBillBar()
+// at the top of the POS tab. Deliberately NOT persisted anywhere (lost on
+// refresh) — same as the Main cart always has been; see Wing's explicit
+// answer when this was designed. See captureCurrentIntoSnapshot_(),
+// restoreSnapshotToLive_(), switchToBillSlot_(), createBackupBill_(),
+// closeBackupBill_() below.
+const MAX_BACKUP_BILLS = 4;
+let backupBills = []; // snapshot objects for each currently-open backup bill, by array index (0-based)
+let savedMainBill = null; // snapshot of the Main bill — populated only while some backup slot is the one on screen; stale/unused while activeBillSlot === -1
+let activeBillSlot = -1; // -1 = Main bill is live in cart/deliveryMethod/activeMethods/the DOM fields below; 0..n-1 = backupBills[index] is the one parked (not live)
+
 // Shop name/address/phone for the bill-preview print header — loaded for
 // EVERY staff member on login (see loadShopInfo(), called from
 // applyLogin) regardless of role, since any cashier can print a bill.
@@ -3732,6 +3780,7 @@ function rebuildCustomerMemoryIndexes(customers) {
   customerMap = new Map();
   customerList = customers;
   customers.forEach((c) => customerMap.set(normalizeCustomerCode(c.code), c));
+  renderWSCustomerPicker(); // keep the WS tab's "เลือกลูกค้าพ่อค้าส่ง" dropdown in sync (2026-10)
 }
 
 function findCustomerByCode(code) {
@@ -4794,6 +4843,7 @@ function renderGrandTotal() {
   }
 
   renderSplitInputs(); // keep split payment section in sync with the new total
+  renderBackupBillBar(); // keep the active slot's item-count/total badge live too
 }
 
 /* =================================================================
@@ -5604,6 +5654,21 @@ async function submitTransaction() {
 }
 
 function resetPOSForNextSale() {
+  // A backup bill (not the Main one) just finished paying — that slot is
+  // done, drop it entirely and hand the screen back to the Main bill
+  // (restoring whatever it had parked, exactly as switchToBillSlot_ would).
+  // Never true for a brand-new Main sale or a saved edit (those always run
+  // on slot -1 — see startEditingBill_), so that path below is untouched.
+  if (activeBillSlot !== -1) {
+    backupBills.splice(activeBillSlot, 1);
+    activeBillSlot = -1;
+    restoreSnapshotToLive(savedMainBill || emptyBillSnapshot());
+    refocusScanInput();
+    editingTransactionId = null;
+    updateSubmitBarForEditMode(); // also re-renders the backup-bill bar
+    return;
+  }
+
   cart = []; // clears every row and its type (branch/pre/rec/ws/sp) — this bill is done
   activeMethods = new Set(); // same as the page-load default above — no method pre-picked for the next sale either
   renderCart();
@@ -5615,6 +5680,232 @@ function resetPOSForNextSale() {
   // back out of "editing an existing bill" mode.
   editingTransactionId = null;
   updateSubmitBarForEditMode();
+}
+
+/* =================================================================
+   BACKUP BILLS ("+ บิลสำรอง", 2026-10)
+   -------------------------------------------------------------------
+   Lets up to MAX_BACKUP_BILLS extra, fully independent bills sit open at
+   once alongside the Main bill — e.g. a 2nd customer wants to pay right
+   now while a 1st customer is still deciding on more items. Exactly one
+   slot is ever "live" (its state is whatever's currently in `cart` /
+   `deliveryMethod` / `activeMethods` / the customer+split-payment DOM
+   fields); every other open slot's state sits captured in a plain snapshot
+   object (savedMainBill for the Main slot, backupBills[i] for a backup
+   slot) until it's switched back in. Nothing here is persisted anywhere —
+   a page refresh loses every parked bill, same as the Main cart always
+   has (per Wing, explicitly fine when this was designed).
+
+   Editing an existing bill (startEditingBill, below) always forces
+   activeBillSlot back to -1 first — a historical bill is only ever edited
+   on the Main slot, and the backup-bill bar hides itself entirely while
+   editingTransactionId is set, so nothing can be switched away mid-edit.
+   ================================================================= */
+
+function emptyBillSnapshot() {
+  return {
+    cart: [],
+    customerCode: "", customerName: "", customerPhone: "", customerAddress: "", billRemark: "",
+    deliveryMethod: "pickup",
+    activeMethods: new Set(),
+    splitAmounts: { cash: "", transfer: "", card: "", copay: "" }
+  };
+}
+
+function getSplitRawValue_(method) {
+  const el = document.getElementById("split-" + method);
+  return el ? el.value : "";
+}
+
+// Reads whatever is currently live (cart + the customer/delivery/payment
+// DOM fields) into a plain snapshot object — the counterpart to
+// restoreSnapshotToLive() below. Used both when parking the bill that's
+// about to be switched away from, and (in closeBackupBill_) just to check
+// whether the bill being closed still has anything in it.
+function captureCurrentIntoSnapshot() {
+  return {
+    cart: cart,
+    customerCode: document.getElementById("customerCodeInput").value,
+    customerName: document.getElementById("customerNameInput").value,
+    customerPhone: document.getElementById("customerPhoneInput").value,
+    customerAddress: document.getElementById("customerAddressInput").value,
+    billRemark: document.getElementById("billRemarkInput").value,
+    deliveryMethod: deliveryMethod,
+    activeMethods: new Set(activeMethods),
+    splitAmounts: {
+      cash: getSplitRawValue_("cash"),
+      transfer: getSplitRawValue_("transfer"),
+      card: getSplitRawValue_("card"),
+      copay: getSplitRawValue_("copay")
+    }
+  };
+}
+
+// Loads a snapshot back into the live cart/vars/DOM — mirrors the relevant
+// half of startEditingBill()'s own load sequence (same reason: rebuild the
+// cart/grand-total/split-inputs via the normal renderCart() path, THEN
+// patch the split-payment inputs' actual typed amounts back in afterward,
+// since renderSplitInputs() only knows sane *defaults* for a freshly
+// (re)built set of inputs).
+function restoreSnapshotToLive(snap) {
+  cart = snap.cart;
+  document.getElementById("customerCodeInput").value = snap.customerCode || "";
+  document.getElementById("customerNameInput").value = snap.customerName || "";
+  document.getElementById("customerPhoneInput").value = snap.customerPhone || "";
+  document.getElementById("customerAddressInput").value = snap.customerAddress || "";
+  document.getElementById("billRemarkInput").value = snap.billRemark || "";
+  document.getElementById("customerNotFoundHint").classList.add("hidden");
+  deliveryMethod = snap.deliveryMethod || "pickup";
+  renderDeliveryButtons();
+  activeMethods = new Set(snap.activeMethods || []);
+  renderPaymentButtons();
+  renderCart(); // also rebuilds grand total + split-payment inputs (with defaults) + the backup-bill bar
+  paymentOrder.forEach((m) => {
+    const el = document.getElementById("split-" + m);
+    if (el && snap.activeMethods && snap.activeMethods.has(m) && snap.splitAmounts && snap.splitAmounts[m] !== undefined && snap.splitAmounts[m] !== "") {
+      el.value = snap.splitAmounts[m];
+    }
+  });
+  validateSplitPayments();
+}
+
+function cartQty_(c) {
+  return (c || []).reduce((s, i) => s + (Number(i.qty) || 0), 0);
+}
+function cartMoneyTotal_(c) {
+  return (c || []).reduce((s, i) => s + collectAmount(i), 0);
+}
+
+function switchToBillSlot(targetSlot) {
+  if (targetSlot === activeBillSlot) return;
+  if (editingTransactionId) return; // locked while editing an existing bill — see startEditingBill()
+
+  const liveSnap = captureCurrentIntoSnapshot();
+  if (activeBillSlot === -1) {
+    savedMainBill = liveSnap;
+  } else {
+    backupBills[activeBillSlot] = liveSnap;
+  }
+
+  const targetSnap = targetSlot === -1 ? (savedMainBill || emptyBillSnapshot()) : (backupBills[targetSlot] || emptyBillSnapshot());
+  activeBillSlot = targetSlot;
+  restoreSnapshotToLive(targetSnap);
+  refocusScanInput();
+}
+
+function createBackupBill() {
+  if (editingTransactionId) return; // the bar is hidden during edit mode anyway — defensive only
+  if (backupBills.length >= MAX_BACKUP_BILLS) return;
+
+  const liveSnap = captureCurrentIntoSnapshot();
+  if (activeBillSlot === -1) {
+    savedMainBill = liveSnap;
+  } else {
+    backupBills[activeBillSlot] = liveSnap;
+  }
+
+  backupBills.push(null); // the new slot's data lives in the global vars/DOM below while it's active, not here
+  activeBillSlot = backupBills.length - 1;
+  restoreSnapshotToLive(emptyBillSnapshot());
+  refocusScanInput();
+  showToast("เปิดบิลสำรอง " + (activeBillSlot + 1) + " แล้ว — บิลเดิมถูกเก็บไว้ ไม่หาย", "success");
+}
+
+function closeBackupBill(index) {
+  if (index < 0 || index >= backupBills.length) return;
+
+  const isActive = activeBillSlot === index;
+  const cartToCheck = isActive ? cart : (backupBills[index] ? backupBills[index].cart : []);
+  if (cartQty_(cartToCheck) > 0 &&
+      !confirm("บิลสำรอง " + (index + 1) + " ยังมีสินค้าอยู่ในตะกร้า ต้องการปิดบิลนี้ทิ้งหรือไม่?")) {
+    return;
+  }
+
+  backupBills.splice(index, 1);
+
+  if (isActive) {
+    activeBillSlot = -1;
+    restoreSnapshotToLive(savedMainBill || emptyBillSnapshot());
+  } else if (activeBillSlot > index) {
+    activeBillSlot -= 1; // still the same live bill, just shifted down one slot by the splice above
+  }
+  renderBackupBillBar();
+}
+
+// Small control at the top of the POS tab: a single "+ บิลสำรอง" button
+// when nothing's parked yet, or a row of switchable pills (Main + each
+// open backup, with live item-count/total badges and a ✕ to close) once
+// at least one backup bill is open. Hidden entirely while editing an
+// existing bill (editingTransactionId set) so a backup bill in progress
+// can never be switched away from mid-edit — see startEditingBill().
+function renderBackupBillBar() {
+  const el = document.getElementById("backupBillBar");
+  if (!el) return;
+
+  if (editingTransactionId) {
+    el.innerHTML = "";
+    return;
+  }
+
+  if (backupBills.length === 0 && activeBillSlot === -1) {
+    el.innerHTML = `
+      <button type="button" id="addBackupBillBtn"
+              class="flex items-center gap-1.5 border-2 border-dashed border-gray-300 text-gray-500 text-xs font-bold
+                     rounded-lg px-3 py-2 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 transition">
+        <i class="fa-solid fa-plus"></i> บิลสำรอง
+      </button>`;
+    document.getElementById("addBackupBillBtn").addEventListener("click", createBackupBill);
+    return;
+  }
+
+  const mainCart = activeBillSlot === -1 ? cart : (savedMainBill ? savedMainBill.cart : []);
+  let pillsHtml = `
+    <button type="button" data-slot="-1"
+            class="backup-bill-seg text-xs font-bold rounded-lg px-3 py-2 flex items-center gap-1.5 transition
+                   ${activeBillSlot === -1 ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}">
+      <i class="fa-solid fa-receipt"></i> บิลหลัก
+      <span class="rounded-full px-1.5 text-[10px] ${activeBillSlot === -1 ? "bg-white/25" : "bg-gray-300/70"}">${cartQty_(mainCart)} · ${formatMoney(cartMoneyTotal_(mainCart))}</span>
+    </button>`;
+
+  backupBills.forEach((snap, i) => {
+    const liveCart = activeBillSlot === i ? cart : (snap ? snap.cart : []);
+    const active = activeBillSlot === i;
+    pillsHtml += `
+      <span class="relative inline-flex items-center">
+        <button type="button" data-slot="${i}"
+                class="backup-bill-seg text-xs font-bold rounded-lg pl-3 pr-6 py-2 flex items-center gap-1.5 transition
+                       ${active ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}">
+          <i class="fa-solid fa-receipt"></i> สำรอง ${i + 1}
+          <span class="rounded-full px-1.5 text-[10px] ${active ? "bg-white/25" : "bg-gray-300/70"}">${cartQty_(liveCart)} · ${formatMoney(cartMoneyTotal_(liveCart))}</span>
+        </button>
+        <button type="button" data-close-slot="${i}" title="ปิดบิลสำรอง ${i + 1}"
+                class="absolute right-1.5 text-[11px] ${active ? "text-white/80 hover:text-white" : "text-gray-400 hover:text-rose-600"}">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </span>`;
+  });
+
+  const addHtml = backupBills.length < MAX_BACKUP_BILLS
+    ? `<button type="button" id="addBackupBillBtn" title="เปิดบิลสำรองเพิ่ม"
+               class="w-7 h-7 rounded-full border-2 border-dashed border-gray-300 text-gray-500 flex items-center justify-center
+                      hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 transition">
+        <i class="fa-solid fa-plus text-xs"></i>
+      </button>`
+    : "";
+
+  el.innerHTML = `<div class="flex flex-wrap items-center gap-1.5 bg-white rounded-xl shadow p-1.5">${pillsHtml}${addHtml}</div>`;
+
+  el.querySelectorAll(".backup-bill-seg").forEach((btn) => {
+    btn.addEventListener("click", () => switchToBillSlot(parseInt(btn.getAttribute("data-slot"), 10)));
+  });
+  el.querySelectorAll("[data-close-slot]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeBackupBill(parseInt(btn.getAttribute("data-close-slot"), 10));
+    });
+  });
+  const addBtn = document.getElementById("addBackupBillBtn");
+  if (addBtn) addBtn.addEventListener("click", createBackupBill);
 }
 
 /* =================================================================
@@ -5637,6 +5928,14 @@ function startEditingBill(transactionId) {
   if (bill.status && bill.status !== STATUS_NORMAL_LABEL) {
     showToast("บิลนี้ถูกยกเลิกไปแล้ว ไม่สามารถแก้ไขได้", "error");
     return;
+  }
+
+  // Editing always happens on the Main bill slot. If a backup bill is
+  // currently the one on screen, park it first (exactly like switching
+  // tabs normally would) so it's untouched and safely resumable once this
+  // edit is saved or cancelled — see the BACKUP BILLS section above.
+  if (activeBillSlot !== -1) {
+    switchToBillSlot(-1);
   }
 
   editingTransactionId = bill.transactionId;
@@ -5724,6 +6023,7 @@ function updateSubmitBarForEditMode() {
     submitBtn.classList.add("bg-emerald-600", "hover:bg-emerald-500");
     submitBtn.classList.remove("bg-amber-600", "hover:bg-amber-500");
   }
+  renderBackupBillBar(); // hides itself entirely while editingTransactionId is set
 }
 
 function openEditApprovalModal() {
@@ -11664,8 +11964,12 @@ function setupPreOrderTab() {
    paid" (partial/credit sales to resellers).
    ================================================================= */
 
-let wsDraftItems = [];       // [{barcode, name, qty, price, discountPct}] — line totals are computed
-                              // on render, never stored, so inline edits never go stale.
+let wsDraftItems = [];       // [{barcode, name, qty, price, discountPct, discountOn}] — line totals are
+                              // computed on render, never stored, so inline edits never go stale.
+                              // discountOn (2026-10, per Wing's approved "checklist ส่วนลด" mockup) gates
+                              // whether discountPct actually applies — a typed % is kept even while
+                              // unticked, so re-ticking a row restores its old % instead of losing it.
+                              // See wsLineTotals()/renderWSDraftItems() below.
 let wsSuggestionMatches = []; // current dropdown matches for wsItemNameInput (name-search path)
 let wsHighlightIndex = -1;    // index into wsSuggestionMatches highlighted via ↓/↑, -1 = none yet
 let lastLoadedWSInvoices = []; // flat list from the last "getWSInvoices" fetch — every status included
@@ -11805,6 +12109,44 @@ function lookupWSCustomerCode() {
   }
 }
 
+// 2026-10, per Wing: a selectable list of just the wholesale customers (code
+// starting with "CWS" — her own naming convention, e.g. CWS001, CWS002...),
+// so staff pick from a list instead of typing a code/name by hand and
+// risking picking the wrong one. Filters the SAME customerList every other
+// lookup on this page already uses (findCustomer/findCustomerByCode) — no
+// separate sheet, no separate cache. Re-rendered every time the customer
+// cache changes (see rebuildCustomerMemoryIndexes() above, which calls this
+// at the end), so it's always in sync after a sync/clear-cache.
+function renderWSCustomerPicker() {
+  const select = document.getElementById("wsCustomerPickSelect");
+  if (!select) return; // WS tab not in the DOM yet this early on first load — harmless no-op
+
+  const wholesaleCustomers = customerList
+    .filter((c) => normalizeCustomerCode(c.code).startsWith("CWS"))
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "th"));
+
+  const previousValue = select.value;
+  select.innerHTML = '<option value="">-- เลือกลูกค้าพ่อค้าส่ง --</option>' +
+    wholesaleCustomers
+      .map((c) => `<option value="${escapeHtml(c.code)}">${escapeHtml(c.code)} — ${escapeHtml(c.name || "(ไม่มีชื่อ)")}</option>`)
+      .join("");
+
+  // Keep whatever was selected before this refresh, if it's still in the list.
+  if (previousValue && wholesaleCustomers.some((c) => c.code === previousValue)) {
+    select.value = previousValue;
+  }
+}
+
+// Selecting a customer from the picker just drives the exact same code box
+// + lookup the cashier would use by hand — so autofill, the "not found"
+// hint, and everything downstream behave identically either way.
+function applyWSCustomerPickSelection() {
+  const select = document.getElementById("wsCustomerPickSelect");
+  if (!select || !select.value) return;
+  document.getElementById("wsCustomerCodeInput").value = select.value;
+  lookupWSCustomerCode();
+}
+
 /* -----------------------------------------------------------------
    Scan-to-add item search (rewritten 2026-09 per Wing's request):
    - Exact barcode match + Enter -> added straight to the draft list,
@@ -11887,7 +12229,7 @@ function addOrIncrementWSDraftItem(barcode, name, price, qtyDelta) {
     if (!existing.name && name) existing.name = name;
     if (!existing.price && price) existing.price = price;
   } else {
-    wsDraftItems.push({ barcode, name, qty: qtyDelta, price, discountPct: 0 });
+    wsDraftItems.push({ barcode, name, qty: qtyDelta, price, discountPct: 0, discountOn: false });
   }
   renderWSDraftItems();
 }
@@ -12071,7 +12413,10 @@ function setupWSItemSearch() {
 
 function wsLineTotals(item) {
   const lineSubtotal = item.qty * item.price;
-  const lineDiscount = lineSubtotal * ((item.discountPct || 0) / 100);
+  // A typed % only applies while the row's ✅ is ticked (discountOn) — see
+  // the comment on wsDraftItems above. Unticked keeps the number on screen
+  // but counts it as 0 here, same as if nothing were typed.
+  const lineDiscount = item.discountOn ? lineSubtotal * ((item.discountPct || 0) / 100) : 0;
   const lineTotal = lineSubtotal - lineDiscount;
   return { lineSubtotal, lineDiscount, lineTotal };
 }
@@ -12085,47 +12430,65 @@ function renderWSDraftItems() {
   } else {
     // Compact table (1 แถว = 1 รายการ) — เดิมเป็นการ์ด 4 บรรทัด/รายการ ทำให้ลิสต์ยาวและ
     // ดูแน่นเกินไปเมื่อมีหลายรายการพร้อมกัน (เช่นหลังนำเข้าไฟล์ Excel) ตามที่ Wing ขอปรับ
-    // 2026-09 — บาร์โค้ดแสดงเป็น badge กรอบเทา (15px) อยู่หน้าชื่อสินค้าบรรทัดเดียวกัน
-    // (ทีมขนส่งต้องเห็นบาร์โค้ดตอนจัดของ) ชื่อไม่ตัดคำแล้ว ถ้ายาวเกินจะไหลลงบรรทัดถัดไป
-    // เอง (flex-wrap ทำให้ badge อยู่ต้นบรรทัดเสมอ ส่วนช่องชื่อทั้งก้อนตกไปบรรทัดล่างเมื่อ
-    // ที่ไม่พอ) ตามที่ Wing เลือกจากตัวอย่าง 3 แบบที่ทำให้ดูเทียบกัน
+    // 2026-09 — บาร์โค้ดแสดงเป็น badge กรอบเทาอยู่หน้าชื่อสินค้าบรรทัดเดียวกัน (ทีมขนส่งต้อง
+    // เห็นบาร์โค้ดตอนจัดของ)
+    //
+    // 2026-10 (per Wing's approved "checklist ส่วนลด" mockup, after the
+    // WS Excel-import flow made it common to have SOME items/customers
+    // discounted and some not): every row gets a ✅ (discountOn) that gates
+    // whether its "ลด%" box actually counts — unticked keeps whatever % was
+    // typed on screen but wsLineTotals() treats it as 0 (see that function).
+    // A "เลือกทั้งหมด" header checkbox and a "ตั้งส่วนลดเริ่มต้นทั้งบิล" bulk-apply
+    // bar (set one % + tick every row in one click, still editable per row
+    // afterward) sit above the table. Barcode/price are now text-lg (18px,
+    // per Wing: easier to read while packing orders); the item name is a
+    // 2-row textarea (16px) instead of a single-line input — same inline
+    // editing as before, just capped at ~2 lines instead of running on.
+    const allChecked = wsDraftItems.length > 0 && wsDraftItems.every((i) => i.discountOn);
+    const someChecked = wsDraftItems.some((i) => i.discountOn);
+
     const rowsHtml = wsDraftItems
       .map((item, idx) => {
         const needsInfo = !item.name;
         const { lineTotal } = wsLineTotals(item);
         const nameTitle = escapeHtml(item.name) + (item.barcode ? " · " + escapeHtml(item.barcode) : "");
         return `
-      <tr class="${needsInfo ? "bg-amber-50" : ""} border-t border-gray-100 align-top">
-        <td class="py-1.5 pl-1 pr-1.5">
-          <div class="flex items-start gap-1.5 flex-wrap">
-            ${item.barcode ? `<span class="inline-block bg-slate-100 border border-slate-300 text-slate-700 font-mono text-[15px] font-semibold px-1.5 py-0.5 rounded leading-none flex-shrink-0 mt-0.5">${escapeHtml(item.barcode)}</span>` : ""}
-            <input type="text" data-idx="${idx}" data-field="name" value="${escapeHtml(item.name)}"
+      <tr class="${needsInfo ? "bg-amber-50" : item.discountOn ? "bg-emerald-50/40" : ""} border-t border-gray-100 align-middle">
+        <td class="py-2 pl-1 pr-1 text-center">
+          <input type="checkbox" data-idx="${idx}" class="ws-discount-check w-4 h-4 accent-emerald-600 cursor-pointer" ${item.discountOn ? "checked" : ""} title="มีส่วนลด">
+        </td>
+        <td class="py-2 pr-1.5">
+          <div class="flex items-start gap-2 flex-wrap">
+            ${item.barcode ? `<span class="inline-block bg-slate-100 border border-slate-300 text-slate-700 font-mono text-lg font-bold px-2 py-1 rounded leading-none flex-shrink-0 mt-0.5">${escapeHtml(item.barcode)}</span>` : ""}
+            <textarea rows="2" data-idx="${idx}" data-field="name"
                    placeholder="พิมพ์ชื่อสินค้า..." title="${nameTitle}"
-                   class="ws-draft-edit-input flex-1 min-w-[140px] bg-transparent border border-transparent hover:border-gray-200
+                   class="ws-draft-edit-input flex-1 min-w-[140px] resize-none overflow-hidden bg-transparent border border-transparent hover:border-gray-200
                           focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 focus:bg-white
-                          rounded px-1 py-0.5 font-medium text-xs ${needsInfo ? "placeholder-amber-500 text-amber-700" : "text-emerald-800"}">
+                          rounded px-1 py-0.5 font-medium text-base leading-snug ${needsInfo ? "placeholder-amber-500 text-amber-700" : "text-emerald-800"}">${escapeHtml(item.name)}</textarea>
           </div>
         </td>
-        <td class="py-1 px-0.5">
+        <td class="py-2 px-0.5">
           <div class="flex items-center justify-center gap-1">
             <button data-action="dec" data-idx="${idx}" class="ws-qty-btn w-5 h-5 flex-shrink-0 rounded-full bg-gray-100 hover:bg-gray-200 font-bold text-[11px] leading-none">-</button>
-            <span class="w-5 text-center font-medium text-gray-700 text-xs">${item.qty}</span>
+            <input type="number" min="1" step="1" data-idx="${idx}" value="${item.qty}"
+                   class="ws-qty-input w-12 text-center font-medium text-gray-700 text-xs border border-gray-200 rounded px-1 py-0.5
+                          focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 focus:outline-none">
             <button data-action="inc" data-idx="${idx}" class="ws-qty-btn w-5 h-5 flex-shrink-0 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold text-[11px] leading-none">+</button>
           </div>
         </td>
-        <td class="py-1 px-0.5">
+        <td class="py-2 px-0.5 text-center">
           <input type="number" step="0.01" min="0" data-idx="${idx}" data-field="price" value="${item.price}"
-                 class="ws-draft-edit-input w-full text-right bg-transparent border border-transparent hover:border-gray-200
-                        focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 focus:bg-white rounded px-1 py-0.5 text-xs">
+                 class="ws-draft-edit-input w-20 text-center text-lg bg-transparent border border-transparent hover:border-gray-200
+                        focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 focus:bg-white rounded px-1 py-0.5">
         </td>
-        <td class="py-1 px-0.5">
+        <td class="py-2 px-0.5 text-center">
           <input type="number" step="0.1" min="0" max="100" data-idx="${idx}" data-field="discountPct" value="${item.discountPct || ""}"
-                 placeholder="0"
-                 class="ws-draft-edit-input w-full text-right bg-transparent border border-transparent hover:border-gray-200
-                        focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 focus:bg-white rounded px-1 py-0.5 text-xs">
+                 placeholder="0" ${item.discountOn ? "" : "disabled"}
+                 class="ws-draft-edit-input w-14 text-center rounded px-1 py-0.5 text-xs border
+                        ${item.discountOn ? "bg-amber-50 border-amber-300 text-amber-800 focus:ring-1 focus:ring-amber-400" : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"}">
         </td>
-        <td class="ws-line-total-text py-1 pl-0.5 pr-1 text-right text-gray-500 text-xs whitespace-nowrap" data-idx="${idx}">${formatMoney(lineTotal)}</td>
-        <td class="py-1 pl-0.5 pr-1 text-center">
+        <td class="ws-line-total-text py-2 pl-0.5 pr-1 text-center ${item.discountOn ? "text-emerald-700 font-semibold" : "text-gray-500"} text-xs whitespace-nowrap" data-idx="${idx}">${formatMoney(lineTotal)}</td>
+        <td class="py-2 pl-0.5 pr-1 text-center">
           <button type="button" class="ws-remove-draft-item text-gray-400 hover:text-red-500 font-bold text-xs" data-idx="${idx}">✕</button>
         </td>
       </tr>`;
@@ -12133,19 +12496,66 @@ function renderWSDraftItems() {
       .join("");
 
     list.innerHTML = `
-      <table class="w-full border-collapse min-w-[420px]">
+      <div class="flex items-center gap-2 mb-2 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 flex-wrap">
+        <span class="text-[11px] text-amber-800 font-medium whitespace-nowrap">ตั้งส่วนลดเริ่มต้นทั้งบิล</span>
+        <input type="number" step="0.1" min="0" max="100" id="wsBulkDiscountInput" value="5"
+               class="w-14 text-center rounded px-1 py-1 text-xs border border-amber-300 bg-white focus:ring-1 focus:ring-amber-400">
+        <span class="text-[11px] text-amber-800">%</span>
+        <button type="button" id="wsApplyBulkDiscountBtn"
+                class="text-[11px] font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg px-2.5 py-1 transition">
+          ใส่ให้ทุกชิ้น
+        </button>
+        <span class="text-[10px] text-amber-700/80">— ใส่แล้วยังแก้ทีละชิ้นด้านล่างได้ตามปกติ</span>
+      </div>
+      <table class="w-full border-collapse min-w-[560px]">
         <thead>
           <tr class="text-gray-400 text-[10px]">
-            <th class="text-left font-normal pb-1 pl-1 pr-1.5">สินค้า</th>
-            <th class="text-center font-normal pb-1 px-0.5 w-[64px]">จำนวน</th>
-            <th class="text-right font-normal pb-1 px-0.5 w-[56px]">ราคา</th>
-            <th class="text-right font-normal pb-1 px-0.5 w-[48px]">ลด%</th>
-            <th class="text-right font-normal pb-1 pl-0.5 pr-1 w-[64px]">รวม</th>
+            <th class="text-center font-normal pb-1 pl-1 pr-1 w-[22px]">
+              <input type="checkbox" id="wsCheckAllDiscount" class="w-4 h-4 accent-emerald-600 cursor-pointer" title="เลือกทั้งหมด" ${allChecked ? "checked" : ""}>
+            </th>
+            <th class="text-left font-normal pb-1 pr-1.5">สินค้า <span class="text-emerald-600 font-semibold">· ✅ = มีส่วนลด</span></th>
+            <th class="text-center font-normal pb-1 px-0.5 w-[76px]">จำนวน</th>
+            <th class="text-center font-normal pb-1 px-0.5 w-[64px]">ราคา</th>
+            <th class="text-center font-normal pb-1 px-0.5 w-[56px]">ลด%</th>
+            <th class="text-center font-normal pb-1 pl-0.5 pr-1 w-[64px]">รวม</th>
             <th class="w-[18px]"></th>
           </tr>
         </thead>
         <tbody>${rowsHtml}</tbody>
       </table>`;
+
+    const checkAllEl = document.getElementById("wsCheckAllDiscount");
+    if (checkAllEl) {
+      checkAllEl.indeterminate = someChecked && !allChecked;
+      checkAllEl.addEventListener("change", () => {
+        const nowChecked = checkAllEl.checked;
+        wsDraftItems.forEach((i) => { i.discountOn = nowChecked; });
+        renderWSDraftItems();
+      });
+    }
+
+    const bulkBtn = document.getElementById("wsApplyBulkDiscountBtn");
+    if (bulkBtn) {
+      bulkBtn.addEventListener("click", () => {
+        const pctInput = document.getElementById("wsBulkDiscountInput");
+        const pct = Math.max(0, Math.min(100, parseFloat(pctInput.value) || 0));
+        wsDraftItems.forEach((i) => {
+          i.discountPct = pct;
+          i.discountOn = true;
+        });
+        renderWSDraftItems();
+      });
+    }
+
+    list.querySelectorAll(".ws-discount-check").forEach((cb) => {
+      cb.addEventListener("change", () => {
+        const idx = Number(cb.getAttribute("data-idx"));
+        const item = wsDraftItems[idx];
+        if (!item) return;
+        item.discountOn = cb.checked;
+        renderWSDraftItems();
+      });
+    });
 
     list.querySelectorAll(".ws-qty-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -12161,6 +12571,41 @@ function renderWSDraftItems() {
       btn.addEventListener("click", () => {
         wsDraftItems.splice(Number(btn.getAttribute("data-idx")), 1);
         renderWSDraftItems();
+      });
+    });
+
+    // จำนวน พิมพ์เองได้โดยตรงแล้ว (2026-10, per Wing) นอกเหนือจากปุ่ม +/- เดิม —
+    // mirrors the walk-in cart's .row-qty-input pattern: commit live while
+    // the typed value is a usable positive integer (so an empty box or a
+    // stray "0" mid-edit doesn't collapse the total or delete the row), and
+    // only clean up / remove the row once the cashier leaves the field.
+    list.querySelectorAll(".ws-qty-input").forEach((input) => {
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.code === "NumpadEnter") input.blur();
+      });
+      input.addEventListener("input", () => {
+        const idx = Number(input.getAttribute("data-idx"));
+        const item = wsDraftItems[idx];
+        if (!item) return;
+        const parsedQty = parseInt(input.value, 10);
+        if (Number.isFinite(parsedQty) && parsedQty > 0) {
+          item.qty = parsedQty;
+          const totalEl = list.querySelector('.ws-line-total-text[data-idx="' + idx + '"]');
+          if (totalEl) totalEl.textContent = formatMoney(wsLineTotals(item).lineTotal);
+          updateWSDraftTotals();
+        }
+      });
+      input.addEventListener("blur", () => {
+        const idx = Number(input.getAttribute("data-idx"));
+        const item = wsDraftItems[idx];
+        if (!item) return;
+        const parsedQty = parseInt(input.value, 10);
+        if (!Number.isFinite(parsedQty) || parsedQty <= 0) {
+          wsDraftItems.splice(idx, 1);
+          renderWSDraftItems();
+        } else {
+          input.value = parsedQty;
+        }
       });
     });
 
@@ -12257,7 +12702,12 @@ async function submitNewWSInvoice() {
         customerPhone: document.getElementById("wsCustomerPhoneInput").value.trim(),
         billTitle: document.getElementById("wsBillTitleInput").value.trim(),
         items: wsDraftItems.map((i) => ({
-          barcode: i.barcode, name: i.name, qty: i.qty, price: i.price, discountPct: i.discountPct
+          // A typed ลด% only actually applies while that row's ✅ is ticked
+          // (i.discountOn — see wsLineTotals()/renderWSDraftItems() above);
+          // zero it out here too so an unticked row never saves a stale
+          // discount% to Sheets just because a number was once typed in.
+          barcode: i.barcode, name: i.name, qty: i.qty, price: i.price,
+          discountPct: i.discountOn ? i.discountPct : 0
         })),
         paidNow: Number(document.getElementById("wsPaidNowInput").value) || 0,
         paidMethod: wsSelectedPaymentMethod,
@@ -13235,6 +13685,8 @@ function setupWSTab() {
   document.getElementById("wsBillTitleDefaultHint").textContent = wsDefaultBillTitleText();
 
   document.getElementById("reloadWSInvoicesBtn").addEventListener("click", loadWSInvoices);
+  document.getElementById("wsCustomerPickSelect").addEventListener("change", applyWSCustomerPickSelection);
+  renderWSCustomerPicker(); // in case the customer cache was already loaded before this tab's DOM existed
   document.getElementById("wsCustomerCodeInput").addEventListener("blur", lookupWSCustomerCode);
   document.getElementById("wsCustomerCodeInput").addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
@@ -15566,7 +16018,9 @@ function buildWSBillObject_(isDraft, existingInvoice) {
     barcode: item.barcode,
     qty: item.qty,
     unitPrice: item.price,
-    discountPct: item.discountPct,
+    // Same ✅-gated rule as submitNewWSInvoice()'s payload — an unticked
+    // row's typed % shouldn't show up as "ลด X%" on the preview/print either.
+    discountPct: item.discountOn ? item.discountPct : 0,
     lineTotal: wsLineTotals(item).lineTotal
   }));
   const grandTotal = items.reduce((s, it) => s + it.lineTotal, 0);
