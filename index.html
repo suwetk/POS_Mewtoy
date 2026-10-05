@@ -14,6 +14,8 @@
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <!-- SheetJS (reads the "Stop list" .xlsx file for the WS tab's "นำเข้าไฟล์" import — added 2026-09) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- html2canvas (renders the bank-account card as a downloadable PNG — added 2026-10) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
   /* Small custom touches Tailwind utility classes don't cover cleanly */
@@ -489,6 +491,28 @@
             </span>
           </button>
 
+          <!-- "ธนาคารอื่นๆ" (2026-10, per Wing) — separate from the 4 buttons
+               above, which are untouched. Picking a backup account here
+               requires a fresh Master PIN every time (see bankSwitchPinModal)
+               and always selects "transfer" as the active method too. -->
+          <button id="otherBankBtn" type="button"
+                  class="relative border-2 border-dashed border-purple-300 bg-purple-50/40 text-purple-700 rounded-lg py-3 flex flex-col items-center gap-1 transition col-span-2">
+            <i class="fa-solid fa-lock text-lg"></i>
+            <span class="text-sm font-medium">ธนาคารอื่นๆ <span class="text-[10px] font-normal text-purple-500">(ต้องขอ PIN Master)</span></span>
+          </button>
+
+        </div>
+
+        <!-- Shows which account "transfer" will actually use once that
+             method is active — the default silently, or a just-picked
+             backup account (see updateActiveBankPanel()). -->
+        <div id="activeBankPanel" class="hidden mt-3 bg-sky-50 border border-sky-200 rounded-lg p-3 text-sm">
+          <p class="text-gray-500 text-xs mb-0.5">จะรับเข้าบัญชี</p>
+          <p class="font-semibold text-gray-800" id="activeBankLabel">—</p>
+          <p id="activeBankBackupNote" class="text-[11px] text-amber-600 mt-1 hidden">บัญชีสำรองสำหรับบิลนี้เท่านั้น (ขอ PIN Master แล้ว) — บิลถัดไปกลับไปบัญชีค่าเริ่มต้นเอง</p>
+          <button id="viewActiveBankCardBtn" type="button" class="mt-2 text-xs bg-sky-100 hover:bg-sky-200 text-sky-700 font-semibold px-2.5 py-1.5 rounded-lg">
+            🖼️ ดูรูปส่งลูกค้า
+          </button>
         </div>
       </div>
 
@@ -1571,6 +1595,17 @@
                    class="w-full border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm
                           focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
 
+            <!-- วันที่ชำระเงิน — ไม่บังคับ (2026-10, per Wing: ลูกค้า WS อาจโอนมาคนละวัน
+                 กับที่พนักงานมาคีย์เข้าระบบ) เว้นว่าง = ใช้เวลาปัจจุบันเหมือนเดิมทุก
+                 ประการ (ดู resolveWSPaymentDate_ ฝั่ง backend) ใส่แค่ตอนวันที่จ่ายจริง
+                 ไม่ตรงกับวันนี้เท่านั้น -->
+            <div>
+              <label class="block text-[11px] text-gray-400 mb-1">วันที่ชำระเงิน (ไม่บังคับ — เว้นว่างถ้าจ่ายวันนี้)</label>
+              <input id="wsPaidDateInput" type="date"
+                     class="w-full border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm
+                            focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+            </div>
+
             <!-- วิธีชำระเงิน — ปุ่มเลือก 6 แบบ แทน dropdown เดิม (Wing ขอ 2026-09) -->
             <div>
               <label class="block text-[11px] text-gray-400 mb-1">วิธีชำระเงิน</label>
@@ -2147,6 +2182,15 @@
             <option value="transfer">โอน (TT)</option>
           </select>
         </div>
+      </div>
+
+      <!-- วันที่ชำระเงิน — ไม่บังคับ (2026-10, per Wing) เว้นว่าง = เวลาปัจจุบันเหมือน
+           เดิม ดูคอมเมนต์เดียวกันที่ #wsPaidDateInput ของฟอร์มออกบิลใหม่ -->
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">วันที่ชำระเงิน (ไม่บังคับ — เว้นว่างถ้าจ่ายวันนี้)</label>
+        <input id="wsPaymentDateInput" type="date"
+               class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-500">
       </div>
 
       <p id="wsPaymentModalError" class="text-sm text-red-500 hidden"></p>
@@ -3167,6 +3211,42 @@
         <p class="text-xs text-gray-400 mt-1">บันทึกไว้ในเครื่องนี้เครื่องเดียว (เหมือนลิงก์ Apps Script ด้านล่าง) — ถ้าขายหลายเครื่อง ตั้งค่าซ้ำทีละเครื่อง</p>
       </div>
 
+      <!-- บัญชีธนาคารรับโอน + เทมเพลตกรอบ (2026-10, per Wing) — Master only,
+           same admin-gating pattern as openingFloatSection/shopInfoSection
+           above (see applyLogin()). Shop-wide (not per-branch) — see
+           BANK_SETTINGS_BRANCH on the backend. -->
+      <div id="bankAccountsSection" class="hidden border-t pt-5 flex flex-col gap-5">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-sm font-semibold text-gray-700">🏦 บัญชีธนาคารรับโอน</label>
+            <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-semibold">Master เท่านั้น</span>
+          </div>
+          <p class="text-xs text-gray-400 mb-3">
+            บัญชีที่เป็น "ค่าเริ่มต้น" คือบัญชีที่ปุ่ม "Bank Transfer" หน้าขายใช้เองอัตโนมัติทุกครั้ง (ไม่ต้องขอ PIN) —
+            บัญชีอื่นในลิสต์นี้เป็นบัญชีสำรอง เข้าถึงได้เฉพาะผ่านปุ่ม "ธนาคารอื่นๆ" หน้าขาย และต้องขอ PIN Master ทุกครั้ง
+          </p>
+          <div id="bankAccountList" class="flex flex-col gap-2 mb-3"></div>
+          <button id="addBankAccountBtn" type="button"
+                  class="w-full border-2 border-dashed border-emerald-400 text-emerald-700 hover:bg-emerald-50 rounded-lg py-2.5 text-sm font-semibold transition">
+            ➕ เพิ่มบัญชีธนาคาร
+          </button>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-sm font-semibold text-gray-700">🎨 เทมเพลตกรอบ</label>
+          </div>
+          <p class="text-xs text-gray-400 mb-3">
+            เทมเพลต = กรอบ+สีของธนาคารหนึ่งๆ สร้างไว้ครั้งเดียว ใช้ซ้ำได้กับหลายบัญชี (เช่น มี 2 บัญชีกสิกรไทยคนละชื่อ ก็ใช้เทมเพลตเดียวกันทั้งคู่)
+          </p>
+          <div id="bankTemplateList" class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3"></div>
+          <button id="addBankTemplateBtn" type="button"
+                  class="w-full border-2 border-dashed border-purple-400 text-purple-700 hover:bg-purple-50 rounded-lg py-2.5 text-sm font-semibold transition">
+            ➕ สร้างเทมเพลตใหม่
+          </button>
+        </div>
+      </div>
+
       <div>
         <label class="block text-sm text-gray-500 mb-1">Apps Script Web App URL</label>
         <div class="flex gap-2">
@@ -3320,6 +3400,123 @@
   </section>
 
 </main>
+
+<!-- ============================================================
+     BANK ACCOUNTS / CARD TEMPLATES (2026-10, per Wing)
+     ============================================================ -->
+
+<!-- Settings: create a new card template (Master only) -->
+<div id="bankTemplateFormModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-5 flex flex-col gap-3">
+    <h3 class="font-semibold text-gray-800 text-lg">สร้างเทมเพลตใหม่</h3>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">ชื่อเทมเพลต (ใช้ภายในระบบเท่านั้น — สำหรับ Master เลือกตอนเพิ่มบัญชี ลูกค้าไม่เห็น)</label>
+      <input id="bankTplNameInput" type="text" placeholder="เช่น กสิกรไทย เขียว, กสิกรไทย เขียว #2"
+             class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">ชื่อธนาคารที่จะแสดงในรูป (ลูกค้าเห็นตรงนี้ — พิมพ์เองได้อิสระ)</label>
+      <input id="bankTplCardLabelInput" type="text" placeholder="เช่น กสิกรไทย"
+             class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">สีกรอบ</label>
+      <div class="flex items-center gap-2">
+        <input id="bankTplColorInput" type="color" value="#0a8f3c" class="w-12 h-10 border-2 border-gray-200 rounded-lg cursor-pointer">
+        <span class="text-xs text-gray-400">เลือกสีให้ตรงกับธนาคารนั้นๆ จะได้จำง่าย</span>
+      </div>
+    </div>
+    <p id="bankTplFormError" class="text-sm text-red-500 hidden"></p>
+    <div class="flex gap-2 justify-end mt-1">
+      <button id="bankTplFormCancelBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ยกเลิก</button>
+      <button id="bankTplFormSaveBtn" type="button" class="px-4 py-2 rounded-lg bg-purple-700 hover:bg-purple-800 text-white font-semibold">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings: add a new bank account (Master only) -->
+<div id="bankAccountFormModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-5 flex flex-col gap-3">
+    <h3 class="font-semibold text-gray-800 text-lg">เพิ่มบัญชีธนาคาร</h3>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">เทมเพลตกรอบ</label>
+      <select id="bankAcctTemplateSelect" class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500"></select>
+      <p class="text-[11px] text-gray-400 mt-1">ไม่มีเทมเพลตที่ต้องการ? ไปสร้างใหม่ที่หัวข้อ "🎨 เทมเพลตกรอบ" ก่อน</p>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">ชื่อบัญชี</label>
+      <input id="bankAcctNameInput" type="text" placeholder="เช่น นิพนท์ หรือ บ. มิวส์ทอย"
+             class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">เลขที่บัญชี</label>
+      <input id="bankAcctNoInput" type="text" placeholder="xxx-x-xxxxx-x"
+             class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+    </div>
+    <label class="flex items-center gap-2 text-xs text-gray-500">
+      <input type="checkbox" id="bankAcctIsDefaultInput"> ตั้งเป็นบัญชีค่าเริ่มต้น (รับโอนหน้าร้านปกติ)
+    </label>
+    <p id="bankAcctFormError" class="text-sm text-red-500 hidden"></p>
+    <div class="flex gap-2 justify-end mt-1">
+      <button id="bankAcctFormCancelBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ยกเลิก</button>
+      <button id="bankAcctFormSaveBtn" type="button" class="px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Card image preview/download — shared by the Settings list ("ดูรูป") and
+     the POS checkout panel ("ดูรูปส่งลูกค้า"), see openBankCardModal(). -->
+<div id="bankCardModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-5 flex flex-col gap-3 items-center">
+    <h3 class="font-semibold text-gray-800 text-lg self-start">รูปสำหรับส่งลูกค้า</h3>
+    <p class="text-xs text-gray-400 self-start -mt-2">สร้างจากเทมเพลต + ข้อมูลบัญชีนี้โดยอัตโนมัติ — กด "ดาวน์โหลด" เพื่อเก็บไฟล์ภาพไว้ส่งลูกค้าได้เลย</p>
+    <div id="bankCardSource" class="rounded-2xl p-6 text-white" style="width:380px;">
+      <p class="text-xs opacity-70 mb-1">โอนเงินเข้าบัญชี</p>
+      <p class="text-2xl font-bold mb-3" id="bankCardBankName">—</p>
+      <p class="text-sm opacity-80">ชื่อบัญชี</p>
+      <p class="text-lg font-semibold mb-2" id="bankCardAccountName">—</p>
+      <p class="text-sm opacity-80">เลขที่บัญชี</p>
+      <p class="text-xl font-mono font-bold tracking-wider" id="bankCardAccountNo">—</p>
+    </div>
+    <div class="flex gap-2 justify-end w-full mt-1">
+      <button id="bankCardModalCloseBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ปิด</button>
+      <button id="bankCardDownloadBtn" type="button" class="px-4 py-2 rounded-lg bg-sky-700 hover:bg-sky-800 text-white font-semibold">⬇️ ดาวน์โหลดรูป</button>
+    </div>
+  </div>
+</div>
+
+<!-- POS checkout: "ธนาคารอื่นๆ" — a fresh Master PIN every time, same
+     pattern/security boundary as voidModal/editApprovalModal above. No
+     standing permission is ever granted (see handleGetBankManagementData_
+     in the backend — reaching it successfully at all IS the PIN check). -->
+<div id="bankSwitchPinModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-xs p-5 flex flex-col gap-3">
+    <h3 class="font-semibold text-gray-800 text-lg flex items-center gap-2">
+      <i class="fa-solid fa-lock text-amber-500"></i> ขอ PIN Master
+    </h3>
+    <p class="text-xs text-gray-400">ต้องขอ PIN ของผู้มีสิทธิ์ Master ก่อนใช้บัญชีสำรองทุกครั้ง</p>
+    <input id="bankSwitchPinInput" type="password" inputmode="numeric" autocomplete="off" maxlength="8"
+           class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500"
+           placeholder="••••">
+    <p id="bankSwitchPinError" class="text-sm text-red-500 hidden"></p>
+    <div class="flex gap-2 justify-end mt-1">
+      <button id="bankSwitchPinCancelBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ยกเลิก</button>
+      <button id="bankSwitchPinConfirmBtn" type="button" class="px-4 py-2 rounded-lg bg-purple-700 hover:bg-purple-800 text-white font-semibold">ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
+<!-- POS checkout: pick which backup account this ONE bill goes to -->
+<div id="bankSwitchPickerModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-5 flex flex-col gap-3">
+    <h3 class="font-semibold text-gray-800 text-lg">เลือกบัญชีสำรองสำหรับบิลนี้</h3>
+    <p class="text-xs text-gray-400 -mt-1">ใช้ครั้งนี้ครั้งเดียว — บิลถัดไปกลับไปใช้บัญชีค่าเริ่มต้นเองอัตโนมัติ</p>
+    <div id="bankSwitchPickerList" class="flex flex-col gap-2 max-h-80 overflow-y-auto"></div>
+    <div class="flex gap-2 justify-end mt-1">
+      <button id="bankSwitchPickerCancelBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ยกเลิก</button>
+    </div>
+  </div>
+</div>
 
 <!-- ============================================================
      CAMERA SCAN MODAL
@@ -3643,6 +3840,18 @@ let nextCartRowId = 1; // cart rows are keyed by this stable id, NOT barcode —
 let oneBillPickupState = null; // transient state while oneBillPickupModal (now "pull customer's pre-orders into this cart as Rec rows") is open
 let deliveryMethod = "pickup"; // "pickup" | "delivery"
 let activeMethods = new Set(); // nothing pre-selected — cashier picks a method themselves (per Wing, 2026-09: defaulting to cash meant an extra step to un-pick it when paying by transfer instead)
+
+// Bank accounts / card templates (2026-10, per Wing) — see the backend's
+// BANK_SETTINGS_BRANCH comment block for the full design. defaultBankAccount
+// is loaded for EVERY staff member (see loadDefaultBankAccount(), called
+// from applyLogin()); bankTemplatesCache/bankAccountsCacheForMaster are only
+// ever populated for a Master, after a successful admin PIN — the plain
+// checkout screen never holds backup account numbers in memory otherwise.
+let defaultBankAccount = null; // { id, accountName, accountNo, cardLabel, templateName, color } | null (no accounts set up yet)
+let bankTemplatesCache = []; // Master's own Settings-tab management screen only
+let bankAccountsCacheForMaster = []; // same — full list including the default, for the management screen
+let selectedSaleBankAccountId = ""; // "" = use defaultBankAccount (the normal silent path) — only ever non-blank right after a successful "ธนาคารอื่นๆ" PIN + picker flow, for THIS bill only
+let activeBankCardInfo = null; // whichever account's info the card-image modal is currently showing (Settings "ดูรูป" or checkout "ดูรูปส่งลูกค้า")
 
 // "+ บิลสำรอง" (2026-10, per Wing: a 2nd customer wanting to pay right away
 // shouldn't force clearing out a 1st customer's still-being-decided cart).
@@ -4929,8 +5138,15 @@ function setupPaymentButtons() {
       } else {
         activeMethods.add(method);
       }
+      // Clicking the plain "Bank Transfer" button (same as always — no PIN,
+      // no picker) always means "use the default account", same as it
+      // silently has forever. Only the dedicated "ธนาคารอื่นๆ" button below
+      // (see openBankSwitchFlow()) can ever set selectedSaleBankAccountId
+      // to something else, and only for this one bill.
+      if (method === "transfer") selectedSaleBankAccountId = "";
       renderPaymentButtons();
       renderSplitInputs();
+      updateActiveBankPanel();
     });
   });
   renderPaymentButtons();
@@ -5533,6 +5749,7 @@ function buildPayload(overrides) {
     cardPaid: getSplitInputValue("card"),
     copayPaid: getSplitInputValue("copay"),
     changeGiven: changeGiven,
+    bankAccountId: activeMethods.has("transfer") ? selectedSaleBankAccountId : "", // "" = default account — see resolveSaleBankAccountLabel_ on the backend
     // Customer / delivery info is optional — all blank for a plain
     // walk-in, pickup-only sale. Name/phone/address are snapshotted
     // as typed at the time of sale (not re-looked-up later), so a
@@ -5622,6 +5839,7 @@ function buildOneBillPayload() {
     cardPaid: getSplitInputValue("card"),
     copayPaid: getSplitInputValue("copay"),
     changeGiven: changeGiven,
+    bankAccountId: activeMethods.has("transfer") ? selectedSaleBankAccountId : "", // "" = default account — see resolveSaleBankAccountLabel_ on the backend
     customerCode: document.getElementById("customerCodeInput").value.trim(),
     customerName: document.getElementById("customerNameInput").value.trim(),
     customerPhone: document.getElementById("customerPhoneInput").value.trim(),
@@ -5741,9 +5959,11 @@ function resetPOSForNextSale() {
 
   cart = []; // clears every row and its type (branch/pre/rec/ws/sp) — this bill is done
   activeMethods = new Set(); // same as the page-load default above — no method pre-picked for the next sale either
+  selectedSaleBankAccountId = ""; // next bill always starts back on the default account
   renderCart();
   renderPaymentButtons();
   renderSplitInputs();
+  updateActiveBankPanel();
   resetCustomerSection();
   refocusScanInput();
   // A completed save — whether a new sale or a saved edit — always drops
@@ -5778,7 +5998,8 @@ function emptyBillSnapshot() {
     customerCode: "", customerName: "", customerPhone: "", customerAddress: "", billRemark: "",
     deliveryMethod: "pickup",
     activeMethods: new Set(),
-    splitAmounts: { cash: "", transfer: "", card: "", copay: "" }
+    splitAmounts: { cash: "", transfer: "", card: "", copay: "" },
+    bankAccountId: ""
   };
 }
 
@@ -5807,7 +6028,8 @@ function captureCurrentIntoSnapshot() {
       transfer: getSplitRawValue_("transfer"),
       card: getSplitRawValue_("card"),
       copay: getSplitRawValue_("copay")
-    }
+    },
+    bankAccountId: selectedSaleBankAccountId // "" = default account — see its own declaration above
   };
 }
 
@@ -5828,7 +6050,9 @@ function restoreSnapshotToLive(snap) {
   deliveryMethod = snap.deliveryMethod || "pickup";
   renderDeliveryButtons();
   activeMethods = new Set(snap.activeMethods || []);
+  selectedSaleBankAccountId = snap.bankAccountId || "";
   renderPaymentButtons();
+  updateActiveBankPanel();
   renderCart(); // also rebuilds grand total + split-payment inputs (with defaults) + the backup-bill bar
   paymentOrder.forEach((m) => {
     const el = document.getElementById("split-" + m);
@@ -6579,11 +6803,16 @@ function applyLogin(staff) {
   document.getElementById("openingFloatSection").classList.toggle("hidden", !isAdminRole(staff.role));
   document.getElementById("preOrderBankInfoSection").classList.toggle("hidden", !isAdminRole(staff.role));
   document.getElementById("shopInfoSection").classList.toggle("hidden", !isAdminRole(staff.role));
+  document.getElementById("bankAccountsSection").classList.toggle("hidden", !isAdminRole(staff.role));
   if (isAdminRole(staff.role)) loadOpeningFloatSetting();
+  if (isAdminRole(staff.role)) loadBankManagementData();
   // Unlike the admin-only settings above, the shop header (name/address/
   // phone) is needed by EVERY staff member's printed bill preview, so it
   // loads regardless of role — see handleGetShopInfo_ on the backend.
   loadShopInfo();
+  // Same idea — every cashier needs to know which account the plain
+  // "Bank Transfer" button silently uses, not just Master.
+  loadDefaultBankAccount();
 
   applyRoleVisibility();
   syncMobileTabNav(); // rebuild the mobile page picker now that this staff member's tab permissions are known
@@ -12799,7 +13028,8 @@ async function submitNewWSInvoice() {
         })),
         paidNow: Number(document.getElementById("wsPaidNowInput").value) || 0,
         paidMethod: wsSelectedPaymentMethod,
-        paidMethodDetail: wsSelectedPaymentMethod === "other" ? document.getElementById("wsPaymentMethodOtherInput").value.trim() : ""
+        paidMethodDetail: wsSelectedPaymentMethod === "other" ? document.getElementById("wsPaymentMethodOtherInput").value.trim() : "",
+        paidDate: document.getElementById("wsPaidDateInput").value || ""
       })
     });
     const result = await response.json();
@@ -12809,7 +13039,7 @@ async function submitNewWSInvoice() {
     showToast("ออกบิลขายส่ง " + result.invoiceId + " (" + result.billTitle + ") เรียบร้อยแล้ว", "success");
     wsDraftItems = [];
     renderWSDraftItems();
-    ["wsCustomerCodeInput", "wsCustomerNameInput", "wsCustomerPhoneInput", "wsBillTitleInput", "wsPaidNowInput"].forEach(
+    ["wsCustomerCodeInput", "wsCustomerNameInput", "wsCustomerPhoneInput", "wsBillTitleInput", "wsPaidNowInput", "wsPaidDateInput"].forEach(
       (id) => (document.getElementById(id).value = "")
     );
     document.getElementById("wsCustomerNotFoundHint").classList.add("hidden");
@@ -12858,8 +13088,9 @@ function startEditingWSInvoice(invoiceId) {
   document.getElementById("wsBillTitleInput").value = invoice.billTitle || "";
   document.getElementById("wsCustomerNotFoundHint").classList.add("hidden");
   // "รับชำระวันนี้" ไม่เกี่ยวกับการแก้ไขนี้เลย (ดูคอมเมนต์ที่ #wsNewInvoicePaymentSection)
-  // ล้างไว้กันเลขเก่าตกค้างไปโผล่ในพรีวิวบิลระหว่างแก้ไข
+  // ล้างไว้กันเลขเก่าตกค้างไปโผล่ในพรีวิวบิลระหว่างแก้ไข — เช่นเดียวกับวันที่ชำระเงิน
   document.getElementById("wsPaidNowInput").value = "";
+  document.getElementById("wsPaidDateInput").value = "";
 
   document.getElementById("wsEditModeAmountPaidNote").textContent =
     invoice.amountPaid > 0 ? "— ลูกค้าจ่ายมาแล้ว " + formatMoney(invoice.amountPaid) + " บาท (ยอดนี้ไม่เปลี่ยนตอนแก้ไข)" : "";
@@ -13771,6 +14002,7 @@ function openWSPaymentModal(invoice) {
   document.getElementById("wsPaymentCurrentDue").textContent = formatMoney(invoice.amountDue);
   document.getElementById("wsPaymentAmountInput").value = "";
   document.getElementById("wsPaymentMethodSelect").value = "cash";
+  document.getElementById("wsPaymentDateInput").value = "";
   hideWSPaymentModalError();
   document.getElementById("wsPaymentModal").classList.remove("hidden");
 }
@@ -13815,7 +14047,8 @@ async function submitWSPayment() {
         branch: getBranchCode(),
         invoiceId: wsPaymentInvoice.invoiceId,
         amount: amount,
-        method: method
+        method: method,
+        paidDate: document.getElementById("wsPaymentDateInput").value || ""
       })
     });
     const result = await response.json();
@@ -16030,6 +16263,436 @@ function showToast(message, type) {
 
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.add("hidden"), 3000);
+}
+
+/* =================================================================
+   BANK ACCOUNTS / CARD TEMPLATES (2026-10, per Wing)
+   -----------------------------------------------------------------
+   See the backend's BANK_SETTINGS_BRANCH comment block for the full
+   design. Three pieces:
+     1. defaultBankAccount — loaded for every staff member, drives the
+        plain "Bank Transfer" button's info panel + its card image.
+     2. The Master-only management screen (Settings tab) — create
+        templates, add/delete accounts.
+     3. The "ธนาคารอื่นๆ" checkout flow — fresh PIN every time, then a
+        one-bill-only backup account pick.
+   ================================================================= */
+
+function shadeBankColor_(hex, percent) {
+  const num = parseInt(String(hex || "0a8f3c").replace("#", ""), 16) || 0x0a8f3c;
+  let r = (num >> 16) + Math.round(2.55 * percent);
+  let g = ((num >> 8) & 0x00ff) + Math.round(2.55 * percent);
+  let b = (num & 0x0000ff) + Math.round(2.55 * percent);
+  r = Math.max(0, Math.min(255, r));
+  g = Math.max(0, Math.min(255, g));
+  b = Math.max(0, Math.min(255, b));
+  return `rgb(${r},${g},${b})`;
+}
+
+// Opens the shared card-image modal for any one account. `info` needs
+// cardLabel/accountName/accountNo/color — both the Settings "ดูรูป" button
+// and the checkout "ดูรูปส่งลูกค้า" button call this with the shape they
+// already have on hand.
+function openBankCardModal(info) {
+  if (!info) return;
+  activeBankCardInfo = info;
+  document.getElementById("bankCardBankName").textContent = info.cardLabel || "—";
+  document.getElementById("bankCardAccountName").textContent = info.accountName || "—";
+  document.getElementById("bankCardAccountNo").textContent = info.accountNo || "—";
+  document.getElementById("bankCardSource").style.background =
+    `linear-gradient(135deg, ${info.color || "#0a8f3c"}, ${shadeBankColor_(info.color, -25)})`;
+  document.getElementById("bankCardModal").classList.remove("hidden");
+}
+
+/* ---------------- Default account (every staff member) ---------------- */
+
+async function loadDefaultBankAccount() {
+  if (!currentStaff) return;
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl === "YOUR_URL_HERE") return;
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "getDefaultBankAccount", pin: currentStaff.pin })
+    });
+    const result = await response.json();
+    if (result && result.status === "success") {
+      defaultBankAccount = result.account || null;
+      updateActiveBankPanel();
+    }
+  } catch (err) {
+    console.error("Failed to load default bank account:", err);
+  }
+}
+
+// Shows/hides the "จะรับเข้าบัญชี" panel under the payment-method grid and
+// fills it from either defaultBankAccount (selectedSaleBankAccountId
+// blank — the normal path) or the just-picked backup account found in
+// bankAccountsCacheForMaster (only ever populated right after a successful
+// PIN in the "ธนาคารอื่นๆ" flow — see openBankSwitchPicker()).
+function updateActiveBankPanel() {
+  const panel = document.getElementById("activeBankPanel");
+  const showPanel = activeMethods.has("transfer");
+  panel.classList.toggle("hidden", !showPanel);
+  if (!showPanel) return;
+
+  const label = document.getElementById("activeBankLabel");
+  const note = document.getElementById("activeBankBackupNote");
+  const viewBtn = document.getElementById("viewActiveBankCardBtn");
+
+  if (!selectedSaleBankAccountId) {
+    note.classList.add("hidden");
+    if (!defaultBankAccount) {
+      label.textContent = "ยังไม่ได้ตั้งค่าบัญชีธนาคาร — ไปตั้งค่าที่แท็บ Settings ก่อน (Master)";
+      viewBtn.classList.add("hidden");
+      return;
+    }
+    label.innerHTML = `${escapeHtml(defaultBankAccount.cardLabel || defaultBankAccount.templateName || "")} — ${escapeHtml(defaultBankAccount.accountNo || "")} (ค่าเริ่มต้น)`;
+    viewBtn.classList.remove("hidden");
+    return;
+  }
+
+  // A backup account is active for this bill — look it up in the cache
+  // populated by the PIN-gated picker flow. If it's gone (e.g. this bill
+  // was parked, then re-opened in a later session with no fresh PIN
+  // check), fall back to just showing the id rather than breaking.
+  const acct = bankAccountsCacheForMaster.find((a) => String(a.id) === String(selectedSaleBankAccountId));
+  const tpl = acct ? bankTemplatesCache.find((t) => String(t.id) === String(acct.templateId)) : null;
+  if (acct) {
+    label.innerHTML = `${escapeHtml((tpl && tpl.cardLabel) || "")} — ${escapeHtml(acct.accountNo || "")} <span class="text-amber-600 font-bold">(บัญชีสำรอง)</span>`;
+    viewBtn.classList.remove("hidden");
+  } else {
+    label.textContent = `บัญชีสำรอง #${selectedSaleBankAccountId}`;
+    viewBtn.classList.add("hidden");
+  }
+  note.classList.remove("hidden");
+}
+
+document.getElementById("viewActiveBankCardBtn").addEventListener("click", () => {
+  if (!selectedSaleBankAccountId) {
+    if (!defaultBankAccount) return;
+    openBankCardModal({
+      cardLabel: defaultBankAccount.cardLabel || defaultBankAccount.templateName,
+      accountName: defaultBankAccount.accountName,
+      accountNo: defaultBankAccount.accountNo,
+      color: defaultBankAccount.color
+    });
+    return;
+  }
+  const acct = bankAccountsCacheForMaster.find((a) => String(a.id) === String(selectedSaleBankAccountId));
+  const tpl = acct ? bankTemplatesCache.find((t) => String(t.id) === String(acct.templateId)) : null;
+  if (!acct) return;
+  openBankCardModal({
+    cardLabel: tpl ? tpl.cardLabel : "",
+    accountName: acct.accountName,
+    accountNo: acct.accountNo,
+    color: tpl ? tpl.color : "#0a8f3c"
+  });
+});
+
+document.getElementById("bankCardModalCloseBtn").addEventListener("click", () => {
+  document.getElementById("bankCardModal").classList.add("hidden");
+});
+document.getElementById("bankCardDownloadBtn").addEventListener("click", async () => {
+  const node = document.getElementById("bankCardSource");
+  const canvas = await html2canvas(node, { scale: 2 });
+  const link = document.createElement("a");
+  const safeName = (activeBankCardInfo && activeBankCardInfo.cardLabel ? activeBankCardInfo.cardLabel : "bank-account").replace(/[^a-zA-Z0-9ก-๙]+/g, "-");
+  link.download = `${safeName}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+});
+
+/* ---------------- "ธนาคารอื่นๆ" checkout flow (Master PIN every time) ---------------- */
+
+document.getElementById("otherBankBtn").addEventListener("click", () => {
+  document.getElementById("bankSwitchPinInput").value = "";
+  document.getElementById("bankSwitchPinError").classList.add("hidden");
+  document.getElementById("bankSwitchPinModal").classList.remove("hidden");
+  document.getElementById("bankSwitchPinInput").focus();
+});
+document.getElementById("bankSwitchPinCancelBtn").addEventListener("click", () => {
+  document.getElementById("bankSwitchPinModal").classList.add("hidden");
+});
+document.getElementById("bankSwitchPinInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); confirmBankSwitchPin(); }
+});
+document.getElementById("bankSwitchPinConfirmBtn").addEventListener("click", confirmBankSwitchPin);
+
+async function confirmBankSwitchPin() {
+  const pin = document.getElementById("bankSwitchPinInput").value.trim();
+  const errEl = document.getElementById("bankSwitchPinError");
+  errEl.classList.add("hidden");
+  if (!pin) {
+    errEl.textContent = "กรุณากรอก PIN ผู้มีสิทธิ์อนุมัติ (Master)";
+    errEl.classList.remove("hidden");
+    return;
+  }
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl === "YOUR_URL_HERE") {
+    errEl.textContent = "กรุณาวางลิงก์ Apps Script Web App ที่แท็บ Settings ก่อน";
+    errEl.classList.remove("hidden");
+    return;
+  }
+  const btn = document.getElementById("bankSwitchPinConfirmBtn");
+  btn.disabled = true;
+  try {
+    // Reaching this successfully at all IS the Master PIN check — see
+    // handleGetBankManagementData_ on the backend (requireAdmin_). No
+    // standing permission is ever kept: every "ธนาคารอื่นๆ" tap re-does this.
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "getBankManagementData", pin: pin })
+    });
+    const result = await response.json();
+    if (!result || result.status !== "success") {
+      throw new Error((result && result.message) || "PIN ไม่ถูกต้อง หรือไม่มีสิทธิ์ Master");
+    }
+    bankTemplatesCache = result.templates || [];
+    bankAccountsCacheForMaster = result.accounts || [];
+    document.getElementById("bankSwitchPinModal").classList.add("hidden");
+    openBankSwitchPicker();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function openBankSwitchPicker() {
+  const backups = bankAccountsCacheForMaster.filter((a) => !a.isDefault);
+  const listEl = document.getElementById("bankSwitchPickerList");
+  if (backups.length === 0) {
+    listEl.innerHTML = `<p class="text-sm text-gray-400 text-center py-4">ยังไม่มีบัญชีสำรองในระบบ — ไปเพิ่มที่แท็บ Settings ก่อน (Master)</p>`;
+  } else {
+    listEl.innerHTML = backups.map((a) => {
+      const tpl = bankTemplatesCache.find((t) => String(t.id) === String(a.templateId));
+      return `
+        <button type="button" data-id="${a.id}" class="bank-switch-pick-btn w-full text-left border-2 border-gray-200 hover:border-emerald-400 hover:bg-emerald-50 rounded-lg px-3 py-2.5 flex items-center gap-2.5 transition">
+          <span class="w-6 h-6 rounded-md flex-shrink-0" style="background:${tpl ? tpl.color : "#0a8f3c"}"></span>
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-gray-800 truncate">${escapeHtml(tpl ? tpl.cardLabel : "")}</p>
+            <p class="text-xs text-gray-400 truncate">${escapeHtml(a.accountName)} — ${escapeHtml(a.accountNo)}</p>
+          </div>
+        </button>`;
+    }).join("");
+    listEl.querySelectorAll(".bank-switch-pick-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        selectedSaleBankAccountId = btn.getAttribute("data-id");
+        activeMethods.add("transfer");
+        renderPaymentButtons();
+        renderSplitInputs();
+        updateActiveBankPanel();
+        document.getElementById("bankSwitchPickerModal").classList.add("hidden");
+      });
+    });
+  }
+  document.getElementById("bankSwitchPickerModal").classList.remove("hidden");
+}
+document.getElementById("bankSwitchPickerCancelBtn").addEventListener("click", () => {
+  document.getElementById("bankSwitchPickerModal").classList.add("hidden");
+});
+
+/* ---------------- Settings tab: Master-only management screen ---------------- */
+
+async function loadBankManagementData() {
+  if (!currentStaff || !isAdminRole(currentStaff.role)) return;
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl === "YOUR_URL_HERE") return;
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "getBankManagementData", pin: currentStaff.pin })
+    });
+    const result = await response.json();
+    if (result && result.status === "success") {
+      bankTemplatesCache = result.templates || [];
+      bankAccountsCacheForMaster = result.accounts || [];
+      renderBankTemplateList();
+      renderBankAccountList();
+    }
+  } catch (err) {
+    console.error("Failed to load bank management data:", err);
+  }
+}
+
+function renderBankTemplateList() {
+  const el = document.getElementById("bankTemplateList");
+  if (bankTemplatesCache.length === 0) {
+    el.innerHTML = `<p class="text-sm text-gray-400 col-span-full">ยังไม่มีเทมเพลต — กด "สร้างเทมเพลตใหม่" ด้านล่าง</p>`;
+  } else {
+    el.innerHTML = bankTemplatesCache.map((t) => `
+      <div class="border-2 border-gray-200 rounded-lg p-3 flex items-center gap-2.5">
+        <span class="w-8 h-8 rounded-lg flex-shrink-0" style="background:${t.color}"></span>
+        <div class="min-w-0">
+          <p class="text-sm font-semibold text-gray-800 truncate">${escapeHtml(t.name)}</p>
+          <p class="text-[11px] text-gray-400 truncate">ในรูปจะโชว์: "${escapeHtml(t.cardLabel)}"</p>
+        </div>
+      </div>
+    `).join("");
+  }
+  populateBankAcctTemplateSelect();
+}
+
+function populateBankAcctTemplateSelect() {
+  const sel = document.getElementById("bankAcctTemplateSelect");
+  sel.innerHTML = bankTemplatesCache.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join("");
+}
+
+function renderBankAccountList() {
+  const el = document.getElementById("bankAccountList");
+  if (bankAccountsCacheForMaster.length === 0) {
+    el.innerHTML = `<p class="text-sm text-gray-400">ยังไม่มีบัญชีธนาคารในระบบ — กด "เพิ่มบัญชีธนาคาร" ด้านล่าง</p>`;
+  } else {
+    el.innerHTML = bankAccountsCacheForMaster.map((a) => {
+      const t = bankTemplatesCache.find((x) => String(x.id) === String(a.templateId));
+      return `
+        <div class="flex items-center justify-between border-2 ${a.isDefault ? "border-emerald-300 bg-emerald-50" : "border-gray-200"} rounded-lg px-3 py-2.5">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="w-6 h-6 rounded-md flex-shrink-0" style="background:${t ? t.color : "#0a8f3c"}"></span>
+            <div class="min-w-0">
+              <p class="font-semibold text-gray-800 text-sm truncate">${escapeHtml(t ? t.name : "")} ${a.isDefault ? '<span class="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded-full ml-1">ค่าเริ่มต้น</span>' : ""}</p>
+              <p class="text-xs text-gray-400 truncate">${escapeHtml(a.accountName)} — ${escapeHtml(a.accountNo)}</p>
+            </div>
+          </div>
+          <div class="flex gap-1.5 flex-shrink-0">
+            <button data-id="${a.id}" class="bank-acct-view-btn text-xs bg-sky-100 text-sky-700 hover:bg-sky-200 px-2.5 py-1.5 rounded-lg font-semibold">🖼️ ดูรูป</button>
+            ${!a.isDefault ? `<button data-id="${a.id}" class="bank-acct-delete-btn text-xs bg-red-50 text-red-500 hover:bg-red-100 px-2.5 py-1.5 rounded-lg font-semibold">ลบ</button>` : ""}
+          </div>
+        </div>`;
+    }).join("");
+    el.querySelectorAll(".bank-acct-view-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const a = bankAccountsCacheForMaster.find((x) => String(x.id) === btn.getAttribute("data-id"));
+        const t = a ? bankTemplatesCache.find((x) => String(x.id) === String(a.templateId)) : null;
+        if (!a) return;
+        openBankCardModal({ cardLabel: t ? t.cardLabel : "", accountName: a.accountName, accountNo: a.accountNo, color: t ? t.color : "#0a8f3c" });
+      });
+    });
+    el.querySelectorAll(".bank-acct-delete-btn").forEach((btn) => {
+      btn.addEventListener("click", () => deleteBankAccount(btn.getAttribute("data-id")));
+    });
+  }
+}
+
+document.getElementById("addBankTemplateBtn").addEventListener("click", () => {
+  document.getElementById("bankTplNameInput").value = "";
+  document.getElementById("bankTplCardLabelInput").value = "";
+  document.getElementById("bankTplColorInput").value = "#0a8f3c";
+  document.getElementById("bankTplFormError").classList.add("hidden");
+  document.getElementById("bankTemplateFormModal").classList.remove("hidden");
+});
+document.getElementById("bankTplFormCancelBtn").addEventListener("click", () => {
+  document.getElementById("bankTemplateFormModal").classList.add("hidden");
+});
+document.getElementById("bankTplFormSaveBtn").addEventListener("click", async () => {
+  const name = document.getElementById("bankTplNameInput").value.trim();
+  const cardLabel = document.getElementById("bankTplCardLabelInput").value.trim();
+  const color = document.getElementById("bankTplColorInput").value;
+  const errEl = document.getElementById("bankTplFormError");
+  if (!name || !cardLabel) {
+    errEl.textContent = "กรุณากรอกทั้งชื่อเทมเพลตและชื่อธนาคารที่จะแสดงในรูป";
+    errEl.classList.remove("hidden");
+    return;
+  }
+  const scriptUrl = getAppsScriptUrl();
+  const btn = document.getElementById("bankTplFormSaveBtn");
+  btn.disabled = true;
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "saveBankTemplate", pin: currentStaff.pin, name, cardLabel, color })
+    });
+    const result = await response.json();
+    if (!result || result.status !== "success") throw new Error((result && result.message) || "บันทึกไม่สำเร็จ");
+    bankTemplatesCache = result.templates || [];
+    bankAccountsCacheForMaster = result.accounts || [];
+    renderBankTemplateList();
+    renderBankAccountList();
+    document.getElementById("bankTemplateFormModal").classList.add("hidden");
+    showToast("สร้างเทมเพลตเรียบร้อยแล้ว", "success");
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById("addBankAccountBtn").addEventListener("click", () => {
+  if (bankTemplatesCache.length === 0) {
+    showToast("กรุณาสร้างเทมเพลตกรอบอย่างน้อย 1 อันก่อน", "error");
+    return;
+  }
+  document.getElementById("bankAcctNameInput").value = "";
+  document.getElementById("bankAcctNoInput").value = "";
+  document.getElementById("bankAcctIsDefaultInput").checked = false;
+  document.getElementById("bankAcctFormError").classList.add("hidden");
+  populateBankAcctTemplateSelect();
+  document.getElementById("bankAccountFormModal").classList.remove("hidden");
+});
+document.getElementById("bankAcctFormCancelBtn").addEventListener("click", () => {
+  document.getElementById("bankAccountFormModal").classList.add("hidden");
+});
+document.getElementById("bankAcctFormSaveBtn").addEventListener("click", async () => {
+  const templateId = document.getElementById("bankAcctTemplateSelect").value;
+  const accountName = document.getElementById("bankAcctNameInput").value.trim();
+  const accountNo = document.getElementById("bankAcctNoInput").value.trim();
+  const isDefault = document.getElementById("bankAcctIsDefaultInput").checked;
+  const errEl = document.getElementById("bankAcctFormError");
+  if (!templateId || !accountName || !accountNo) {
+    errEl.textContent = "กรุณากรอกข้อมูลให้ครบ";
+    errEl.classList.remove("hidden");
+    return;
+  }
+  const scriptUrl = getAppsScriptUrl();
+  const btn = document.getElementById("bankAcctFormSaveBtn");
+  btn.disabled = true;
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "saveBankAccount", pin: currentStaff.pin, templateId, accountName, accountNo, isDefault })
+    });
+    const result = await response.json();
+    if (!result || result.status !== "success") throw new Error((result && result.message) || "บันทึกไม่สำเร็จ");
+    bankTemplatesCache = result.templates || [];
+    bankAccountsCacheForMaster = result.accounts || [];
+    renderBankAccountList();
+    document.getElementById("bankAccountFormModal").classList.add("hidden");
+    loadDefaultBankAccount(); // the default may have just changed
+    showToast("เพิ่มบัญชีธนาคารเรียบร้อยแล้ว", "success");
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+async function deleteBankAccount(id) {
+  if (!confirm("ยืนยันลบบัญชีนี้?")) return;
+  const scriptUrl = getAppsScriptUrl();
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "deleteBankAccount", pin: currentStaff.pin, id })
+    });
+    const result = await response.json();
+    if (!result || result.status !== "success") throw new Error((result && result.message) || "ลบไม่สำเร็จ");
+    bankTemplatesCache = result.templates || [];
+    bankAccountsCacheForMaster = result.accounts || [];
+    renderBankAccountList();
+    showToast("ลบบัญชีเรียบร้อยแล้ว", "success");
+  } catch (err) {
+    showToast("ลบไม่สำเร็จ: " + err.message, "error");
+  }
 }
 
 /* =================================================================
