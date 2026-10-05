@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>เบิกของ - ยิงบาร์โค้ด</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans Thai", sans-serif; margin:0; background:#f3f4f6; }
+  .scale-tap:active { transform: scale(0.96); }
+  @keyframes flash { 0% { background-color: #d1fae5; } 100% { background-color: transparent; } }
+  .flash { animation: flash 0.6s ease-out; }
+  * { box-sizing: border-box; }
+</style>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="bg-gray-100 min-h-screen pb-10">
+
+  <!-- SETUP OVERLAY (ตั้งสาขา+ชื่อผู้ใช้เครื่องนี้ ครั้งแรกเท่านั้น) -->
+  <div id="setupOverlay" class="fixed inset-0 bg-black/40 z-[100] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl p-5 w-full max-w-sm">
+      <h2 class="font-bold text-gray-800 mb-1">⚙️ ตั้งค่าเครื่องนี้</h2>
+      <p class="text-xs text-gray-400 mb-4">ตั้งครั้งเดียว เครื่องนี้จะจำไว้ให้ ไม่ต้องตั้งใหม่ทุกครั้ง</p>
+      <label class="text-xs font-semibold text-gray-500 block mb-1">สาขา</label>
+      <select id="setupBranchSelect" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 mb-3 text-sm"></select>
+      <label class="text-xs font-semibold text-gray-500 block mb-1">ชื่อผู้ใช้เครื่องนี้ (จะโชว์เป็นผู้ขอ)</label>
+      <input id="setupNameInput" type="text" placeholder="เช่น พี่แนน" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 mb-4 text-sm">
+      <div id="setupErrorBox" class="hidden text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3"></div>
+      <button id="setupSaveBtn" class="w-full scale-tap bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-3 font-semibold">บันทึก</button>
+    </div>
+  </div>
+
+  <!-- MAIN SCREEN -->
+  <div id="mainScreen" class="hidden">
+    <div class="bg-emerald-700 text-white px-4 pt-4 pb-5 rounded-b-2xl shadow">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="text-xs text-emerald-100">📦 เบิกของจาก Store</div>
+          <div class="text-lg font-bold flex items-center gap-2">
+            สาขา <span id="branchLabel"></span>
+            <button id="changeSetupBtn" class="text-emerald-200 text-xs font-normal underline underline-offset-2">ตั้งค่าเครื่อง</button>
+          </div>
+          <button id="changeUrlBtn" class="text-emerald-200 text-[11px] font-normal underline underline-offset-2 mt-0.5">⚙️ URL เซิร์ฟเวอร์</button>
+        </div>
+        <button id="refreshBtn" class="text-emerald-100 text-lg scale-tap"><i class="fa-solid fa-rotate-right"></i></button>
+      </div>
+
+      <div id="statusOpenBanner" class="hidden mt-3 bg-emerald-600/60 border border-emerald-400/40 rounded-xl px-3 py-2 text-sm flex items-center gap-2">
+        <i class="fa-solid fa-circle text-emerald-300 text-[8px]"></i>
+        <span>เปิดรับรายการ — ยิง/แก้ไข/ลบได้ตามปกติ ปิดรอบอัตโนมัติ <span id="closeHourLabel"></span>:00 น.</span>
+      </div>
+      <div id="statusClosedBanner" class="hidden mt-3 bg-gray-800/70 border border-gray-500/40 rounded-xl px-3 py-2 text-sm">
+        <div class="flex items-center gap-2 font-medium">
+          <i class="fa-solid fa-lock text-amber-300"></i> ปิดรอบวันนี้แล้ว เมื่อ <span id="closedAtLabel"></span>
+        </div>
+        <div class="text-xs text-emerald-100 mt-1 leading-relaxed">
+          รายการเดิม — ยังแก้ <b>จำนวน</b> ได้ (ลบทั้งแถวไม่ได้) &nbsp;·&nbsp; รายการใหม่ — กดปุ่ม "เพิ่มรายการหลังปิดรอบ" ด้านล่าง
+        </div>
+      </div>
+    </div>
+
+    <div class="max-w-md mx-auto px-4 -mt-2">
+
+      <div id="scanBoxOpen" class="bg-white rounded-2xl shadow p-4 mt-4">
+        <label class="text-xs font-semibold text-gray-500 mb-1.5 block">ยิงบาร์โค้ด หรือพิมพ์ชื่อสินค้า</label>
+        <div class="flex gap-2">
+          <div class="relative flex-1">
+            <i class="fa-solid fa-barcode absolute left-3 top-1/2 -translate-y-1/2 text-gray-300"></i>
+            <input id="scanInput" type="text" placeholder="ยิง/พิมพ์ที่นี่แล้วกด Enter" autocomplete="off"
+                   class="w-full border-2 border-emerald-200 focus:border-emerald-500 outline-none rounded-xl pl-9 pr-3 py-3 text-base">
+            <div id="scanSuggestions"
+                 class="hidden absolute z-30 left-0 right-0 mt-1 bg-white border-2 border-emerald-200 rounded-xl shadow-lg max-h-56 overflow-y-auto"></div>
+          </div>
+          <button id="scanAddBtn" class="scale-tap bg-emerald-600 hover:bg-emerald-700 text-white px-4 rounded-xl font-semibold">
+            <i class="fa-solid fa-plus"></i>
+          </button>
+        </div>
+        <p class="text-[11px] text-gray-400 mt-1.5">ยิงบาร์โค้ดซ้ำ = จำนวนรวมเพิ่มให้เอง ไม่ต้องลบของเดิมก่อน หรือพิมพ์ชื่อสินค้า (ได้หลายคำ ไม่สนลำดับ) แล้วกด ↓/↑ เลือก + Enter</p>
+        <p id="catalogStatus" class="text-[11px] text-gray-400 mt-1 cursor-pointer"></p>
+      </div>
+
+      <button id="addAfterCloseBtn" class="hidden w-full mt-4 scale-tap bg-sky-600 hover:bg-sky-700 text-white rounded-2xl shadow px-4 py-3.5 font-semibold flex items-center justify-center gap-2">
+        <i class="fa-solid fa-plus-circle"></i> เพิ่มรายการหลังปิดรอบ
+      </button>
+
+      <p class="text-[11px] text-gray-400 mt-5 -mb-1.5">ของที่ขายไปแล้วระบบดึงเข้า Store ให้เองอัตโนมัติ ไม่ต้องยิงซ้ำที่นี่</p>
+      <div class="mt-3 flex items-center justify-between">
+        <h2 class="text-sm font-bold text-gray-600">คำขอเบิกที่ยิง/พิมพ์เอง วันนี้ (<span id="itemCount">0</span>)</h2>
+        <span class="text-[11px] text-gray-400">บันทึกอัตโนมัติทุกครั้ง</span>
+      </div>
+
+      <div id="itemList" class="flex flex-col gap-2.5 mt-2.5"></div>
+      <div id="emptyState" class="hidden text-center text-gray-300 text-sm py-8"><i class="fa-solid fa-box-open text-2xl mb-2"></i><br>ยังไม่มีรายการวันนี้</div>
+
+      <div class="bg-white rounded-2xl shadow p-4 mt-5">
+        <label class="text-xs font-semibold text-gray-500 mb-1.5 block flex items-center gap-1.5">
+          <i class="fa-regular fa-note-sticky"></i> หมายเหตุรวมของวันนี้ (ถ้ามี)
+        </label>
+        <textarea id="overallNoteInput" rows="2" placeholder="เช่น ของทั้งหมดไว้ส่งลูกค้าเช้าพรุ่งนี้..."
+                  class="w-full border border-gray-200 focus:border-emerald-400 outline-none rounded-xl px-3 py-2.5 text-sm resize-none"></textarea>
+        <div class="text-right text-[11px] text-gray-400 mt-1">บันทึกอัตโนมัติเมื่อพิมพ์เสร็จ (คลิกออกจากช่อง)</div>
+      </div>
+
+      <div class="h-6"></div>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div id="loadingOverlay" class="fixed inset-0 bg-white/70 z-[90] flex items-center justify-center">
+    <i class="fa-solid fa-spinner fa-spin text-emerald-600 text-2xl"></i>
+  </div>
+
+  <!-- TOAST (z-[200] — ต้องอยู่เหนือ setupOverlay ที่ z-[100] ไม่งั้นข้อความ error ตอน setup จะถูกบังมองไม่เห็น) -->
+  <div id="toast" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2.5 rounded-full shadow-lg flex items-center gap-2 z-[200] max-w-[90%] text-center">
+    <i id="toastIcon" class="fa-solid fa-check text-emerald-400"></i> <span id="toastText">บันทึกแล้ว</span>
+  </div>
+
+<script>
+// ===================================================================
+// ไฟล์นี้เป็นหน้าเว็บ "static" ล้วนๆ ไม่ได้ผูกกับ Apps Script โดยตรง
+// อัปโหลดขึ้น GitHub (เช่น GitHub Pages) หรือเซิร์ฟเวอร์ไหนก็ได้ แล้วมันจะคุย
+// กับ Apps Script backend ผ่าน fetch() POST (เหมือนที่ index.html ของ POS
+// ทำกับ pos_backend.gs อยู่แล้ว) — ต้องตั้งค่า URL ของ Apps Script ก่อนใช้งาน
+// ครั้งแรก (ดูค่า APPS_SCRIPT_URL_DEFAULT ด้านล่าง หรือกดลิงก์ "⚙️ URL
+// เซิร์ฟเวอร์" ในหน้าเว็บเพื่อตั้งค่า/แก้ทีหลังได้โดยไม่ต้องอัปโหลดไฟล์ใหม่)
+// ===================================================================
+
+// << ใส่ URL ที่ได้จาก Apps Script > Deploy > Manage deployments ตรงนี้
+// (ต้องลงท้ายด้วย /exec) — หรือจะเว้นว่างไว้แล้วไปตั้งค่าทีหลังผ่านปุ่ม
+// "⚙️ URL เซิร์ฟเวอร์" ในหน้าเว็บก็ได้ (จะถูกจำไว้ในเครื่องนั้นๆ)
+const APPS_SCRIPT_URL_DEFAULT = "https://script.google.com/macros/s/AKfycbzkkF_I-UpvsS88qyQEKDU7GHhRouqsZbPL8CdEvLjkfsnbiiE0-ngDzaKh5AOKhySeyg/exec";
+const APPS_SCRIPT_URL_STORAGE_KEY = "wd_apps_script_url";
+
+function getAppsScriptUrl() {
+  try {
+    const saved = localStorage.getItem(APPS_SCRIPT_URL_STORAGE_KEY);
+    return (saved && saved.trim()) || APPS_SCRIPT_URL_DEFAULT;
+  } catch (e) { return APPS_SCRIPT_URL_DEFAULT; }
+}
+function saveAppsScriptUrl(url) {
+  try { localStorage.setItem(APPS_SCRIPT_URL_STORAGE_KEY, String(url || "").trim()); } catch (e) {}
+}
+
+// เรียก backend ผ่าน fetch() แทน google.script.run — ใช้ Content-Type:
+// text/plain (ไม่ใช่ application/json) โดยตั้งใจ เพื่อให้เบราว์เซอร์มองเป็น
+// "simple request" ไม่ส่ง CORS preflight (OPTIONS) ก่อน เพราะ Apps Script
+// doPost รับ preflight ไม่ได้ — backend ฝั่ง .gs ยัง parse เป็น JSON ปกติ
+// (เทคนิคเดียวกับที่ POS ใช้อยู่แล้วกับ pos_backend.gs)
+async function callServer(action, payload) {
+  const url = getAppsScriptUrl();
+  if (!url || url === "YOUR_URL_HERE") {
+    throw new Error('ยังไม่ได้ตั้งค่า URL เซิร์ฟเวอร์ — กดลิงก์ "⚙️ URL เซิร์ฟเวอร์" ด้านบนก่อน');
+  }
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(Object.assign({ action: action }, payload || {}))
+  });
+  const result = await res.json();
+  if (!result || result.status !== "success") {
+    throw new Error((result && result.message) || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
+  }
+  return result.data;
+}
+
+let state = { branch: "", isClosed: false, items: [] };
+let lastFlashId = null;
+
+function showToast(msg, isError) {
+  const t = document.getElementById("toast");
+  document.getElementById("toastText").textContent = msg;
+  document.getElementById("toastIcon").className = isError ? "fa-solid fa-triangle-exclamation text-red-400" : "fa-solid fa-check text-emerald-400";
+  t.classList.remove("hidden");
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.classList.add("hidden"), isError ? 2600 : 1400);
+}
+function setLoading(on) { document.getElementById("loadingOverlay").classList.toggle("hidden", !on); }
+
+// ---------------- SETUP (branch + name, saved in this browser) ----------------
+function getDeviceBranch() { try { return localStorage.getItem("wd_branch") || ""; } catch (e) { return ""; } }
+function getDeviceName() { try { return localStorage.getItem("wd_name") || ""; } catch (e) { return ""; } }
+function saveDeviceSetup(branch, name) { try { localStorage.setItem("wd_branch", branch); localStorage.setItem("wd_name", name); } catch (e) {} }
+
+// ---------------- PRODUCT CATALOG (cached in this browser, เหมือนที่ POS ทำ) ----------------
+// โหลดรายชื่อสินค้าทั้งหมดมาเก็บไว้ในเครื่องครั้งเดียว (เก็บใน localStorage
+// อยู่ได้ 12 ชม. ก่อนโหลดใหม่อัตโนมัติ) แล้วค้นหาเองทันทีตอนยิง — ไม่ต้องรอ
+// เรียกเซิร์ฟเวอร์ทุกครั้งที่ยิง 1 ชิ้นอีกต่อไป ทำให้ยิงรัวๆ ได้เร็วขึ้นมาก
+// รายชื่อสินค้ายังดึงมาจากไฟล์ Products เดียวกับที่ POS ใช้อยู่ (ดู
+// WDSCAN_PRODUCT_SPREADSHEET_ID ฝั่ง backend) — ลิงก์ไปไฟล์เดิม ไม่ได้เปลี่ยน
+let productCatalog = {}; // { barcode: name }
+let productEntries = []; // [{barcode, name}, ...] — เตรียมไว้แยกสำหรับค้นหาแบบพิมพ์ชื่อ (ดูด้านล่าง)
+const CATALOG_MAX_AGE_MS = 12 * 60 * 60 * 1000; // 12 ชั่วโมง
+
+function setProductCatalog(map) {
+  productCatalog = map || {};
+  productEntries = Object.keys(productCatalog).map(bc => ({ barcode: bc, name: productCatalog[bc] || "" }));
+}
+
+function readCachedCatalog() {
+  try {
+    const at = Number(localStorage.getItem("wd_catalog_at") || 0);
+    if (!at || (Date.now() - at) > CATALOG_MAX_AGE_MS) return null;
+    const raw = localStorage.getItem("wd_catalog");
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function writeCachedCatalog(map) {
+  try {
+    localStorage.setItem("wd_catalog", JSON.stringify(map));
+    localStorage.setItem("wd_catalog_at", String(Date.now()));
+  } catch (e) { /* เต็ม/ปิดไว้ — ไม่เป็นไร แค่ไม่แคช */ }
+}
+
+function setCatalogStatus(msg) {
+  const el = document.getElementById("catalogStatus");
+  if (el) el.textContent = msg;
+}
+
+function loadProductCatalog(forceRefresh) {
+  if (!forceRefresh) {
+    const cached = readCachedCatalog();
+    if (cached) {
+      setProductCatalog(cached);
+      setCatalogStatus("สินค้าในแคช " + Object.keys(productCatalog).length.toLocaleString() + " ชิ้น — 🔄 อัปเดต");
+      return;
+    }
+  }
+  setCatalogStatus("กำลังโหลดรายชื่อสินค้า...");
+  callServer("getProductCatalog").then(pairs => {
+    const map = {};
+    (pairs || []).forEach(p => { if (p && p[0]) map[p[0]] = p[1] || ""; });
+    setProductCatalog(map);
+    writeCachedCatalog(map);
+    setCatalogStatus("สินค้าในแคช " + Object.keys(map).length.toLocaleString() + " ชิ้น — 🔄 อัปเดต");
+  }).catch(() => {
+    setCatalogStatus("โหลดรายชื่อสินค้าไม่สำเร็จ (ยังยิงได้ปกติ แค่ต้องพิมพ์ชื่อเอง) — 🔄 ลองใหม่");
+  });
+}
+
+// รายชื่อสาขาสำรอง (ตรงกับ WD_BRANCH_LIST ฝั่งเซิร์ฟเวอร์) — ใส่ไว้ก่อนเลย
+// ทันทีที่เปิดหน้าตั้งค่า ไม่ต้องรอเซิร์ฟเวอร์ตอบกลับก่อนถึงจะกดเลือกได้ —
+// กันปัญหา dropdown ว่าง/กดไม่ได้เวลาเรียกเซิร์ฟเวอร์ช้าหรือพลาด
+const FALLBACK_BRANCH_LIST = ["M1", "M4", "Event"];
+
+function fillBranchSelect(branches, prefillBranch) {
+  const sel = document.getElementById("setupBranchSelect");
+  sel.innerHTML = branches.map(b => `<option value="${b}" ${b === prefillBranch ? "selected" : ""}>${b}</option>`).join("");
+}
+
+function showSetupError(msg) {
+  const box = document.getElementById("setupErrorBox");
+  if (!msg) { box.classList.add("hidden"); box.textContent = ""; return; }
+  box.textContent = msg;
+  box.classList.remove("hidden");
+}
+
+function openSetup(prefillBranch, prefillName) {
+  document.getElementById("mainScreen").classList.add("hidden");
+  document.getElementById("setupOverlay").classList.remove("hidden");
+  showSetupError("");
+  document.getElementById("setupNameInput").value = prefillName || "";
+  fillBranchSelect(FALLBACK_BRANCH_LIST, prefillBranch); // เลือกได้ทันที ไม่ต้องรอ
+
+  const url = getAppsScriptUrl();
+  if (!url || url === "YOUR_URL_HERE") {
+    showSetupError('ยังไม่ได้ตั้งค่า URL เซิร์ฟเวอร์ — กดลิงก์ "⚙️ URL เซิร์ฟเวอร์" ด้านบนก่อน (ใช้รายชื่อสาขาสำรองไปพลางๆ ได้)');
+    return;
+  }
+  callServer("getBranchList").then(branches => {
+    if (branches && branches.length) fillBranchSelect(branches, prefillBranch);
+  }).catch(err => {
+    showSetupError("โหลดรายชื่อสาขาจากเซิร์ฟเวอร์ไม่สำเร็จ (ใช้รายชื่อสำรองแทนไปก่อนได้): " + err.message);
+  });
+}
+
+document.getElementById("changeSetupBtn").addEventListener("click", () => openSetup(getDeviceBranch(), getDeviceName()));
+document.getElementById("changeUrlBtn").addEventListener("click", () => {
+  const current = getAppsScriptUrl();
+  const val = prompt("วาง URL ของ Apps Script (ลงท้ายด้วย /exec)", current === "YOUR_URL_HERE" ? "" : current);
+  if (val === null) return;
+  saveAppsScriptUrl(val.trim());
+  showToast("บันทึก URL เซิร์ฟเวอร์แล้ว");
+  if (getDeviceBranch() && getDeviceName()) { loadState(); }
+  loadProductCatalog(false);
+});
+document.getElementById("setupSaveBtn").addEventListener("click", () => {
+  const branch = document.getElementById("setupBranchSelect").value;
+  const name = document.getElementById("setupNameInput").value.trim();
+  if (!branch) { showToast("กรุณาเลือกสาขา", true); return; }
+  if (!name) { showToast("กรุณาใส่ชื่อผู้ใช้เครื่องนี้", true); return; }
+  saveDeviceSetup(branch, name);
+  document.getElementById("setupOverlay").classList.add("hidden");
+  document.getElementById("mainScreen").classList.remove("hidden");
+  document.getElementById("branchLabel").textContent = branch;
+  loadState();
+  loadProductCatalog(false);
+});
+
+// ---------------- LOAD STATE ----------------
+function loadState() {
+  setLoading(true);
+  callServer("getState", { branch: getDeviceBranch() }).then(s => {
+    setLoading(false);
+    onStateLoaded(s);
+  }).catch(err => {
+    setLoading(false);
+    showToast("โหลดข้อมูลไม่สำเร็จ: " + err.message, true);
+  });
+}
+
+function onStateLoaded(newState) {
+  state = newState;
+  document.getElementById("overallNoteInput").value = state.overallNote || "";
+  render();
+}
+
+// ---------------- RENDER ----------------
+function render() {
+  document.getElementById("statusOpenBanner").classList.toggle("hidden", state.isClosed);
+  document.getElementById("statusClosedBanner").classList.toggle("hidden", !state.isClosed);
+  document.getElementById("scanBoxOpen").classList.toggle("hidden", state.isClosed);
+  document.getElementById("addAfterCloseBtn").classList.toggle("hidden", !state.isClosed);
+  document.getElementById("closedAtLabel").textContent = state.closedAt || "";
+
+  document.getElementById("itemCount").textContent = state.items.length;
+  document.getElementById("emptyState").classList.toggle("hidden", state.items.length > 0);
+
+  const wrap = document.getElementById("itemList");
+  wrap.innerHTML = state.items.map(it => `
+    <div class="bg-white rounded-xl shadow-sm p-3 flex items-start gap-3 ${it.lineId === lastFlashId ? 'flash' : ''}" data-id="${it.lineId}">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="font-medium text-sm text-gray-800 leading-snug">${escapeHtml(it.name)}</span>
+          ${it.afterClose ? '<span class="text-[10px] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full whitespace-nowrap">เพิ่มหลังปิดรอบ</span>' : ''}
+          ${it.status === 'short' ? '<span class="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full whitespace-nowrap">ของหมด (short)</span>' : ''}
+        </div>
+        ${it.barcode ? `<div class="text-[11px] text-gray-400 mt-0.5 font-mono">${escapeHtml(it.barcode)}</div>` : ''}
+        ${it.note ? `<div class="text-[11px] text-amber-700 bg-amber-50 rounded-md px-1.5 py-1 mt-1.5 flex items-center gap-1"><i class="fa-regular fa-note-sticky"></i> ${escapeHtml(it.note)}</div>` : ''}
+        <button class="noteToggle text-[11px] text-gray-400 mt-1 underline underline-offset-2" data-id="${it.lineId}">${it.note ? 'แก้หมายเหตุ' : '+ ใส่หมายเหตุ'}</button>
+      </div>
+      <div class="flex flex-col items-end gap-1.5 flex-shrink-0">
+        <div class="flex items-center gap-1 bg-gray-50 rounded-lg p-1">
+          <button class="qtyBtn scale-tap w-7 h-7 rounded-md bg-white shadow-sm text-gray-500 font-bold" data-id="${it.lineId}" data-delta="-1">−</button>
+          <span class="w-6 text-center font-semibold text-sm">${it.qty}</span>
+          <button class="qtyBtn scale-tap w-7 h-7 rounded-md bg-white shadow-sm text-gray-500 font-bold" data-id="${it.lineId}" data-delta="1">+</button>
+        </div>
+        ${!state.isClosed ? `<button class="delBtn text-[11px] text-red-400" data-id="${it.lineId}"><i class="fa-regular fa-trash-can"></i> ลบ</button>` : ''}
+      </div>
+    </div>`).join("");
+
+  wrap.querySelectorAll(".qtyBtn").forEach(btn => btn.addEventListener("click", () => {
+    const lineId = btn.dataset.id, delta = Number(btn.dataset.delta);
+    lastFlashId = lineId; setLoading(true);
+    callServer("updateQty", { branch: getDeviceBranch(), lineId: lineId, delta: delta })
+      .then(s => { setLoading(false); onStateLoaded(s); showToast("บันทึกจำนวนแล้ว"); })
+      .catch(err => { setLoading(false); showToast(err.message, true); });
+  }));
+  wrap.querySelectorAll(".delBtn").forEach(btn => btn.addEventListener("click", () => {
+    if (!confirm("ลบรายการนี้?")) return;
+    const lineId = btn.dataset.id;
+    setLoading(true);
+    callServer("deleteItem", { branch: getDeviceBranch(), lineId: lineId })
+      .then(s => { setLoading(false); onStateLoaded(s); showToast("ลบรายการแล้ว"); })
+      .catch(err => { setLoading(false); showToast(err.message, true); });
+  }));
+  wrap.querySelectorAll(".noteToggle").forEach(btn => btn.addEventListener("click", () => {
+    const lineId = btn.dataset.id;
+    const it = state.items.find(x => x.lineId === lineId);
+    const val = prompt("หมายเหตุสำหรับ " + it.name, it.note || "");
+    if (val === null) return;
+    setLoading(true);
+    callServer("setNote", { branch: getDeviceBranch(), lineId: lineId, note: val.trim() })
+      .then(s => { setLoading(false); onStateLoaded(s); showToast("บันทึกหมายเหตุแล้ว"); })
+      .catch(err => { setLoading(false); showToast(err.message, true); });
+  }));
+}
+
+function escapeHtml(s) {
+  return String(s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// ---------------- ADD ----------------
+function doAdd(afterClose) {
+  const input = document.getElementById("scanInput");
+  const val = (afterClose ? prompt('ยิงบาร์โค้ด หรือพิมพ์ชื่อสินค้า (รายการนี้จะติดป้าย "เพิ่มหลังปิดรอบ")') : input.value).trim();
+  if (!val) return;
+  if (!afterClose) { input.value = ""; input.focus(); }
+  setLoading(true);
+  callServer("addItem", { branch: getDeviceBranch(), requestedBy: getDeviceName(), rawInput: val, afterClose: afterClose, resolvedName: productCatalog[val] || "" })
+    .then(s => {
+      setLoading(false);
+      lastFlashId = s.items.length ? s.items[s.items.length - 1].lineId : null;
+      onStateLoaded(s);
+      showToast(afterClose ? "เพิ่มรายการหลังปิดรอบแล้ว" : "บันทึกแล้ว");
+    })
+    .catch(err => { setLoading(false); showToast(err.message, true); });
+}
+document.getElementById("scanAddBtn").addEventListener("click", () => { hideScanSuggestions(); doAdd(false); });
+document.getElementById("addAfterCloseBtn").addEventListener("click", () => doAdd(true));
+
+// ---------------- พิมพ์ชื่อสินค้าค้นหา (เหมือนหน้า POS) ----------------
+// พิมพ์ได้หลายคำ (เช่น "RX-78 MG Ver Ka") ต้องมีครบทุกคำถึงจะขึ้น ไม่สนลำดับคำ
+// — ค้นเองจากแคชในเครื่อง (productEntries) ไม่ต้องรอเซิร์ฟเวอร์ ตอบกลับไว
+// ถ้าพิมพ์เป็นตัวเลขล้วน (กำลังยิงบาร์โค้ดด้วยเครื่องสแกน) จะไม่ขึ้น dropdown
+// ชื่อสินค้า กันไม่ให้ไปรบกวนการยิงบาร์โค้ดปกติ
+let scanSuggestionMatches = [];
+let scanHighlightIndex = -1;
+
+function searchCatalogEntries(query, limit) {
+  const keywords = String(query || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (!keywords.length) return [];
+  const results = [];
+  for (let i = 0; i < productEntries.length; i++) {
+    const p = productEntries[i];
+    const haystack = (p.barcode + " " + p.name).toLowerCase();
+    if (keywords.every(kw => haystack.includes(kw))) {
+      results.push(p);
+      if (results.length >= limit) break;
+    }
+  }
+  return results;
+}
+
+function renderScanSuggestions() {
+  const box = document.getElementById("scanSuggestions");
+  if (!scanSuggestionMatches.length) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  box.innerHTML = scanSuggestionMatches.map((p, i) => `
+    <button type="button" data-idx="${i}"
+            class="scan-suggestion w-full text-left px-3 py-2 flex justify-between items-center gap-2 border-b last:border-b-0 ${i === scanHighlightIndex ? "bg-emerald-50" : ""}">
+      <span class="text-sm text-gray-700 truncate">${escapeHtml(p.name || "(ไม่มีชื่อ)")}</span>
+      <span class="text-[11px] text-gray-400 font-mono whitespace-nowrap">${escapeHtml(p.barcode)}</span>
+    </button>`).join("");
+  box.classList.remove("hidden");
+  box.querySelectorAll(".scan-suggestion").forEach(el => {
+    const idx = Number(el.dataset.idx);
+    // mousedown+preventDefault (ไม่ใช่ click) กันไม่ให้ blur ของ input ลบ
+    // dropdown ไปก่อนที่จะเลือกได้ทัน
+    el.addEventListener("mousedown", e => { e.preventDefault(); selectScanSuggestion(scanSuggestionMatches[idx]); });
+  });
+}
+
+function hideScanSuggestions() {
+  scanSuggestionMatches = [];
+  scanHighlightIndex = -1;
+  const box = document.getElementById("scanSuggestions");
+  box.classList.add("hidden");
+  box.innerHTML = "";
+}
+
+function selectScanSuggestion(p) {
+  if (!p) return;
+  hideScanSuggestions();
+  const input = document.getElementById("scanInput");
+  input.value = p.barcode; // ใส่เป็นบาร์โค้ด — doAdd จะ resolve ชื่อจาก productCatalog ให้เอง
+  doAdd(false);
+}
+
+document.getElementById("scanInput").addEventListener("input", e => {
+  const val = e.target.value;
+  if (/^\d+$/.test(val.trim())) { hideScanSuggestions(); return; } // กำลังยิงบาร์โค้ด (ตัวเลขล้วน) — ไม่ขึ้น dropdown
+  scanSuggestionMatches = searchCatalogEntries(val, 8);
+  scanHighlightIndex = scanSuggestionMatches.length ? 0 : -1;
+  renderScanSuggestions();
+});
+
+document.getElementById("scanInput").addEventListener("keydown", e => {
+  if (e.key === "ArrowDown") {
+    if (!scanSuggestionMatches.length) return;
+    e.preventDefault();
+    scanHighlightIndex = (scanHighlightIndex + 1) % scanSuggestionMatches.length;
+    renderScanSuggestions();
+    return;
+  }
+  if (e.key === "ArrowUp") {
+    if (!scanSuggestionMatches.length) return;
+    e.preventDefault();
+    scanHighlightIndex = (scanHighlightIndex - 1 + scanSuggestionMatches.length) % scanSuggestionMatches.length;
+    renderScanSuggestions();
+    return;
+  }
+  if (e.key === "Escape") { hideScanSuggestions(); return; }
+  if (e.key === "Enter") {
+    e.preventDefault();
+    if (scanSuggestionMatches.length) {
+      const idx = scanHighlightIndex >= 0 ? scanHighlightIndex : 0;
+      selectScanSuggestion(scanSuggestionMatches[idx]);
+      return;
+    }
+    doAdd(false);
+  }
+});
+
+document.getElementById("scanInput").addEventListener("blur", () => { setTimeout(hideScanSuggestions, 150); });
+document.getElementById("catalogStatus").addEventListener("click", () => loadProductCatalog(true));
+
+// ---------------- OVERALL NOTE ----------------
+document.getElementById("overallNoteInput").addEventListener("blur", () => {
+  callServer("setOverallNote", { branch: getDeviceBranch(), note: document.getElementById("overallNoteInput").value })
+    .then(() => showToast("บันทึกหมายเหตุรวมแล้ว"))
+    .catch(err => showToast(err.message, true));
+});
+
+// ---------------- REFRESH ----------------
+document.getElementById("refreshBtn").addEventListener("click", () => { lastFlashId = null; loadState(); });
+
+// ---------------- INIT ----------------
+(function init() {
+  const branch = getDeviceBranch(), name = getDeviceName();
+  if (!branch || !name) { openSetup(branch, name); return; }
+  document.getElementById("branchLabel").textContent = branch;
+  document.getElementById("mainScreen").classList.remove("hidden");
+  document.getElementById("closeHourLabel").textContent = "21"; // ค่าเริ่มต้น แก้ผ่านเมนูในชีตได้
+  loadState();
+  loadProductCatalog(false); // โหลด/ใช้แคชชื่อสินค้า — ไม่บล็อกหน้าจอหลัก โหลดคู่ขนานไปเลย
+})();
+</script>
+</body>
+</html>
