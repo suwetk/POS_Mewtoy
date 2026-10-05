@@ -86,7 +86,8 @@
       <p class="text-[11px] text-gray-400 mt-5 -mb-1.5">ของที่ขายไปแล้วระบบดึงเข้า Store ให้เองอัตโนมัติ ไม่ต้องยิงซ้ำที่นี่</p>
       <div class="mt-3 flex items-center justify-between">
         <h2 class="text-sm font-bold text-gray-600">คำขอเบิกที่ยิง/พิมพ์เอง วันนี้ (<span id="itemCount">0</span>)</h2>
-        <span class="text-[11px] text-gray-400">บันทึกอัตโนมัติทุกครั้ง</span>
+        <span id="syncIndicator" class="hidden text-[11px] text-sky-500"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังบันทึก...</span>
+        <span id="syncDoneLabel" class="text-[11px] text-gray-400">บันทึกอัตโนมัติทุกครั้ง</span>
       </div>
 
       <div id="itemList" class="flex flex-col gap-2.5 mt-2.5"></div>
@@ -165,6 +166,17 @@ async function callServer(action, payload) {
 
 let state = { branch: "", isClosed: false, items: [] };
 let lastFlashId = null;
+
+// ---------------- SYNC INDICATOR (ยิงรัวๆ ได้โดยไม่ต้องรอเซิร์ฟเวอร์ตอบ) ----------------
+// แต่ก่อนทุกครั้งที่ ยิง/±จำนวน/ลบ จะกาง loadingOverlay เต็มจอบังจนกว่าเซิร์ฟเวอร์จะตอบ
+// กลับมา (ไฟล์คนละไฟล์ + อ่านทั้งชีตหลายรอบ ทำให้รอนาน) เลยยิงรัวๆ ไม่ได้เหมือน POS
+// เปลี่ยนมาวาดผลลัพธ์ที่เครื่องทันที (optimistic) แล้วค่อยซิงก์ไปเซิร์ฟเวอร์เบื้องหลัง
+// แทน — ตัวเลข/ชื่อจริงจากเซิร์ฟเวอร์จะมาแทนที่อัตโนมัติไม่กี่ร้อยมิลลิวินาทีถัดมา
+let pendingSyncCount = 0;
+function updateSyncBadge() {
+  document.getElementById("syncIndicator").classList.toggle("hidden", pendingSyncCount <= 0);
+  document.getElementById("syncDoneLabel").classList.toggle("hidden", pendingSyncCount > 0);
+}
 
 function showToast(msg, isError) {
   const t = document.getElementById("toast");
@@ -314,6 +326,17 @@ function onStateLoaded(newState) {
   render();
 }
 
+// ใช้ตอนเซิร์ฟเวอร์ตอบกลับมาจากการกระทำแบบ optimistic (ยิง/±จำนวน/ลบ) — เอาผล
+// จริงจากเซิร์ฟเวอร์มาเป็นหลัก แต่เก็บรายการที่ยังรอผลเซิร์ฟเวอร์อยู่ (ยิงรัวๆ
+// ติดกันหลายชิ้น ยังไม่ได้คำตอบกลับมาครบทุกชิ้น) ไว้ไม่ให้หายวับไปก่อน
+function mergeServerState_(s) {
+  const stillPending = state.items.filter(it => it._pending && !s.items.some(x => x.lineId && x.lineId === it.lineId));
+  state = s;
+  state.items = state.items.concat(stillPending);
+  document.getElementById("overallNoteInput").value = state.overallNote || "";
+  render();
+}
+
 // ---------------- RENDER ----------------
 function render() {
   document.getElementById("statusOpenBanner").classList.toggle("hidden", state.isClosed);
@@ -333,35 +356,46 @@ function render() {
           <span class="font-medium text-sm text-gray-800 leading-snug">${escapeHtml(it.name)}</span>
           ${it.afterClose ? '<span class="text-[10px] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full whitespace-nowrap">เพิ่มหลังปิดรอบ</span>' : ''}
           ${it.status === 'short' ? '<span class="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full whitespace-nowrap">ของหมด (short)</span>' : ''}
+          ${it._pending ? '<span class="text-[10px] text-sky-400 whitespace-nowrap"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังบันทึก</span>' : ''}
         </div>
         ${it.barcode ? `<div class="text-[11px] text-gray-400 mt-0.5 font-mono">${escapeHtml(it.barcode)}</div>` : ''}
         ${it.note ? `<div class="text-[11px] text-amber-700 bg-amber-50 rounded-md px-1.5 py-1 mt-1.5 flex items-center gap-1"><i class="fa-regular fa-note-sticky"></i> ${escapeHtml(it.note)}</div>` : ''}
-        <button class="noteToggle text-[11px] text-gray-400 mt-1 underline underline-offset-2" data-id="${it.lineId}">${it.note ? 'แก้หมายเหตุ' : '+ ใส่หมายเหตุ'}</button>
+        ${!it._pending ? `<button class="noteToggle text-[11px] text-gray-400 mt-1 underline underline-offset-2" data-id="${it.lineId}">${it.note ? 'แก้หมายเหตุ' : '+ ใส่หมายเหตุ'}</button>` : ''}
       </div>
       <div class="flex flex-col items-end gap-1.5 flex-shrink-0">
         <div class="flex items-center gap-1 bg-gray-50 rounded-lg p-1">
-          <button class="qtyBtn scale-tap w-7 h-7 rounded-md bg-white shadow-sm text-gray-500 font-bold" data-id="${it.lineId}" data-delta="-1">−</button>
+          <button class="qtyBtn scale-tap w-7 h-7 rounded-md bg-white shadow-sm text-gray-500 font-bold" data-id="${it.lineId}" data-delta="-1" ${it._pending ? 'disabled' : ''}>−</button>
           <span class="w-6 text-center font-semibold text-sm">${it.qty}</span>
-          <button class="qtyBtn scale-tap w-7 h-7 rounded-md bg-white shadow-sm text-gray-500 font-bold" data-id="${it.lineId}" data-delta="1">+</button>
+          <button class="qtyBtn scale-tap w-7 h-7 rounded-md bg-white shadow-sm text-gray-500 font-bold" data-id="${it.lineId}" data-delta="1" ${it._pending ? 'disabled' : ''}>+</button>
         </div>
-        ${!state.isClosed ? `<button class="delBtn text-[11px] text-red-400" data-id="${it.lineId}"><i class="fa-regular fa-trash-can"></i> ลบ</button>` : ''}
+        ${(!state.isClosed && !it._pending) ? `<button class="delBtn text-[11px] text-red-400" data-id="${it.lineId}"><i class="fa-regular fa-trash-can"></i> ลบ</button>` : ''}
       </div>
     </div>`).join("");
 
   wrap.querySelectorAll(".qtyBtn").forEach(btn => btn.addEventListener("click", () => {
     const lineId = btn.dataset.id, delta = Number(btn.dataset.delta);
-    lastFlashId = lineId; setLoading(true);
+    const it = state.items.find(x => x.lineId === lineId);
+    if (!it) return;
+    // แก้ตัวเลขที่เห็นทันที ไม่ต้องรอเซิร์ฟเวอร์ตอบ (ของเดิมกางหน้าจอขาวรอทุกครั้ง)
+    it.qty = Math.max(1, it.qty + delta);
+    lastFlashId = lineId;
+    render();
+    pendingSyncCount++; updateSyncBadge();
     callServer("updateQty", { branch: getDeviceBranch(), lineId: lineId, delta: delta })
-      .then(s => { setLoading(false); onStateLoaded(s); showToast("บันทึกจำนวนแล้ว"); })
-      .catch(err => { setLoading(false); showToast(err.message, true); });
+      .then(s => { mergeServerState_(s); })
+      .catch(err => { loadState(); showToast(err.message, true); }) // พลาด -> โหลดของจริงจากเซิร์ฟเวอร์มาคืนค่า
+      .finally(() => { pendingSyncCount--; updateSyncBadge(); });
   }));
   wrap.querySelectorAll(".delBtn").forEach(btn => btn.addEventListener("click", () => {
-    if (!confirm("ลบรายการนี้?")) return;
     const lineId = btn.dataset.id;
-    setLoading(true);
+    // เอาออกจากหน้าจอทันที ไม่ถาม popup ยืนยันแล้ว (ตามที่ขอ) ไม่ต้องรอเซิร์ฟเวอร์ตอบด้วย
+    state.items = state.items.filter(x => x.lineId !== lineId);
+    render();
+    pendingSyncCount++; updateSyncBadge();
     callServer("deleteItem", { branch: getDeviceBranch(), lineId: lineId })
-      .then(s => { setLoading(false); onStateLoaded(s); showToast("ลบรายการแล้ว"); })
-      .catch(err => { setLoading(false); showToast(err.message, true); });
+      .then(s => { mergeServerState_(s); })
+      .catch(err => { loadState(); showToast(err.message, true); }) // พลาด -> โหลดของจริงจากเซิร์ฟเวอร์มาคืนค่า (กันรายการหายจริงๆ)
+      .finally(() => { pendingSyncCount--; updateSyncBadge(); });
   }));
   wrap.querySelectorAll(".noteToggle").forEach(btn => btn.addEventListener("click", () => {
     const lineId = btn.dataset.id;
@@ -380,20 +414,48 @@ function escapeHtml(s) {
 }
 
 // ---------------- ADD ----------------
+// ยิงแล้วขึ้นจอทันที ไม่รอเซิร์ฟเวอร์ตอบก่อน (optimistic) — ยิงชิ้นถัดไปต่อรัวๆ
+// ได้เลยเหมือนหน้า POS ของเดิมกางหน้าจอขาวบังรอทุกครั้งที่ยิง 1 ชิ้น เพราะต้อง
+// รอ round-trip ไป Apps Script ก่อนถึงจะวาดผล ตอนนี้วาดจากข้อมูลที่พิมพ์/ยิงมา
+// ก่อนเลย แล้วค่อยส่งไปบันทึกที่เซิร์ฟเวอร์เบื้องหลัง พอตอบกลับมาค่อยสลับเป็น
+// ข้อมูลจริง (เลข Line ID ที่แท้จริง ชื่อที่ถูกต้อง ฯลฯ) ถ้าบันทึกไม่สำเร็จจะเอา
+// รายการที่วาดไปก่อนออก พร้อมแจ้งเตือน
 function doAdd(afterClose) {
   const input = document.getElementById("scanInput");
   const val = (afterClose ? prompt('ยิงบาร์โค้ด หรือพิมพ์ชื่อสินค้า (รายการนี้จะติดป้าย "เพิ่มหลังปิดรอบ")') : input.value).trim();
   if (!val) return;
   if (!afterClose) { input.value = ""; input.focus(); }
-  setLoading(true);
-  callServer("addItem", { branch: getDeviceBranch(), requestedBy: getDeviceName(), rawInput: val, afterClose: afterClose, resolvedName: productCatalog[val] || "" })
+
+  if (state.isClosed && !afterClose) {
+    showToast('ปิดรอบเบิกของวันนี้ไปแล้ว — กดปุ่ม "เพิ่มรายการหลังปิดรอบ" แทน', true);
+    return;
+  }
+
+  const isBarcode = /^\d{4,}$/.test(val);
+  const barcode = isBarcode ? val : "";
+  const resolvedName = productCatalog[val] || "";
+  const displayName = isBarcode ? (resolvedName || ("บาร์โค้ด " + val)) : val;
+
+  const tempId = "tmp" + Date.now() + Math.random().toString(36).slice(2);
+  state.items.push({
+    lineId: tempId, barcode: barcode, name: displayName, qty: 1, note: "",
+    afterClose: afterClose, status: "open", requestedAt: "", _pending: true
+  });
+  lastFlashId = tempId;
+  render();
+  pendingSyncCount++; updateSyncBadge();
+
+  callServer("addItem", { branch: getDeviceBranch(), requestedBy: getDeviceName(), rawInput: val, afterClose: afterClose, resolvedName: resolvedName })
     .then(s => {
-      setLoading(false);
-      lastFlashId = s.items.length ? s.items[s.items.length - 1].lineId : null;
-      onStateLoaded(s);
+      mergeServerState_(s);
       showToast(afterClose ? "เพิ่มรายการหลังปิดรอบแล้ว" : "บันทึกแล้ว");
     })
-    .catch(err => { setLoading(false); showToast(err.message, true); });
+    .catch(err => {
+      state.items = state.items.filter(it => it.lineId !== tempId);
+      render();
+      showToast("บันทึกไม่สำเร็จ: " + err.message, true);
+    })
+    .finally(() => { pendingSyncCount--; updateSyncBadge(); });
 }
 document.getElementById("scanAddBtn").addEventListener("click", () => { hideScanSuggestions(); doAdd(false); });
 document.getElementById("addAfterCloseBtn").addEventListener("click", () => doAdd(true));
