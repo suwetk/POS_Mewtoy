@@ -3469,7 +3469,12 @@ const BRANCH_CODE_STORAGE_KEY = "pos_branch_code";
 // it doesn't validate against this list. To add a new branch later, just
 // add its code here (and redeploy this frontend file to every device) —
 // no backend change needed.
-const BRANCH_LIST = ["M1", "M4", "Event"];
+// "Website" added 2026-10 per Wing's request — a 4th branch code for
+// recording sales made through the Website sales channel (separate from
+// the physical M1/M4 branches and from Event). Just another entry in
+// this array per the comment above — resolveBranch_ in the backend
+// accepts any non-empty branch string, so this needed no backend change.
+const BRANCH_LIST = ["M1", "M4", "Event", "Website"];
 
 // Sentinel device branch code for the Store picking station (แท็บ "🏬
 // เบิกของ") — added 2026-09. A device saves this as its OWN branch code
