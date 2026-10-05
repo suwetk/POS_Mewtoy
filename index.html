@@ -3232,6 +3232,19 @@
           </button>
         </div>
 
+        <!-- ค่าเริ่มต้นตามสาขา (2026-10, per Wing — เช่น Website ใช้ SCB เอง
+             อัตโนมัติ ไม่ต้องขอ PIN แม้บัญชีค่าเริ่มต้นของร้านจะเป็นอีกบัญชี) -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-sm font-semibold text-gray-700">🌐 ค่าเริ่มต้นตามสาขา</label>
+          </div>
+          <p class="text-xs text-gray-400 mb-3">
+            ถ้าสาขาไหนไม่ได้ตั้งไว้ตรงนี้ ปุ่ม "Bank Transfer" ของสาขานั้นจะใช้บัญชีค่าเริ่มต้นของร้าน (ด้านบน) เหมือนเดิมทุกอย่าง —
+            ตั้งเฉพาะสาขาที่ต้องการให้ใช้บัญชีอื่นแทนเท่านั้น รายชื่อบัญชีสำรอง ("ธนาคารอื่นๆ" หน้าขาย) ใช้ลิสต์เดียวกันทุกสาขา ไม่แยกตามนี้
+          </p>
+          <div id="branchBankDefaultList" class="flex flex-col gap-2"></div>
+        </div>
+
         <div>
           <div class="flex items-center justify-between mb-1">
             <label class="block text-sm font-semibold text-gray-700">🎨 เทมเพลตกรอบ</label>
@@ -3850,6 +3863,7 @@ let activeMethods = new Set(); // nothing pre-selected — cashier picks a metho
 let defaultBankAccount = null; // { id, accountName, accountNo, cardLabel, templateName, color } | null (no accounts set up yet)
 let bankTemplatesCache = []; // Master's own Settings-tab management screen only
 let bankAccountsCacheForMaster = []; // same — full list including the default, for the management screen
+let branchBankDefaultsCache = {}; // { branchCode: accountId } — per-branch default overrides (2026-10, per Wing), Master's own management screen only
 let selectedSaleBankAccountId = ""; // "" = use defaultBankAccount (the normal silent path) — only ever non-blank right after a successful "ธนาคารอื่นๆ" PIN + picker flow, for THIS bill only
 let activeBankCardInfo = null; // whichever account's info the card-image modal is currently showing (Settings "ดูรูป" or checkout "ดูรูปส่งลูกค้า")
 
@@ -16314,7 +16328,7 @@ async function loadDefaultBankAccount() {
     const response = await fetch(scriptUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "getDefaultBankAccount", pin: currentStaff.pin })
+      body: JSON.stringify({ action: "getDefaultBankAccount", pin: currentStaff.pin, branch: getBranchCode() })
     });
     const result = await response.json();
     if (result && result.status === "success") {
@@ -16512,11 +16526,67 @@ async function loadBankManagementData() {
     if (result && result.status === "success") {
       bankTemplatesCache = result.templates || [];
       bankAccountsCacheForMaster = result.accounts || [];
+      branchBankDefaultsCache = result.branchDefaults || {};
       renderBankTemplateList();
       renderBankAccountList();
+      renderBranchBankDefaultList();
     }
   } catch (err) {
     console.error("Failed to load bank management data:", err);
+  }
+}
+
+// ค่าเริ่มต้นตามสาขา (2026-10, per Wing) — one row per branch in BRANCH_LIST,
+// each a plain <select> (blank = "use the shop's own default", matching
+// resolveDefaultBankAccountForBranch_'s fallback on the backend exactly)
+// plus its own small "บันทึก" button, same per-row-save pattern as the
+// account/template lists above rather than auto-saving on change.
+function renderBranchBankDefaultList() {
+  const el = document.getElementById("branchBankDefaultList");
+  if (bankAccountsCacheForMaster.length === 0) {
+    el.innerHTML = `<p class="text-sm text-gray-400">ยังไม่มีบัญชีธนาคารในระบบ — เพิ่มบัญชีด้านบนก่อน</p>`;
+    return;
+  }
+  el.innerHTML = BRANCH_LIST.map((branch) => {
+    const currentId = branchBankDefaultsCache[branch] || "";
+    const options = `<option value="">(ใช้บัญชีค่าเริ่มต้นของร้าน)</option>` + bankAccountsCacheForMaster.map((a) => {
+      const t = bankTemplatesCache.find((x) => String(x.id) === String(a.templateId));
+      const label = `${t ? t.name : ""} — ${a.accountName}`;
+      return `<option value="${a.id}" ${String(currentId) === String(a.id) ? "selected" : ""}>${escapeHtml(label)}</option>`;
+    }).join("");
+    return `
+      <div class="flex items-center gap-2">
+        <span class="text-sm font-medium text-gray-600 w-20 flex-shrink-0">${escapeHtml(branch)}</span>
+        <select data-branch="${escapeHtml(branch)}" class="branch-bank-default-select w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+          ${options}
+        </select>
+        <button type="button" data-branch="${escapeHtml(branch)}" class="branch-bank-default-save-btn flex-shrink-0 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg px-3 py-2 text-sm font-medium transition">บันทึก</button>
+      </div>`;
+  }).join("");
+  el.querySelectorAll(".branch-bank-default-save-btn").forEach((btn) => {
+    btn.addEventListener("click", () => saveBranchBankDefault(btn.getAttribute("data-branch")));
+  });
+}
+
+async function saveBranchBankDefault(branch) {
+  const sel = document.querySelector(`.branch-bank-default-select[data-branch="${CSS.escape(branch)}"]`);
+  const accountId = sel ? sel.value : "";
+  const scriptUrl = getAppsScriptUrl();
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "saveBranchBankDefault", pin: currentStaff.pin, branch, accountId })
+    });
+    const result = await response.json();
+    if (!result || result.status !== "success") throw new Error((result && result.message) || "บันทึกไม่สำเร็จ");
+    branchBankDefaultsCache = result.branchDefaults || {};
+    showToast(`บันทึกค่าเริ่มต้นของสาขา ${branch} เรียบร้อยแล้ว`, "success");
+    // The device's own branch may be the one just changed — refresh the
+    // checkout panel's info right away rather than waiting for next login.
+    loadDefaultBankAccount();
+  } catch (err) {
+    showToast("บันทึกไม่สำเร็จ: " + err.message, "error");
   }
 }
 
@@ -16612,8 +16682,10 @@ document.getElementById("bankTplFormSaveBtn").addEventListener("click", async ()
     if (!result || result.status !== "success") throw new Error((result && result.message) || "บันทึกไม่สำเร็จ");
     bankTemplatesCache = result.templates || [];
     bankAccountsCacheForMaster = result.accounts || [];
+    branchBankDefaultsCache = result.branchDefaults || branchBankDefaultsCache;
     renderBankTemplateList();
     renderBankAccountList();
+    renderBranchBankDefaultList();
     document.getElementById("bankTemplateFormModal").classList.add("hidden");
     showToast("สร้างเทมเพลตเรียบร้อยแล้ว", "success");
   } catch (err) {
@@ -16663,7 +16735,9 @@ document.getElementById("bankAcctFormSaveBtn").addEventListener("click", async (
     if (!result || result.status !== "success") throw new Error((result && result.message) || "บันทึกไม่สำเร็จ");
     bankTemplatesCache = result.templates || [];
     bankAccountsCacheForMaster = result.accounts || [];
+    branchBankDefaultsCache = result.branchDefaults || branchBankDefaultsCache;
     renderBankAccountList();
+    renderBranchBankDefaultList();
     document.getElementById("bankAccountFormModal").classList.add("hidden");
     loadDefaultBankAccount(); // the default may have just changed
     showToast("เพิ่มบัญชีธนาคารเรียบร้อยแล้ว", "success");
@@ -16688,7 +16762,9 @@ async function deleteBankAccount(id) {
     if (!result || result.status !== "success") throw new Error((result && result.message) || "ลบไม่สำเร็จ");
     bankTemplatesCache = result.templates || [];
     bankAccountsCacheForMaster = result.accounts || [];
+    branchBankDefaultsCache = result.branchDefaults || branchBankDefaultsCache;
     renderBankAccountList();
+    renderBranchBankDefaultList();
     showToast("ลบบัญชีเรียบร้อยแล้ว", "success");
   } catch (err) {
     showToast("ลบไม่สำเร็จ: " + err.message, "error");
