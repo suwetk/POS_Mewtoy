@@ -329,8 +329,14 @@ function onStateLoaded(newState) {
 // ใช้ตอนเซิร์ฟเวอร์ตอบกลับมาจากการกระทำแบบ optimistic (ยิง/±จำนวน/ลบ) — เอาผล
 // จริงจากเซิร์ฟเวอร์มาเป็นหลัก แต่เก็บรายการที่ยังรอผลเซิร์ฟเวอร์อยู่ (ยิงรัวๆ
 // ติดกันหลายชิ้น ยังไม่ได้คำตอบกลับมาครบทุกชิ้น) ไว้ไม่ให้หายวับไปก่อน
-function mergeServerState_(s) {
-  const stillPending = state.items.filter(it => it._pending && !s.items.some(x => x.lineId && x.lineId === it.lineId));
+//
+// resolvedTempId (เฉพาะตอนเรียกจาก doAdd) = เลขชั่วคราวของรายการที่เพิ่งได้
+// คำตอบมา — ต้องตัดออกตรงๆ ด้วย id นี้เท่านั้น ห้ามเทียบ lineId กับของเซิร์ฟเวอร์
+// เพราะถ้ายิงบาร์โค้ดเดียวกันซ้ำเร็วๆ เซิร์ฟเวอร์จะ "รวม" เข้าบรรทัดเดิม (+1
+// จำนวน) ไม่ได้สร้างบรรทัดใหม่ — ถ้าเทียบ lineId จะหา match ไม่เจอ รายการ
+// ชั่วคราวเลยค้างเป็น "กำลังบันทึก" ตลอดไปและกลายเป็นรายการซ้ำ (ของเดิมเป็นแบบนี้)
+function mergeServerState_(s, resolvedTempId) {
+  const stillPending = state.items.filter(it => it._pending && it.lineId !== resolvedTempId);
   state = s;
   state.items = state.items.concat(stillPending);
   document.getElementById("overallNoteInput").value = state.overallNote || "";
@@ -447,7 +453,7 @@ function doAdd(afterClose) {
 
   callServer("addItem", { branch: getDeviceBranch(), requestedBy: getDeviceName(), rawInput: val, afterClose: afterClose, resolvedName: resolvedName })
     .then(s => {
-      mergeServerState_(s);
+      mergeServerState_(s, tempId);
       showToast(afterClose ? "เพิ่มรายการหลังปิดรอบแล้ว" : "บันทึกแล้ว");
     })
     .catch(err => {
