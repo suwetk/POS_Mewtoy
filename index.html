@@ -440,6 +440,12 @@
            is "money to collect right now", not the same figure as Sales_History
            revenue (buildOneBillPayload() below keeps that split correct). -->
       <div class="bg-white rounded-xl shadow p-4">
+        <!-- ⭐ 2026-10-07 — แถบเตือนตอนเปิด "บันทึกย้อนหลัง" ไว้ (ดู
+             masterBackdateSection ด้านล่าง + updateBackdateBannerText())
+             ให้ซ่อนไว้ปกติ โผล่เฉพาะตอน backdateEnabled = true เท่านั้น -->
+        <div id="backdateBillBanner" class="hidden mb-2 bg-amber-400 text-amber-950 text-xs font-bold rounded-lg px-3 py-2 flex items-center gap-2">
+          <i class="fa-solid fa-clock-rotate-left"></i> <span id="backdateBillBannerText"></span>
+        </div>
         <h2 class="font-semibold text-gray-700 mb-2">3. Grand Total</h2>
         <div class="bg-black rounded-lg py-6 flex flex-col items-center justify-center gap-1">
           <span class="text-[11px] font-bold text-emerald-300 tracking-wide">TOTAL COLLECT TODAY</span>
@@ -620,6 +626,51 @@
           <textarea id="billRemarkInput" placeholder="Remark (ถ้ามี) — เช่น นัดมารับของจองภายในสัปดาห์นี้" rows="2"
                     class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm resize-none
                            focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500"></textarea>
+        </div>
+      </div>
+
+      <!-- ⭐ 2026-10-07 — "บันทึกย้อนหลัง" (Master เท่านั้น), ตามที่พี่วิงขอ:
+           ลูกค้าโอนเงินตอนดึก/หลังปิดร้านแล้วบันทึกในระบบไม่ทัน Master จะได้
+           ปรับ "วันที่ขายจริง" ตอนมาบันทึกย้อนหลังวันถัดไปได้ ไม่ให้บิลตกไป
+           เป็นยอดของวันที่บันทึกจริง (ซึ่งจะทำให้สรุปยอดรายวันผิดวัน) —
+           ใช้ field "timestamp" เดิมที่ saveSaleTransaction_ รองรับอยู่แล้ว
+           (ไม่ต้องแก้ backend ของ action "sale") — ดู getSaleTimestampIso_()/
+           toggleBackdateSection()/resetBackdateSection() ด้านล่าง และดูจุด
+           ผูก visibility (เฉพาะ Master) ที่ applyLogin() — ค้นหา
+           "masterBackdateSection" ในไฟล์นี้ — ผ่านการอนุมัติ mockup จากพี่วิง
+           แล้ว (mockup_backdate_sale.html) -->
+      <div id="masterBackdateSection" class="hidden bg-white rounded-xl shadow p-4 border-2 border-amber-300 relative">
+        <span class="absolute -top-2.5 left-4 bg-amber-400 text-amber-900 text-[10px] font-extrabold px-2 py-0.5 rounded-full tracking-wide">
+          MASTER เท่านั้น
+        </span>
+        <div class="flex items-center justify-between mb-1">
+          <h2 class="font-semibold text-gray-700 flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left text-amber-500"></i> บันทึกย้อนหลัง
+          </h2>
+          <button id="backdateToggleBtn" type="button" onclick="toggleBackdateSection()"
+                  class="relative w-12 h-6 rounded-full bg-gray-300 transition-colors">
+            <span id="backdateToggleDot" class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"></span>
+          </button>
+        </div>
+        <p class="text-xs text-gray-400 mb-2">ปกติปิดไว้ — เปิดเฉพาะตอนลูกค้าโอนเงินมาแล้วแต่บันทึกในระบบไม่ทัน (เช่น โอนตอนดึก/หลังปิดร้าน)</p>
+
+        <div id="backdateDateRow" class="hidden">
+          <div class="grid grid-cols-2 gap-2 mt-1">
+            <div>
+              <label class="text-[11px] font-bold text-gray-500">วันที่ขายจริง</label>
+              <input id="backdateDateInput" type="date" onchange="updateBackdateBannerText()"
+                     class="w-full border rounded-lg px-3 py-2 text-sm mt-0.5">
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-gray-500">เวลาขายจริง</label>
+              <input id="backdateTimeInput" type="time" onchange="updateBackdateBannerText()"
+                     class="w-full border rounded-lg px-3 py-2 text-sm mt-0.5">
+            </div>
+          </div>
+          <div class="mt-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
+            <i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5"></i>
+            <p id="backdateWarningText" class="text-xs text-amber-800"></p>
+          </div>
         </div>
       </div>
     </div>
@@ -5697,6 +5748,101 @@ function resetCustomerSection() {
   renderDeliveryButtons();
 }
 
+/* =================================================================
+   "บันทึกย้อนหลัง" (Master เท่านั้น) — เพิ่ม 2026-10-07
+   -------------------------------------------------------------------
+   การ์ด #masterBackdateSection (ดู HTML ด้านบน) จะถูกเปิดให้เห็นเฉพาะ
+   staff ที่ isAdminRole(staff.role) เป็น true เท่านั้น (ผูกไว้ใน
+   applyLogin() เหมือน openingFloatSection/bankAccountsSection) —
+   พนักงานทั่วไป login แล้วจะไม่เห็นการ์ดนี้เลยแม้แต่ตอนปิดอยู่
+   ไม่ได้มีการเช็ก role ซ้ำฝั่ง backend สำหรับ field นี้โดยเฉพาะ (เหมือน
+   openingFloat ที่ UI ซ่อนไว้แต่ backend ของ action อื่นก็ไม่ได้บังคับ
+   role เป็นพิเศษอยู่แล้ว) — ยึดโมเดลความน่าเชื่อถือเดียวกับฟีเจอร์
+   Master-only อื่นๆ ที่มีอยู่แล้วในไฟล์นี้
+   ================================================================= */
+let backdateEnabled = false;
+
+function backdateFormatLocalDate_(d) {
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function backdateFormatLocalTime_(d) {
+  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+
+function toggleBackdateSection() {
+  backdateEnabled = !backdateEnabled;
+  const dateRow = document.getElementById("backdateDateRow");
+  const dot = document.getElementById("backdateToggleDot");
+  const btn = document.getElementById("backdateToggleBtn");
+  dateRow.classList.toggle("hidden", !backdateEnabled);
+  dot.style.transform = backdateEnabled ? "translateX(24px)" : "translateX(0)";
+  btn.classList.toggle("bg-amber-400", backdateEnabled);
+  btn.classList.toggle("bg-gray-300", !backdateEnabled);
+
+  if (backdateEnabled) {
+    // เปิดครั้งแรก เติมวันที่/เวลาปัจจุบันไว้ก่อนเป็นจุดเริ่มต้น (ง่ายกว่า
+    // เริ่มจากช่องว่างเปล่า) แล้วให้ Master แก้กลับไปเป็นเวลาจริงที่ลูกค้า
+    // โอนเอง — และกันเลือกวันที่ในอนาคตโดยไม่ตั้งใจด้วย max = วันนี้
+    const now = new Date();
+    const dateInput = document.getElementById("backdateDateInput");
+    const timeInput = document.getElementById("backdateTimeInput");
+    const todayStr = backdateFormatLocalDate_(now);
+    if (!dateInput.value) dateInput.value = todayStr;
+    if (!timeInput.value) timeInput.value = backdateFormatLocalTime_(now);
+    dateInput.max = todayStr;
+  }
+  updateBackdateBannerText();
+}
+
+function updateBackdateBannerText() {
+  const warningEl = document.getElementById("backdateWarningText");
+  const bannerEl = document.getElementById("backdateBillBanner");
+  const bannerTextEl = document.getElementById("backdateBillBannerText");
+  if (!backdateEnabled) {
+    bannerEl.classList.add("hidden");
+    return;
+  }
+  const dateVal = document.getElementById("backdateDateInput").value;
+  const timeVal = document.getElementById("backdateTimeInput").value || "00:00";
+  const display = dateVal ? (dateVal.split("-").reverse().join("/") + " " + timeVal) : "(ยังไม่ได้เลือกวันที่)";
+  warningEl.textContent = "บิลนี้จะถูกบันทึกเป็นวันที่ " + display +
+    " (ไม่ใช่เวลาปัจจุบัน) — ช่องนี้จะรีเซ็ตกลับเป็น \"ตอนนี้\" อัตโนมัติทุกครั้งหลังกดขายสำเร็จ";
+  bannerTextEl.textContent = "บิลนี้บันทึกย้อนหลัง — " + display;
+  bannerEl.classList.remove("hidden");
+}
+
+// คืนค่า timestamp (ISO string) ที่จะส่งไปกับบิล — ใช้แทนที่ทุกจุดที่เคยเขียน
+// `new Date().toISOString()` ตรงๆ ในการสร้าง payload ขาย (buildPayload /
+// buildOneBillPayload) ถ้า "บันทึกย้อนหลัง" เปิดอยู่และกรอกวันที่+เวลาครบ จะ
+// แปลงเป็น Date ตรงๆ จากค่าที่กรอก (ใช้ timezone ของเบราว์เซอร์เครื่องนี้ —
+// เครื่องเดียวกับที่ใช้ขายจริงอยู่แล้ว เหมือนที่ new Date().toISOString()
+// ปกติก็อาศัย timezone เครื่องนี้อยู่แล้วเช่นกัน) ถ้าปิดอยู่หรือกรอกไม่ครบ
+// fallback กลับเป็นเวลาปัจจุบันเหมือนเดิมทุกประการ
+function getSaleTimestampIso_() {
+  if (backdateEnabled) {
+    const dateVal = document.getElementById("backdateDateInput").value;
+    const timeVal = document.getElementById("backdateTimeInput").value;
+    if (dateVal && timeVal) {
+      const d = new Date(dateVal + "T" + timeVal + ":00");
+      if (!isNaN(d.getTime())) return d.toISOString();
+    }
+  }
+  return new Date().toISOString();
+}
+
+// เรียกหลังขายสำเร็จทุกครั้ง (resetPOSForNextSale) — ปิดกลับเป็น "ตอนนี้"
+// อัตโนมัติ กันลืมปิดแล้วบิลถัดไปของลูกค้าคนอื่นเพี้ยนวันที่ตามไปด้วย
+function resetBackdateSection() {
+  backdateEnabled = false;
+  document.getElementById("backdateDateRow").classList.add("hidden");
+  document.getElementById("backdateBillBanner").classList.add("hidden");
+  document.getElementById("backdateToggleDot").style.transform = "translateX(0)";
+  document.getElementById("backdateToggleBtn").classList.remove("bg-amber-400");
+  document.getElementById("backdateToggleBtn").classList.add("bg-gray-300");
+  document.getElementById("backdateDateInput").value = "";
+  document.getElementById("backdateTimeInput").value = "";
+}
+
 // Builds the request body for whatever the POS cart/customer/payment
 // section currently holds. `overrides` lets startEditingBill's flow
 // (submitEditSale below) turn this into an "editSale" request against an
@@ -5754,7 +5900,7 @@ function buildPayload(overrides) {
     action: "sale",
     pin: currentStaff ? currentStaff.pin : "",
     branch: getBranchCode(),
-    timestamp: new Date().toISOString(),
+    timestamp: getSaleTimestampIso_(), // ⭐ 2026-10-07: เดิมเป็น new Date().toISOString() ตรงๆ — ตอนนี้เผื่อ "บันทึกย้อนหลัง" (Master) ไว้ด้วย ดูคอมเมนต์ที่ getSaleTimestampIso_()
     cashier: currentStaff ? currentStaff.name : "Admin",
     items: cartItemsForSale(cart),
     grandTotal: grandTotal,
@@ -5837,6 +5983,7 @@ function buildOneBillPayload() {
     action: "saveOneBillTransaction",
     pin: currentStaff ? currentStaff.pin : "",
     branch: getBranchCode(),
+    timestamp: getSaleTimestampIso_(), // ⭐ 2026-10-07: เดิมไม่เคยส่งมาเลย (handleSaveOneBillTransaction_ เดิม hardcode new Date() เอง) — เพิ่มให้ "บันทึกย้อนหลัง" ใช้ได้แม้คาร์ตมีแถว Pre/Rec ด้วย ต้องแก้ backend คู่กัน (ดู saveSaleTransaction_ ฝั่ง handleSaveOneBillTransaction_)
     saleItems: cartItemsForSale(saleRows),
     pickupLines: recRows.map((i) => ({ lineId: i.lineId, realBarcode: i.barcode })),
     bookLines: preRows.map((i) => ({
@@ -5979,6 +6126,7 @@ function resetPOSForNextSale() {
   renderSplitInputs();
   updateActiveBankPanel();
   resetCustomerSection();
+  resetBackdateSection(); // ⭐ 2026-10-07: ปิด "บันทึกย้อนหลัง" กลับเป็นเวลาปัจจุบันเสมอหลังขายสำเร็จ กันบิลถัดไปเพี้ยนวันที่ตาม
   refocusScanInput();
   // A completed save — whether a new sale or a saved edit — always drops
   // back out of "editing an existing bill" mode.
@@ -6818,6 +6966,9 @@ function applyLogin(staff) {
   document.getElementById("preOrderBankInfoSection").classList.toggle("hidden", !isAdminRole(staff.role));
   document.getElementById("shopInfoSection").classList.toggle("hidden", !isAdminRole(staff.role));
   document.getElementById("bankAccountsSection").classList.toggle("hidden", !isAdminRole(staff.role));
+  // ⭐ 2026-10-07: การ์ด "บันทึกย้อนหลัง" — เฉพาะ Master เหมือนการ์ดด้านบน
+  document.getElementById("masterBackdateSection").classList.toggle("hidden", !isAdminRole(staff.role));
+  if (!isAdminRole(staff.role)) resetBackdateSection(); // staff ธรรมดาล็อกอิน ปิด/ล้างช่องนี้กันค้างจากเซสชันก่อน
   if (isAdminRole(staff.role)) loadOpeningFloatSetting();
   if (isAdminRole(staff.role)) loadBankManagementData();
   // Unlike the admin-only settings above, the shop header (name/address/
