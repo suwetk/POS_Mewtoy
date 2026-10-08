@@ -3180,7 +3180,7 @@
                 <th colspan="3" class="px-2 py-1 border-b border-l border-gray-200">Shopee (พิมพ์เอง)</th>
                 <th rowspan="2" class="px-2 py-1.5 align-bottom border-b border-l border-gray-200">Lazada</th>
                 <th rowspan="2" class="px-2 py-1.5 align-bottom border-b border-gray-200">Web</th>
-                <th colspan="3" class="px-2 py-1 border-b border-l border-gray-200">WS ขายส่ง</th>
+                <th colspan="4" class="px-2 py-1 border-b border-l border-gray-200">WS ขายส่ง</th>
                 <th rowspan="2" class="px-2 py-1.5 text-right align-bottom border-b border-l border-gray-200">รวมทั้งวัน</th>
               </tr>
               <tr id="csSubHeaderRow" class="bg-gray-50 text-gray-500 text-[11px] font-semibold"></tr>
@@ -8416,13 +8416,21 @@ function renderChannelSalesMonth() {
       `<th class="px-2 py-1 border-b border-l border-gray-200 text-center">TH</th>` +
       `<th class="px-2 py-1 border-b border-gray-200 text-center">MY</th>` +
       `<th class="px-2 py-1 border-b border-gray-200 text-center">PH</th>` +
-      `<th class="px-2 py-1 border-b border-l border-gray-200 text-center">อัตโนมัติ</th>` +
+      `<th class="px-2 py-1 border-b border-l border-gray-200 text-center">รับเงินแล้ว</th>` +
       `<th class="px-2 py-1 border-b border-gray-200 text-center">เผื่อตกหล่น</th>` +
-      `<th class="px-2 py-1 border-b border-gray-200 text-center">รวม WS</th>`;
+      `<th class="px-2 py-1 border-b border-gray-200 text-center">รวม WS</th>` +
+      // ⭐ 2026-10-08: คอลัมน์ใหม่ "ค้างชำระ" — ข้อมูลอ้างอิงล้วนๆ (ยอดค้างของ
+      // ใบแจ้งหนี้ที่ออกวันนั้น ณ ตอนนี้) ไม่ถูกรวมเข้า "รวม WS"/"รวมทั้งวัน"
+      // เลย ตามที่พี่วิงขอ ("อยากได้ยอดจริง จากการโอนจริง") — ดู wsOutstanding
+      // ใน handleGetChannelSalesMonth_ (backend) ที่มาของเลขนี้
+      `<th class="px-2 py-1 border-b border-gray-200 text-center text-amber-500">ค้างชำระ</th>`;
   }
 
   // ---- สะสมยอดรวมเดือนนี้ไปพร้อมกับ build แถวรายวัน ----
-  const totals = { shopeeTH: 0, shopeeMY: 0, shopeePH: 0, lazada: 0, web: 0, wsAuto: 0, wsManual: 0, wsTotal: 0, grand: 0 };
+  // ⭐ 2026-10-08: wsAuto (เดิม = accrual, Grand Total ทั้งใบไม่สนสถานะจ่าย)
+  // เปลี่ยนเป็น wsPaid (cash-basis, เงินที่รับจริงจาก WSPayments) — เพิ่ม
+  // wsOutstanding (ยอดค้างชำระ ไม่รวมใน wsTotal/grand) ตามที่พี่วิงขอ
+  const totals = { shopeeTH: 0, shopeeMY: 0, shopeePH: 0, lazada: 0, web: 0, wsPaid: 0, wsManual: 0, wsTotal: 0, wsOutstanding: 0, grand: 0 };
   const branchTotals = {};
   branches.forEach((b) => { branchTotals[b] = 0; });
   let todayTotal = 0;
@@ -8438,7 +8446,7 @@ function renderChannelSalesMonth() {
     if (isFuture) {
       return `<tr>
         <td class="px-2 py-1.5 font-semibold text-gray-600 whitespace-nowrap sticky left-0 bg-white">${dateLabel}</td>
-        <td colspan="${branches.length + 9}" class="px-2 py-1.5 text-center text-gray-300">— ยังไม่ถึงวันนี้ —</td>
+        <td colspan="${branches.length + 10}" class="px-2 py-1.5 text-center text-gray-300">— ยังไม่ถึงวันนี้ —</td>
       </tr>`;
     }
 
@@ -8453,18 +8461,20 @@ function renderChannelSalesMonth() {
     const shopeePH = Number(day.shopeePH) || 0;
     const lazada = Number(day.lazada) || 0;
     const web = Number(day.web) || 0;
-    const wsAuto = Number(day.wsAuto) || 0;
+    const wsPaid = Number(day.wsPaid) || 0;
     const wsManual = Number(day.wsManual) || 0;
-    const wsTotal = Number(day.wsTotal != null ? day.wsTotal : wsAuto + wsManual);
+    const wsTotal = Number(day.wsTotal != null ? day.wsTotal : wsPaid + wsManual);
+    const wsOutstanding = Number(day.wsOutstanding) || 0; // ข้อมูลอ้างอิงเฉยๆ ไม่รวมใน wsTotal/rowTotal
 
     totals.shopeeTH += shopeeTH;
     totals.shopeeMY += shopeeMY;
     totals.shopeePH += shopeePH;
     totals.lazada += lazada;
     totals.web += web;
-    totals.wsAuto += wsAuto;
+    totals.wsPaid += wsPaid;
     totals.wsManual += wsManual;
     totals.wsTotal += wsTotal;
+    totals.wsOutstanding += wsOutstanding;
 
     const branchSum = branchVals.reduce((s, v) => s + v, 0);
     const rowTotal = branchSum + shopeeTH + shopeeMY + shopeePH + lazada + web + wsTotal;
@@ -8484,9 +8494,10 @@ function renderChannelSalesMonth() {
       ${manualCell("shopeePH", shopeePH)}
       ${manualCell("lazada", lazada, " border-l border-gray-100")}
       ${manualCell("web", web)}
-      <td class="px-2 py-1.5 text-right text-indigo-700 font-medium border-l border-gray-100 bg-indigo-50/40">${formatMoney(wsAuto)}</td>
+      <td class="px-2 py-1.5 text-right text-indigo-700 font-medium border-l border-gray-100 bg-indigo-50/40">${formatMoney(wsPaid)}</td>
       ${manualCell("wsManual", wsManual)}
       <td class="px-2 py-1.5 text-right font-semibold text-gray-600 cs-ws-total" data-date="${day.date}">${formatMoney(wsTotal)}</td>
+      <td class="px-2 py-1.5 text-right text-amber-600 cs-ws-outstanding" data-date="${day.date}" title="ยอดค้างชำระของใบแจ้งหนี้ WS ที่ออกวันนี้ — ไม่รวมในยอดขาย">${wsOutstanding > 0 ? formatMoney(wsOutstanding) : "—"}</td>
       <td class="px-2 py-1.5 text-right font-bold text-emerald-700 border-l border-gray-100 cs-row-total" data-date="${day.date}">${formatMoney(rowTotal)}</td>
     </tr>`;
   }).join("");
@@ -8515,9 +8526,10 @@ function applyChannelSalesTotalsUI_(branchTotals, totals, todayTotal) {
     `<td class="px-2 py-1.5 text-right">${formatMoney(totals.shopeePH)}</td>` +
     `<td class="px-2 py-1.5 text-right border-l border-gray-200">${formatMoney(totals.lazada)}</td>` +
     `<td class="px-2 py-1.5 text-right">${formatMoney(totals.web)}</td>` +
-    `<td class="px-2 py-1.5 text-right border-l border-gray-200">${formatMoney(totals.wsAuto)}</td>` +
+    `<td class="px-2 py-1.5 text-right border-l border-gray-200">${formatMoney(totals.wsPaid)}</td>` +
     `<td class="px-2 py-1.5 text-right">${formatMoney(totals.wsManual)}</td>` +
     `<td class="px-2 py-1.5 text-right">${formatMoney(totals.wsTotal)}</td>` +
+    `<td class="px-2 py-1.5 text-right text-amber-600">${totals.wsOutstanding > 0 ? formatMoney(totals.wsOutstanding) : "—"}</td>` +
     `<td class="px-2 py-1.5 text-right text-emerald-700 border-l border-gray-200">${formatMoney(totals.grand)}</td>`;
 
   // ---- การ์ด KPI ----
@@ -8539,15 +8551,19 @@ function applyChannelSalesTotalsUI_(branchTotals, totals, todayTotal) {
       { label: "Shopee PH", value: totals.shopeePH, tag: "กรอกเอง" },
       { label: "Lazada", value: totals.lazada, tag: "กรอกเอง" },
       { label: "Web (Mewtoy)", value: totals.web, tag: "กรอกเอง" },
-      { label: "WS ขายส่ง", value: totals.wsTotal, tag: "AUTO+เองได้" }
+      { label: "WS ขายส่ง", value: totals.wsTotal, tag: "AUTO+เองได้" },
+      // ⭐ 2026-10-08: การ์ดข้อมูลอ้างอิง — ยอดค้างชำระ WS รวมทั้งเดือน "ไม่"
+      // รวมอยู่ใน csKpiMonthTotal/totals.grand ข้างบนเลย ไว้ดูสุขภาพลูกหนี้
+      // เฉยๆ (ดูรายละเอียดต่อลูกค้าได้ที่แท็บ WS > "👤 ยอดค้างชำระ")
+      { label: "ค้างชำระ WS", value: totals.wsOutstanding, tag: "ไม่รวมยอดขาย" }
     ]);
   document.getElementById("csChannelTiles").innerHTML = tiles.map((t) => `
     <div class="border border-gray-100 rounded-lg px-2.5 py-2">
       <div class="flex items-center justify-between gap-1 mb-1">
         <span class="text-[10.5px] text-gray-400 truncate">${escapeHtml(t.label)}</span>
-        <span class="text-[8.5px] font-bold px-1.5 py-0.5 rounded ${t.tag === "กรอกเอง" ? "bg-orange-50 text-orange-600" : "bg-indigo-50 text-indigo-600"}">${t.tag}</span>
+        <span class="text-[8.5px] font-bold px-1.5 py-0.5 rounded ${t.tag === "กรอกเอง" ? "bg-orange-50 text-orange-600" : t.tag === "ไม่รวมยอดขาย" ? "bg-amber-50 text-amber-600" : "bg-indigo-50 text-indigo-600"}">${t.tag}</span>
       </div>
-      <div class="text-[13px] font-bold text-gray-700">${formatMoney(t.value)}</div>
+      <div class="text-[13px] font-bold ${t.tag === "ไม่รวมยอดขาย" ? "text-amber-600" : "text-gray-700"}">${formatMoney(t.value)}</div>
     </div>`).join("");
 }
 
@@ -8560,7 +8576,7 @@ function applyChannelSalesTotalsUI_(branchTotals, totals, todayTotal) {
 function recomputeChannelSalesLive_() {
   const branches = BRANCH_LIST;
   const today = csTodayDateStr_();
-  const totals = { shopeeTH: 0, shopeeMY: 0, shopeePH: 0, lazada: 0, web: 0, wsAuto: 0, wsManual: 0, wsTotal: 0, grand: 0 };
+  const totals = { shopeeTH: 0, shopeeMY: 0, shopeePH: 0, lazada: 0, web: 0, wsPaid: 0, wsManual: 0, wsTotal: 0, wsOutstanding: 0, grand: 0 };
   const branchTotals = {};
   branches.forEach((b) => { branchTotals[b] = 0; });
   let todayTotal = 0;
@@ -8584,17 +8600,19 @@ function recomputeChannelSalesLive_() {
     const lazada = getInputVal_(day.date, "lazada", day.lazada);
     const web = getInputVal_(day.date, "web", day.web);
     const wsManual = getInputVal_(day.date, "wsManual", day.wsManual);
-    const wsAuto = Number(day.wsAuto) || 0;
-    const wsTotal = wsAuto + wsManual;
+    const wsPaid = Number(day.wsPaid) || 0;
+    const wsTotal = wsPaid + wsManual;
+    const wsOutstanding = Number(day.wsOutstanding) || 0; // ไม่เปลี่ยนตาม input ที่พิมพ์ — มาจาก backend ล้วนๆ
 
     totals.shopeeTH += shopeeTH;
     totals.shopeeMY += shopeeMY;
     totals.shopeePH += shopeePH;
     totals.lazada += lazada;
     totals.web += web;
-    totals.wsAuto += wsAuto;
+    totals.wsPaid += wsPaid;
     totals.wsManual += wsManual;
     totals.wsTotal += wsTotal;
+    totals.wsOutstanding += wsOutstanding;
 
     const rowTotal = branchSum + shopeeTH + shopeeMY + shopeePH + lazada + web + wsTotal;
     totals.grand += rowTotal;
@@ -8669,7 +8687,7 @@ async function saveChannelSalesDay_(dateStr) {
       dayObj.lazada = payload.lazada;
       dayObj.web = payload.web;
       dayObj.wsManual = payload.wsManual;
-      dayObj.wsTotal = (Number(dayObj.wsAuto) || 0) + payload.wsManual;
+      dayObj.wsTotal = (Number(dayObj.wsPaid) || 0) + payload.wsManual;
     }
     renderChannelSalesMonth();
     showToast("บันทึกแล้ว");
