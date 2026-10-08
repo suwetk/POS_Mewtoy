@@ -1671,6 +1671,15 @@
               <input id="wsPaymentMethodOtherInput" type="text" placeholder="ระบุวิธีชำระเงิน... (ใช้ได้เมื่อเลือก &quot;อื่นๆ&quot;)" disabled
                      class="w-full mt-1.5 border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-gray-50 text-gray-400
                             focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+              <!-- ⭐ 2026-10 — เลือกบัญชีที่รับโอน โผล่เฉพาะตอนเลือก "TT (โอน)" เท่านั้น
+                   ไม่ขอ PIN ใดๆ (ต่างจาก "ธนาคารอื่นๆ" หน้าขายปกติ) ดู
+                   resolveWSBankAccountLabel_ ฝั่ง backend สำหรับเหตุผล -->
+              <div id="wsNewInvoiceBankRow" class="hidden mt-1.5">
+                <label class="text-[11px] font-bold text-gray-500">บัญชีที่รับโอน</label>
+                <select id="wsNewInvoiceBankSelect"
+                        class="w-full border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-white mt-0.5
+                               focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500"></select>
+              </div>
             </div>
 
             <p class="text-xs text-gray-500">ค้างชำระ: <b id="wsDraftAmountDue" class="text-amber-600">0.00</b></p>
@@ -2233,6 +2242,15 @@
             <option value="transfer">โอน (TT)</option>
           </select>
         </div>
+      </div>
+
+      <!-- ⭐ 2026-10 — เลือกบัญชีที่รับโอน โผล่เฉพาะตอนเลือก "โอน (TT)" เท่านั้น ไม่ขอ
+           PIN ใดๆ เหมือนกับจุดเลือกวิธีชำระตอนออกบิลใหม่ด้านบน -->
+      <div id="wsPaymentBankRow" class="hidden">
+        <label class="block text-xs text-gray-500 mb-1">บัญชีที่รับโอน</label>
+        <select id="wsPaymentBankSelect"
+                class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm bg-white
+                       focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-500"></select>
       </div>
 
       <!-- วันที่ชำระเงิน — ไม่บังคับ (2026-10, per Wing) เว้นว่าง = เวลาปัจจุบันเหมือน
@@ -3917,6 +3935,15 @@ let bankAccountsCacheForMaster = []; // same — full list including the default
 let branchBankDefaultsCache = {}; // { branchCode: accountId } — per-branch default overrides (2026-10, per Wing), Master's own management screen only
 let selectedSaleBankAccountId = ""; // "" = use defaultBankAccount (the normal silent path) — only ever non-blank right after a successful "ธนาคารอื่นๆ" PIN + picker flow, for THIS bill only
 let activeBankCardInfo = null; // whichever account's info the card-image modal is currently showing (Settings "ดูรูป" or checkout "ดูรูปส่งลูกค้า")
+
+// WS (ขายส่ง) เลือกบัญชีตอน "โอน" ได้เอง — เพิ่ม 2026-10, per Wing. ต่างจาก
+// bankAccountsCacheForMaster ด้านบน: อันนี้โหลดให้พนักงานทุกคนที่มีสิทธิ์แท็บ WS
+// ตั้งแต่ตอนล็อกอิน (ดู loadWSBankAccounts(), เรียกจาก applyLogin()) ไม่ต้องขอ PIN
+// ใดๆ เลย เพราะเป็นแค่บันทึกบัญชีไว้ทำรายงาน ไม่ใช่การเปลี่ยนบัญชีที่ลูกค้าจะโอนเงินเข้า
+// จริงแบบ real-time เหมือนปุ่ม "ธนาคารอื่นๆ" หน้าขายปกติ (ดู resolveWSBankAccountLabel_
+// ฝั่ง backend)
+let wsBankTemplatesCache = [];
+let wsBankAccountsCache = [];
 
 // "+ บิลสำรอง" (2026-10, per Wing: a 2nd customer wanting to pay right away
 // shouldn't force clearing out a 1st customer's still-being-decided cart).
@@ -6978,6 +7005,9 @@ function applyLogin(staff) {
   // Same idea — every cashier needs to know which account the plain
   // "Bank Transfer" button silently uses, not just Master.
   loadDefaultBankAccount();
+  // WS's own "เลือกบัญชีตอนโอน" dropdowns — any staff with WS tab access,
+  // no PIN gate (see wsBankAccountsCache's declaration above for why).
+  if (hasTabPermission("ws")) loadWSBankAccounts();
 
   applyRoleVisibility();
   syncMobileTabNav(); // rebuild the mobile page picker now that this staff member's tab permissions are known
@@ -13212,6 +13242,7 @@ async function submitNewWSInvoice() {
         paidNow: Number(document.getElementById("wsPaidNowInput").value) || 0,
         paidMethod: wsSelectedPaymentMethod,
         paidMethodDetail: wsSelectedPaymentMethod === "other" ? document.getElementById("wsPaymentMethodOtherInput").value.trim() : "",
+        bankAccountId: wsSelectedPaymentMethod === "tt" ? document.getElementById("wsNewInvoiceBankSelect").value : "",
         paidDate: document.getElementById("wsPaidDateInput").value || ""
       })
     });
@@ -14186,8 +14217,20 @@ function openWSPaymentModal(invoice) {
   document.getElementById("wsPaymentAmountInput").value = "";
   document.getElementById("wsPaymentMethodSelect").value = "cash";
   document.getElementById("wsPaymentDateInput").value = "";
+  updateWSPaymentBankRow_(); // starts hidden — method above resets to "cash" every open
   hideWSPaymentModalError();
   document.getElementById("wsPaymentModal").classList.remove("hidden");
+}
+
+// ⭐ 2026-10 — "เลือกบัญชีที่รับโอน" โผล่เฉพาะตอนเลือก "โอน (TT)" เท่านั้น ไม่ขอ PIN
+// (เหมือนกับจุดออกบิลใหม่ — ดู buildWSBankAccountOptionsHtml_)
+function updateWSPaymentBankRow_() {
+  const isTransfer = document.getElementById("wsPaymentMethodSelect").value === "transfer";
+  const bankRow = document.getElementById("wsPaymentBankRow");
+  bankRow.classList.toggle("hidden", !isTransfer);
+  if (isTransfer) {
+    document.getElementById("wsPaymentBankSelect").innerHTML = buildWSBankAccountOptionsHtml_("");
+  }
 }
 
 function closeWSPaymentModal() {
@@ -14213,6 +14256,7 @@ async function submitWSPayment() {
     return;
   }
   const method = document.getElementById("wsPaymentMethodSelect").value;
+  const bankAccountId = method === "transfer" ? document.getElementById("wsPaymentBankSelect").value : "";
 
   const btn = document.getElementById("wsPaymentConfirmBtn");
   const originalHtml = btn.innerHTML;
@@ -14231,6 +14275,7 @@ async function submitWSPayment() {
         invoiceId: wsPaymentInvoice.invoiceId,
         amount: amount,
         method: method,
+        bankAccountId: bankAccountId,
         paidDate: document.getElementById("wsPaymentDateInput").value || ""
       })
     });
@@ -14253,6 +14298,7 @@ async function submitWSPayment() {
 function setupWSPaymentModal() {
   document.getElementById("wsPaymentCancelBtn").addEventListener("click", closeWSPaymentModal);
   document.getElementById("wsPaymentConfirmBtn").addEventListener("click", submitWSPayment);
+  document.getElementById("wsPaymentMethodSelect").addEventListener("change", updateWSPaymentBankRow_);
   document.getElementById("wsPaymentModal").addEventListener("click", (e) => {
     if (e.target.id === "wsPaymentModal") closeWSPaymentModal();
   });
@@ -14375,6 +14421,14 @@ function renderWSPaymentMethodButtons() {
   otherInput.classList.toggle("bg-gray-50", !isOther);
   otherInput.classList.toggle("text-gray-400", !isOther);
   if (!isOther) otherInput.value = "";
+
+  // ⭐ 2026-10 — "เลือกบัญชีที่รับโอน" โผล่เฉพาะตอนเลือก "tt" เท่านั้น ไม่ขอ PIN
+  const isTransfer = wsSelectedPaymentMethod === "tt";
+  const bankRow = document.getElementById("wsNewInvoiceBankRow");
+  bankRow.classList.toggle("hidden", !isTransfer);
+  if (isTransfer) {
+    document.getElementById("wsNewInvoiceBankSelect").innerHTML = buildWSBankAccountOptionsHtml_("");
+  }
 }
 
 function resetWSPaymentMethodButtons() {
@@ -16507,6 +16561,55 @@ async function loadDefaultBankAccount() {
   } catch (err) {
     console.error("Failed to load default bank account:", err);
   }
+}
+
+/* ---------------- WS's own "เลือกบัญชีตอนโอน" (no PIN) ---------------- */
+
+// Loaded once at login for any staff with WS tab access — see
+// wsBankTemplatesCache/wsBankAccountsCache's declaration above and
+// handleGetBankAccountsForWS_ on the backend (requirePermission_("ws"),
+// not requireAdmin_ — deliberately no PIN prompt here).
+async function loadWSBankAccounts() {
+  if (!currentStaff) return;
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl === "YOUR_URL_HERE") return;
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "getBankAccountsForWS", pin: currentStaff.pin })
+    });
+    const result = await response.json();
+    if (result && result.status === "success") {
+      wsBankTemplatesCache = result.templates || [];
+      wsBankAccountsCache = result.accounts || [];
+    }
+  } catch (err) {
+    console.error("Failed to load WS bank accounts:", err);
+  }
+}
+
+// Builds the <option>/<optgroup> markup shared by both WS bank-account
+// dropdowns (new-invoice form + "รับชำระ" modal) — every account in the
+// list is selectable (default AND backup alike), unlike the main POS
+// checkout's "ธนาคารอื่นๆ" picker which only ever offers the backups.
+function buildWSBankAccountOptionsHtml_(selectedId) {
+  if (wsBankAccountsCache.length === 0) {
+    return `<option value="">(ยังไม่มีบัญชีธนาคารในระบบ — ไปเพิ่มที่แท็บ Settings ก่อน)</option>`;
+  }
+  const optionHtml = (a) => {
+    const tpl = wsBankTemplatesCache.find((t) => String(t.id) === String(a.templateId));
+    const bankName = tpl ? (tpl.cardLabel || tpl.name || "") : "";
+    const label = (bankName ? bankName + " — " : "") + a.accountName + " (" + a.accountNo + ")";
+    const isSelected = selectedId && String(selectedId) === String(a.id);
+    return `<option value="${a.id}" ${isSelected ? "selected" : ""}>${escapeHtml(label)}</option>`;
+  };
+  const defaults = wsBankAccountsCache.filter((a) => a.isDefault);
+  const backups = wsBankAccountsCache.filter((a) => !a.isDefault);
+  let html = `<option value="">(ใช้บัญชีค่าเริ่มต้นของร้าน)</option>`;
+  if (defaults.length > 0) html += `<optgroup label="ค่าเริ่มต้น">${defaults.map(optionHtml).join("")}</optgroup>`;
+  if (backups.length > 0) html += `<optgroup label="บัญชีสำรอง">${backups.map(optionHtml).join("")}</optgroup>`;
+  return html;
 }
 
 // Shows/hides the "จะรับเข้าบัญชี" panel under the payment-method grid and
