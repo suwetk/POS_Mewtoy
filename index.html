@@ -4801,16 +4801,18 @@ function collectAmount(item) {
     case "pre":
       return Number(item.deposit) || 0; // only the deposit is collected today — the rest is due later
     case "rec":
-      // "Rec (กรอกเอง)" แบบพิมพ์เอง (ไม่มี lineId): "Pre-Order Price" คือราคา
-      // ต่อชิ้น เหมือนแถว branch ปกติ ต้องคูณ qty ก่อนหักมัดจำที่รับไปแล้ว
-      // (มัดจำเป็นยอดรวมที่รับมาครั้งเดียว ไม่คูณซ้ำ) — เดิมลืมคูณ qty ทำให้
-      // กดเพิ่มจำนวนแล้วยอดที่ต้องเก็บไม่ขยับตาม (2026-10, per Wing).
-      // ส่วนแถวที่ดึงมาจากรายการจองจริง (มี lineId) ค่า agreed คือ "Agreed
-      // Total" ของทั้งไลน์จากชีตอยู่แล้ว (ไม่ใช่ราคาต่อชิ้น) และหลังบ้านจะอ่าน
-      // ของจริงจาก lineId เองเสมอ ไม่สนใจ qty ในตะกร้า จึงยังไม่คูณ qty ที่นี่
+      // "Rec (กรอกเอง)" แบบพิมพ์เอง (ไม่มี lineId): ทั้ง "Pre-Order Price" และ
+      // "มัดจำที่รับไปแล้ว" ที่แคชเชียร์กรอก เป็นยอด "ต่อ 1 ชิ้น" ทั้งคู่ — ต้อง
+      // หักลบกันก่อน (ต่อชิ้น) แล้วค่อยคูณ qty ทีหลัง ไม่ใช่คูณ agreed อย่าง
+      // เดียวก่อนหัก (2026-10, per Wing: 1500-100=1400 ต่อชิ้น ต้องเป็น 1400*2
+      // ชิ้น = 2800 ไม่ใช่ 1500*2-100=2900 หรือแย่กว่านั้นคือ (1500*2-100)/2
+      // เพี้ยนไปเป็น 700/ชิ้นที่เจอรอบที่แล้ว — รอบก่อนคูณผิดจุด แก้ใหม่ตรงนี้).
+      // ส่วนแถวที่ดึงมาจากรายการจองจริง (มี lineId) ค่า agreed/deposit คือยอด
+      // รวมทั้งไลน์จากชีตอยู่แล้ว (ไม่ใช่ต่อชิ้น) และหลังบ้านจะอ่านของจริงจาก
+      // lineId เองเสมอ ไม่สนใจ qty ในตะกร้า จึงไม่คูณ qty ที่นี่
       return item.lineId
         ? Math.max((Number(item.agreed) || 0) - (Number(item.deposit) || 0), 0)
-        : Math.max((Number(item.agreed) || 0) * (Number(item.qty) || 0) - (Number(item.deposit) || 0), 0);
+        : Math.max((Number(item.agreed) || 0) - (Number(item.deposit) || 0), 0) * (Number(item.qty) || 0);
     case "ws":
       return (Number(item.wsPrice) || 0) * (Number(item.qty) || 0);
     case "sp":
