@@ -2062,6 +2062,63 @@
     </div>
   </div>
 
+  <!-- "เพิ่มมัดจำหลายรายการ" (poBulkDepositModal) — 2026-10, per Wing: a PO with
+       several lines, none paid a deposit at booking time, whose customer
+       later pays one lump sum covering all of them. Distinct from
+       poBulkFulfillModal above — this one never touches Sales_History or
+       closes anything, it only tops up each selected line's own running
+       "Deposit Amount" (same backend math as the single-line poAddDepositModal,
+       just looped — see handleAddBulkPreOrderDeposit_). Triggered from the
+       "💰 เพิ่มมัดจำ (N)" button on a PO group in the ตามใบจอง list (only shown
+       when that PO has 2+ still-open lines — see renderPreOrderPoList()). -->
+  <div id="poBulkDepositModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 flex flex-col gap-3 max-h-[90vh] overflow-y-auto">
+      <h3 class="font-semibold text-gray-800 text-lg flex items-center gap-2">
+        <i class="fa-solid fa-hand-holding-dollar text-sky-600"></i> เพิ่มมัดจำหลายรายการ — <span id="poBulkDepositCustomerName" class="text-sky-700"></span>
+      </h3>
+      <div id="poBulkDepositCustomerCodeWrap" class="hidden -mt-2"></div>
+      <p class="text-sm text-gray-500 -mt-2">เลือกรายการที่ได้รับเงินมา ใส่ยอดรวมแล้วกด "แบ่งเท่าๆ กัน" หรือจะพิมพ์แยกเองทีละชิ้นก็ได้</p>
+
+      <div id="poBulkDepositChecklist" class="flex flex-col gap-2"></div>
+
+      <div class="grid grid-cols-2 gap-2 items-end">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">ยอดรวมที่ได้รับ</label>
+          <input id="poBulkDepositTotalInput" type="number" min="0" step="0.01"
+                 class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm text-right
+                        focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-500">
+        </div>
+        <button id="poBulkDepositSplitBtn" type="button"
+                class="border-2 border-sky-300 text-sky-700 hover:bg-sky-50 rounded-lg py-2 text-sm font-semibold transition">
+          ➗ แบ่งเท่าๆ กัน
+        </button>
+      </div>
+
+      <div class="bg-gray-50 rounded-lg px-3 py-2 text-sm flex justify-between">
+        <span class="text-gray-500">รวมที่แบ่งไว้ตอนนี้</span>
+        <span id="poBulkDepositAllocatedText" class="font-bold text-gray-700">0.00</span>
+      </div>
+
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">วิธีรับเงิน (ใช้ค่าเดียวกันทุกรายการที่เลือก)</label>
+        <select id="poBulkDepositMethodSelect"
+                class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm bg-white
+                       focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-500">
+          <option value="cash">เงินสด</option>
+          <option value="transfer">โอน (TT)</option>
+          <option value="credit">บัตรเครดิต</option>
+        </select>
+      </div>
+
+      <p id="poBulkDepositModalError" class="text-sm text-red-500 hidden"></p>
+
+      <div class="flex gap-2 justify-end mt-1">
+        <button id="poBulkDepositCancelBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ยกเลิก</button>
+        <button id="poBulkDepositConfirmBtn" type="button" class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-semibold">✅ บันทึกมัดจำ</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Pull customer's pre-orders into the cart as "Rec" rows (2026-09,
        matches pos_cart_type_variants.html) — NOT the same as
        poBulkFulfillModal above: this one does NOT fire a separate
@@ -4567,7 +4624,7 @@ function setupScanInput() {
   // (that click happened to blur this input): every keystroke was landing
   // here instead of reaching the overlay's own input.
   function isAnyOverlayVisible() {
-    return ["loginOverlay", "voidModal", "editApprovalModal", "poReceiveModal", "poFulfillModal", "poBulkFulfillModal", "oneBillPickupModal", "poAddDepositModal", "poCancelModal", "wsPaymentModal", "wsVoidModal"].some((id) => {
+    return ["loginOverlay", "voidModal", "editApprovalModal", "poReceiveModal", "poFulfillModal", "poBulkFulfillModal", "poBulkDepositModal", "oneBillPickupModal", "poAddDepositModal", "poCancelModal", "wsPaymentModal", "wsVoidModal"].some((id) => {
       const el = document.getElementById(id);
       return !!el && !el.classList.contains("hidden");
     });
@@ -4744,7 +4801,16 @@ function collectAmount(item) {
     case "pre":
       return Number(item.deposit) || 0; // only the deposit is collected today — the rest is due later
     case "rec":
-      return Math.max((Number(item.agreed) || 0) - (Number(item.deposit) || 0), 0); // old deposit deducted
+      // "Rec (กรอกเอง)" แบบพิมพ์เอง (ไม่มี lineId): "Pre-Order Price" คือราคา
+      // ต่อชิ้น เหมือนแถว branch ปกติ ต้องคูณ qty ก่อนหักมัดจำที่รับไปแล้ว
+      // (มัดจำเป็นยอดรวมที่รับมาครั้งเดียว ไม่คูณซ้ำ) — เดิมลืมคูณ qty ทำให้
+      // กดเพิ่มจำนวนแล้วยอดที่ต้องเก็บไม่ขยับตาม (2026-10, per Wing).
+      // ส่วนแถวที่ดึงมาจากรายการจองจริง (มี lineId) ค่า agreed คือ "Agreed
+      // Total" ของทั้งไลน์จากชีตอยู่แล้ว (ไม่ใช่ราคาต่อชิ้น) และหลังบ้านจะอ่าน
+      // ของจริงจาก lineId เองเสมอ ไม่สนใจ qty ในตะกร้า จึงยังไม่คูณ qty ที่นี่
+      return item.lineId
+        ? Math.max((Number(item.agreed) || 0) - (Number(item.deposit) || 0), 0)
+        : Math.max((Number(item.agreed) || 0) * (Number(item.qty) || 0) - (Number(item.deposit) || 0), 0);
     case "ws":
       return (Number(item.wsPrice) || 0) * (Number(item.qty) || 0);
     case "sp":
@@ -4792,6 +4858,15 @@ function refreshQtyDependents(id) {
   if (row) {
     const priceCell = row.querySelector(".row-price-display");
     if (priceCell) priceCell.textContent = formatMoney(collectAmount(item));
+
+    // รายการ "Rec (กรอกเอง)" คูณ qty เข้าไปใน collectAmount() ด้วย (ดูคอมเมนต์
+    // ใน collectAmount()) แต่ readout "เก็บวันนี้" เล็กๆ ใน typeFieldsHtml() เป็น
+    // <div> คนละตัวกับ .row-price-display ข้างบน — เดิมมีแค่ refreshRowDisplay()
+    // (ทริกเกอร์ตอนแก้ Pre-Order Price/มัดจำ) ที่อัปเดตมัน ตอนกด +/- หรือพิมพ์
+    // จำนวนชิ้นเลยไม่เคยอัปเดต readout นี้เลย ทำให้ตัวเลขค้างอยู่ค่าเดิมทั้งที่
+    // Price column ข้างบนขยับแล้ว (2026-10, per Wing: เพิ่มจำนวนแล้วยอดไม่คำนวณ)
+    const todayCollect = row.querySelector('[data-readout="todayCollect"]');
+    if (todayCollect) todayCollect.textContent = formatMoney(collectAmount(item));
 
     // "branch" rows show a "= xx THB" hint only once qty > 1 (see
     // cartRowHtml) — qty can cross that threshold either way, so
@@ -4866,10 +4941,14 @@ function refreshRowDisplay(id) {
   if (row) {
     const priceCell = row.querySelector(".row-price-display");
     if (priceCell) priceCell.textContent = formatMoney(collectAmount(item));
+    // ทั้งสอง readout นี้คือ collectAmount(item) ของแถว "rec" อยู่แล้ว (ดูคอมเมนต์
+    // ใน collectAmount()) — ใช้ฟังก์ชันเดียวกันแทนการคำนวณซ้ำ กัน balanceDue
+    // (แถวจริงที่มี lineId, ไม่คูณ qty) กับ todayCollect (แถวกรอกเอง, คูณ qty
+    // แล้ว) ไม่ลืมซิงก์กันเวลาแก้สูตรในอนาคต (2026-10, per Wing).
     const balanceDue = row.querySelector('[data-readout="balanceDue"]');
-    if (balanceDue) balanceDue.textContent = formatMoney(Math.max((Number(item.agreed) || 0) - (Number(item.deposit) || 0), 0));
+    if (balanceDue) balanceDue.textContent = formatMoney(collectAmount(item));
     const todayCollect = row.querySelector('[data-readout="todayCollect"]');
-    if (todayCollect) todayCollect.textContent = formatMoney(Math.max((Number(item.agreed) || 0) - (Number(item.deposit) || 0), 0));
+    if (todayCollect) todayCollect.textContent = formatMoney(collectAmount(item));
   }
   renderGrandTotal();
 }
@@ -5057,7 +5136,7 @@ function typeFieldsHtml(item) {
       <div class="flex flex-wrap gap-3">
         ${field("Pre-Order Price", "agreed", item.agreed, 'data-rerender')}
         ${field("มัดจำที่รับไปแล้ว", "deposit", item.deposit, 'data-rerender')}
-        ${readout("เก็บวันนี้", Math.max((Number(item.agreed) || 0) - (Number(item.deposit) || 0), 0), "todayCollect")}
+        ${readout("เก็บวันนี้", collectAmount(item), "todayCollect")}
       </div>
       <div class="text-[10px] text-pink-700 leading-snug">⚠️ กรอกเอง — ระบบจะไม่ไปปิดสถานะรายการจองจริงในชีต PreOrders ให้อัตโนมัติ กรุณาไปปิดสถานะ/ตัดยอดในชีตเองภายหลัง</div>
     </div>`;
@@ -9209,6 +9288,7 @@ let preOrderCancelLineId = null;   // targeted by poCancelModal
 let preOrderCancelRefundChoice = "refund"; // "refund" | "forfeit"
 let preOrderFulfillLine = null;    // the pre-order line object currently targeted by poFulfillModal
 let poCustomerViewGroups = [];     // last-rendered ตามลูกค้า groups, indexed for the "🔔 แจ้งยอดรวม" button
+let poListBulkDepositGroups = [];  // last-rendered ตามใบจอง groups' ELIGIBLE (รอสินค้า/แจ้งยอดแล้ว) lines only, indexed for the "💰 เพิ่มมัดจำ" button — see renderPreOrderPoList()
 let preOrderNotifyState = null;    // { lines, checked:Set } while poCustomerNotifyModal is open
 let preOrderNotifyBatchId = null;      // set by openArrivalCustomerNotify (ของเข้ารอบนี้ flow) before opening the
                                         // shared poCustomerNotifyModal, so confirmPreOrderCustomerNotify can pass
@@ -10187,9 +10267,29 @@ function renderPreOrderPoList() {
   // drift relative to each other — the browser lays every column out row
   // by row, so this class of bug can't recur regardless of how tall any
   // one cell's content gets.
+  // Reset + rebuild alongside the HTML below — see the "💰 เพิ่มมัดจำ" button's
+  // own comment further down for why this exists.
+  poListBulkDepositGroups = [];
+
   tbody.innerHTML = sortedGroupEntries
     .map(([poId, lines]) => {
       const first = lines[0];
+      // "เพิ่มมัดจำ" (bulk) only makes sense when a PO has MORE THAN ONE line
+      // still open (รอสินค้า/แจ้งยอดแล้ว) — a single-line PO is already well
+      // served by that line's own "เพิ่มมัดจำ" icon button (preOrderLineActionButtons),
+      // and DONE/CANCELLED lines can never take a deposit regardless of
+      // which status pill is currently selected above (see
+      // handleAddBulkPreOrderDeposit_ on the backend, which enforces the
+      // same rule server-side).
+      const eligibleForDeposit = lines.filter(
+        (l) => l.status === PO_STATUS_WAITING_LABEL || l.status === PO_STATUS_INVOICED_LABEL
+      );
+      let bulkDepositBtnHtml = "";
+      if (eligibleForDeposit.length >= 2) {
+        const groupIdx = poListBulkDepositGroups.length;
+        poListBulkDepositGroups.push({ poId: poId, customerName: first.customerName, customerCode: first.customerCode, lines: eligibleForDeposit });
+        bulkDepositBtnHtml = `<button type="button" class="po-list-bulk-deposit-btn text-[11px] bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold px-2 py-1 rounded-lg mt-1" data-group-idx="${groupIdx}">💰 เพิ่มมัดจำ (${eligibleForDeposit.length})</button>`;
+      }
       return lines
         .map((l, i) => {
           const isFirst = i === 0;
@@ -10199,6 +10299,7 @@ function renderPreOrderPoList() {
               <div class="font-semibold text-gray-700 text-xs">${escapeHtml(poId)}</div>
               <div class="text-[11px] text-gray-400">${escapeHtml((first.openedAt || "").slice(0, 10))}</div>
               <button type="button" class="po-print-btn text-[11px] bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold px-2 py-1 rounded-lg mt-1" data-po-id="${escapeHtml(poId)}">🖨️ พิมพ์ใบจอง</button>
+              ${bulkDepositBtnHtml}
             </td>
             <td rowspan="${lines.length}" class="py-2 pr-3 align-top bg-emerald-50/30">
               <div class="font-medium text-gray-700">${escapeHtml(first.customerName || "-")}</div>
@@ -10221,6 +10322,13 @@ function renderPreOrderPoList() {
     .join("");
 
   wirePreOrderActionButtons(tbody);
+
+  tbody.querySelectorAll(".po-list-bulk-deposit-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const group = poListBulkDepositGroups[Number(btn.getAttribute("data-group-idx"))];
+      if (group) openPoBulkDepositModal(group);
+    });
+  });
 }
 
 /* ---------------- มุมมองที่ 2: ตามลูกค้า ---------------- */
@@ -11329,6 +11437,204 @@ function setupPoBulkFulfillModal() {
   document.getElementById("poBulkFulfillDeliveryFeeInput").addEventListener("input", updatePoBulkFulfillDueText);
 }
 
+/* -----------------------------------------------------------------
+   เพิ่มมัดจำหลายรายการ (poBulkDepositModal) — added 2026-10 per Wing's
+   request: a PO booked with several lines, none paid a deposit at
+   booking time (a regular customer phoned in a big order, say 14
+   items, logged as a placeholder before any money changed hands), whose
+   customer later transfers ONE lump sum covering all of them. Clicking
+   "เพิ่มมัดจำ" on each of the 14 lines one at a time works but is slow and
+   easy to miscount — this lets Wing type the total received once, split
+   it evenly across whichever lines she checks (or hand-adjust any line's
+   share after the split), and submit all of it in one call.
+   Never touches Sales_History or closes anything — purely tops up each
+   selected line's own running "Deposit Amount", same math as the
+   single-line poAddDepositModal above, just looped server-side inside
+   one lock (see handleAddBulkPreOrderDeposit_). Triggered only from the
+   "💰 เพิ่มมัดจำ (N)" button on a PO group in the ตามใบจอง list — see
+   renderPreOrderPoList(), which only shows that button when the PO has
+   2+ lines still open (รอสินค้า/แจ้งยอดแล้ว).
+   ----------------------------------------------------------------- */
+let poBulkDepositState = null; // { lines, checked:Set, amounts:Map<lineId,string> } while the modal is open
+
+function openPoBulkDepositModal(group) {
+  poBulkDepositState = {
+    lines: group.lines,
+    checked: new Set(group.lines.map((l) => l.lineId)),
+    amounts: new Map(group.lines.map((l) => [l.lineId, ""]))
+  };
+  document.getElementById("poBulkDepositCustomerName").textContent = group.customerName || "ลูกค้าขาจร";
+  const codeWrap = document.getElementById("poBulkDepositCustomerCodeWrap");
+  const codeHtml = customerCodeBadgeHtml(group.customerCode);
+  codeWrap.innerHTML = codeHtml;
+  codeWrap.classList.toggle("hidden", !codeHtml);
+  document.getElementById("poBulkDepositTotalInput").value = "";
+  document.getElementById("poBulkDepositMethodSelect").value = "cash";
+  hidePoBulkDepositModalError();
+  renderPoBulkDepositChecklist();
+  document.getElementById("poBulkDepositModal").classList.remove("hidden");
+}
+
+function closePoBulkDepositModal() {
+  poBulkDepositState = null;
+  document.getElementById("poBulkDepositModal").classList.add("hidden");
+}
+
+function renderPoBulkDepositChecklist() {
+  const state = poBulkDepositState;
+  const box = document.getElementById("poBulkDepositChecklist");
+  box.innerHTML = state.lines
+    .map((l) => {
+      const checked = state.checked.has(l.lineId);
+      const amountVal = state.amounts.get(l.lineId) || "";
+      return `
+      <div class="border-2 rounded-lg px-3 py-2 transition ${checked ? "border-sky-500 bg-sky-50" : "border-gray-200"}">
+        <label class="flex items-center gap-3 text-sm cursor-pointer">
+          <input type="checkbox" class="po-bulk-deposit-checkbox w-4 h-4" data-line-id="${escapeHtml(l.lineId)}" ${checked ? "checked" : ""}>
+          <span class="flex-1">${escapeHtml(l.itemName)} <span class="text-gray-400 text-xs">x${l.qty}</span>
+            <div class="text-[11px] text-gray-400 font-normal">${escapeHtml(preOrderDepositSummaryText(l))}</div>
+          </span>
+          <input type="number" min="0" step="0.01" class="po-bulk-deposit-amount-input w-28 border-2 border-gray-200 rounded-lg px-2 py-1 text-sm text-right focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-500"
+                 data-line-id="${escapeHtml(l.lineId)}" placeholder="0.00" value="${escapeHtml(amountVal)}" ${checked ? "" : "disabled"}>
+        </label>
+      </div>`;
+    })
+    .join("");
+
+  box.querySelectorAll(".po-bulk-deposit-checkbox").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      const id = cb.getAttribute("data-line-id");
+      if (cb.checked) state.checked.add(id);
+      else {
+        state.checked.delete(id);
+        state.amounts.set(id, "");
+      }
+      renderPoBulkDepositChecklist();
+      updatePoBulkDepositAllocatedText_();
+    });
+  });
+  box.querySelectorAll(".po-bulk-deposit-amount-input").forEach((input) => {
+    input.addEventListener("input", () => {
+      state.amounts.set(input.getAttribute("data-line-id"), input.value);
+      updatePoBulkDepositAllocatedText_();
+    });
+  });
+}
+
+// "➗ แบ่งเท่าๆ กัน" — divides "ยอดรวมที่ได้รับ" evenly across every CHECKED
+// line, rounded to satang; any leftover from rounding (at most a few
+// satang) is dumped onto the last checked line so the parts always sum
+// back to exactly the typed total, never off by a rounding error.
+function splitPoBulkDepositEvenly_() {
+  const state = poBulkDepositState;
+  if (!state) return;
+  const total = Number(document.getElementById("poBulkDepositTotalInput").value) || 0;
+  const checkedIds = state.lines.map((l) => l.lineId).filter((id) => state.checked.has(id));
+  if (checkedIds.length === 0 || total <= 0) {
+    updatePoBulkDepositAllocatedText_();
+    return;
+  }
+  const share = Math.floor((total / checkedIds.length) * 100) / 100;
+  let runningSum = 0;
+  checkedIds.forEach((id, i) => {
+    const isLast = i === checkedIds.length - 1;
+    const amount = isLast ? Math.round((total - runningSum) * 100) / 100 : share;
+    runningSum += amount;
+    state.amounts.set(id, amount > 0 ? String(amount) : "");
+  });
+  renderPoBulkDepositChecklist();
+  updatePoBulkDepositAllocatedText_();
+}
+
+function updatePoBulkDepositAllocatedText_() {
+  const state = poBulkDepositState;
+  if (!state) return;
+  const sum = Array.from(state.checked).reduce((s, id) => s + (Number(state.amounts.get(id)) || 0), 0);
+  const el = document.getElementById("poBulkDepositAllocatedText");
+  el.textContent = formatMoney(sum);
+  const total = Number(document.getElementById("poBulkDepositTotalInput").value) || 0;
+  el.classList.toggle("text-amber-600", total > 0 && Math.abs(sum - total) > 0.01);
+  el.classList.toggle("text-gray-700", !(total > 0 && Math.abs(sum - total) > 0.01));
+}
+
+function showPoBulkDepositModalError(msg) {
+  const el = document.getElementById("poBulkDepositModalError");
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+function hidePoBulkDepositModalError() {
+  const el = document.getElementById("poBulkDepositModalError");
+  el.classList.add("hidden");
+  el.textContent = "";
+}
+
+async function submitPoBulkDeposit() {
+  const state = poBulkDepositState;
+  if (!state) return;
+  hidePoBulkDepositModalError();
+
+  const allocations = [];
+  state.lines.forEach((l) => {
+    if (!state.checked.has(l.lineId)) return;
+    const amount = Number(state.amounts.get(l.lineId)) || 0;
+    if (amount > 0) allocations.push({ lineId: l.lineId, amount: amount });
+  });
+  if (allocations.length === 0) {
+    showPoBulkDepositModalError("กรุณาใส่จำนวนเงินอย่างน้อย 1 รายการ");
+    return;
+  }
+
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl === "YOUR_URL_HERE") {
+    showPoBulkDepositModalError("กรุณาวางลิงก์ Apps Script Web App ที่แท็บ Settings ก่อน");
+    return;
+  }
+
+  const method = document.getElementById("poBulkDepositMethodSelect").value;
+
+  const btn = document.getElementById("poBulkDepositConfirmBtn");
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        action: "addBulkPreOrderDeposit",
+        pin: currentStaff ? currentStaff.pin : "",
+        branch: getBranchCode(),
+        allocations: allocations,
+        method: method
+      })
+    });
+    const result = await response.json();
+    if (!result || result.status !== "success") {
+      throw new Error((result && result.message) || "บันทึกมัดจำไม่สำเร็จ");
+    }
+    showToast(result.message || "บันทึกมัดจำเรียบร้อยแล้ว", "success");
+    closePoBulkDepositModal();
+    loadPreOrders();
+  } catch (err) {
+    console.error(err);
+    showPoBulkDepositModalError(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
+
+function setupPoBulkDepositModal() {
+  document.getElementById("poBulkDepositCancelBtn").addEventListener("click", closePoBulkDepositModal);
+  document.getElementById("poBulkDepositConfirmBtn").addEventListener("click", submitPoBulkDeposit);
+  document.getElementById("poBulkDepositSplitBtn").addEventListener("click", splitPoBulkDepositEvenly_);
+  document.getElementById("poBulkDepositTotalInput").addEventListener("input", updatePoBulkDepositAllocatedText_);
+  document.getElementById("poBulkDepositModal").addEventListener("click", (e) => {
+    if (e.target.id === "poBulkDepositModal") closePoBulkDepositModal();
+  });
+}
+
 /* ---------------- เพิ่มมัดจำ — for customers who top up their deposit
    over several visits instead of paying it all at booking time ---------------- */
 
@@ -12432,6 +12738,7 @@ function setupPreOrderTab() {
   setupPreOrderFulfillModal();
   setupPoBulkFulfillModal();
   setupPreOrderAddDepositModal();
+  setupPoBulkDepositModal();
   setupPreOrderCancelModal();
   setupPoImportTab();
   setupPoProductSearch();
