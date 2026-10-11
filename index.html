@@ -723,14 +723,33 @@
     </div>
 
     <div id="transactionsContent" class="hidden bg-white rounded-xl shadow p-4">
+      <!-- คำอธิบายสีแถวสินค้า (2026-10, per Wing) — ดู transItemLinesHtml_() -->
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3 text-xs text-gray-600">
+        <span class="font-semibold text-gray-500">สีแถวสินค้า:</span>
+        <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded bg-gray-100 border border-gray-200 inline-block"></span>ขายปกติ</span>
+        <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded bg-amber-100 border border-amber-200 inline-block"></span>Pre-Order (จอง/มัดจำ)</span>
+        <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded bg-pink-100 border border-pink-200 inline-block"></span>รับสินค้า (ของจอง)</span>
+      </div>
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <!-- table-fixed + colgroup: ความกว้างคอลัมน์ตายตัว ให้ "ลูกค้า" ชิดเลขบิล
+             ไม่ลอยไปขวา และให้คอลัมน์รายการสินค้ากินพื้นที่ที่เหลือทั้งหมด
+             ชื่อพนักงานย้ายไปอยู่ใต้เลขที่บิลแทนคอลัมน์ของตัวเอง (2026-10, per Wing) -->
+        <table class="w-full text-sm table-fixed min-w-[1000px]">
+          <colgroup>
+            <col style="width:56px">
+            <col style="width:145px">
+            <col style="width:130px">
+            <col>
+            <col style="width:100px">
+            <col style="width:110px">
+            <col style="width:110px">
+          </colgroup>
           <thead class="text-gray-500 border-b">
             <tr>
               <th class="py-2 text-left">เวลา</th>
               <th class="py-2 text-left">เลขที่บิล</th>
-              <th class="py-2 text-left">พนักงาน</th>
-              <th class="py-2 text-left">ลูกค้า</th>
+              <th class="py-2 text-left pl-1">ลูกค้า</th>
+              <th class="py-2 text-left">รายการสินค้า / ราคา</th>
               <th class="py-2 text-right">ยอดรวม</th>
               <th class="py-2 text-center">สถานะ</th>
               <th class="py-2 text-center">การจัดการ</th>
@@ -5109,9 +5128,15 @@ function typeFieldsHtml(item) {
     </div>`;
 
   if (item.type === "pre") {
+    // ช่อง "ค่ามัดจำ (วันนี้)" ขาด data-rerender (2026-10, per Wing: พิมพ์มัดจำ
+    // แล้วช่อง Price ของแถวเองไม่ขยับ ค้างที่ 0.00 — ของจริงยอดรวมด้านล่าง/สรุป
+    // "Pre-Order (มัดจำ)" ถูกอยู่แล้วเพราะ renderGrandTotal() วน collectAmount()
+    // ของทุกแถวใหม่ทุกครั้งไม่ว่าจะพิมพ์ช่องไหน แต่ .row-price-display ของแถวนั้น
+    // เองอัปเดตเฉพาะตอนมี data-rerender เท่านั้น — Pre-Order Price ไม่เกี่ยวกับ
+    // ยอดเลย (collectAmount ของ "pre" ใช้แค่ deposit) แค่ลืมติด flag ให้ deposit)
     return `<div class="mt-1.5 p-2 rounded-lg bg-white/70 border border-dashed border-amber-300 flex flex-wrap gap-3">
       ${field("Pre-Order Price", "agreed", item.agreed, 'data-rerender')}
-      ${field("ค่ามัดจำ (วันนี้)", "deposit", item.deposit)}
+      ${field("ค่ามัดจำ (วันนี้)", "deposit", item.deposit, 'data-rerender')}
     </div>`;
   }
   if (item.type === "rec" && item.lineId) {
@@ -5972,7 +5997,12 @@ function cartItemsForSale(rows) {
       name: item.name,
       qty: qty,
       price: qty > 0 ? Math.round((lineTotal / qty) * 100) / 100 : lineTotal,
-      lineTotal: lineTotal
+      lineTotal: lineTotal,
+      // ประเภทของชิ้นนี้ (branch/rec/ws/sp) — บันทึกลง Items JSON เพื่อให้แท็บ
+      // Transactions ระบายสีแถวได้ (2026-10, per Wing). ตอนแก้ไขบิลเก่า ทุกแถว
+      // ถูกโหลดกลับมาเป็น "branch" (ดู startEditingBill) เลยใช้ savedType ที่จำ
+      // ประเภทเดิมไว้ก่อน กันไม่ให้การแก้บิลลบสีเดิมทิ้ง
+      type: item.savedType || item.type || "branch"
     };
   });
 }
@@ -6518,7 +6548,8 @@ function startEditingBill(transactionId) {
     qty: Number(it.qty) || 0,
     type: "branch", agreed: Number(it.price) || 0, deposit: 0,
     wsPrice: Number(it.price) || 0, spPrice: Number(it.price) || 0,
-    lineId: null, remarkOn: false, remark: ""
+    lineId: null, remarkOn: false, remark: "",
+    savedType: it.type || "" // ประเภทเดิมตอนขาย — cartItemsForSale() ส่งกลับไปตอนบันทึกการแก้ไข
   }));
 
   document.getElementById("customerCodeInput").value = bill.customerCode || "";
@@ -8873,6 +8904,55 @@ async function loadTransactionsForDate() {
   }
 }
 
+// คอลัมน์ "รายการสินค้า / ราคา" ในแท็บ Transactions (2026-10, per Wing) —
+// สร้าง HTML ทีละบรรทัดจาก bill.items (ของที่ขาย/รับจริงในบิล) ต่อด้วย
+// bill.bookedItems (รายการจองใหม่ที่เปิดพร้อมบิลนี้ — backend แนบมาให้จาก
+// ชีต PreOrders ดู attachPreOrderInfoToBills_ ใน pos_backend.gs) ประเภทของ
+// แต่ละชิ้นมาจาก item.type ที่บันทึกตั้งแต่ 2026-10 เป็นต้นไป; บิลเก่าที่ไม่มี
+// type แต่เป็นการรับของจองจริง backend เติม type:"rec" ให้จาก Fulfilled
+// Transaction ID ส่วนที่เหลือถือเป็นขายปกติ
+const TRANS_VISIBLE_ITEM_LINES = 3;
+
+function transItemLinesHtml_(bill) {
+  const lines = [];
+  (bill.items || []).forEach((it) => {
+    const qty = Number(it.qty) || 0;
+    const unit = Number(it.price) || 0;
+    const hasLineTotal = it.lineTotal !== undefined && it.lineTotal !== null && it.lineTotal !== "";
+    const lineTotal = hasLineTotal ? (Number(it.lineTotal) || 0) : unit * qty;
+    lines.push({
+      name: it.name || it.barcode || "-",
+      qty: qty,
+      unitHtml: qty > 1 ? ` <span class="text-gray-400">(@${formatMoney(unit)})</span>` : "",
+      amountHtml: formatMoney(lineTotal),
+      kind: it.type === "rec" ? "rec" : (it.type === "pre" ? "pre" : "normal")
+    });
+  });
+  (bill.bookedItems || []).forEach((b) => {
+    lines.push({
+      name: b.itemName || "-",
+      qty: Number(b.qty) || 0,
+      unitHtml: ' <span class="text-amber-700">(จอง)</span>',
+      amountHtml: `<span class="text-[10px] font-normal text-amber-700">มัดจำ</span> ${formatMoney(b.depositAmount)}`,
+      kind: "pre"
+    });
+  });
+
+  let normalIdx = 0;
+  return lines.map((l, i) => {
+    let bg;
+    if (l.kind === "pre") bg = "bg-amber-100";
+    else if (l.kind === "rec") bg = "bg-pink-100";
+    else bg = (normalIdx++ % 2 === 0) ? "bg-white" : "bg-gray-100";
+    return `
+      <div class="flex items-start gap-2 px-1.5 py-1 ${bg}">
+        <span class="text-gray-400 w-5 flex-shrink-0 text-right">${i + 1}.</span>
+        <span class="flex-1 min-w-0 break-words">${escapeHtml(l.name)} <span class="text-gray-400">x${l.qty}</span>${l.unitHtml}</span>
+        <span class="w-24 flex-shrink-0 text-right font-medium text-gray-700 whitespace-nowrap">${l.amountHtml}</span>
+      </div>`;
+  });
+}
+
 function renderTransactionsTable(bills) {
   document.getElementById("transactionsEmptyState").classList.add("hidden");
   document.getElementById("transactionsContent").classList.remove("hidden");
@@ -8929,18 +9009,55 @@ function renderTransactionsTable(bills) {
              </button>
            </div>`;
 
+      // 2026-10, per Wing (approved mockup v3): รายการสินค้าเรียงทีละบรรทัด
+      // พร้อมราคา สลับสีแบบ Excel (ปกติ=ขาว/เทาอ่อน, Pre=เหลือง, รับของจอง=ชมพู)
+      // ตัดไว้ TRANS_VISIBLE_ITEM_LINES บรรทัดแรก ที่เหลือซ่อนไว้หลังปุ่ม "ดูเพิ่ม"
+      const itemLines = transItemLinesHtml_(bill);
+      const visibleLines = itemLines.slice(0, TRANS_VISIBLE_ITEM_LINES).join("");
+      const hiddenLines = itemLines.slice(TRANS_VISIBLE_ITEM_LINES).join("");
+      const hiddenCount = Math.max(itemLines.length - TRANS_VISIBLE_ITEM_LINES, 0);
+      const itemsCell = itemLines.length === 0
+        ? '<span class="text-gray-300">-</span>'
+        : `<div class="rounded-lg overflow-hidden border border-gray-200">
+             ${visibleLines}
+             ${hiddenCount > 0 ? `<div class="trans-items-more hidden">${hiddenLines}</div>` : ""}
+           </div>
+           ${hiddenCount > 0 ? `
+           <button type="button" class="trans-items-toggle mt-1 text-[11px] font-semibold text-sky-600 hover:text-sky-800 flex items-center gap-1" data-count="${hiddenCount}">
+             <span class="trans-items-toggle-label">ดูเพิ่ม (อีก ${hiddenCount} ชิ้น)</span>
+             <i class="fa-solid fa-chevron-down text-[9px]"></i>
+           </button>` : ""}`;
+
       return `
         <tr class="border-b last:border-b-0 align-top">
           <td class="py-2 text-gray-500 whitespace-nowrap">${time}</td>
-          <td class="py-2 font-medium text-gray-700 whitespace-nowrap">${escapeHtml(bill.transactionId)}</td>
-          <td class="py-2 text-gray-600">${escapeHtml(bill.cashier)}</td>
-          <td class="py-2 text-gray-600">${escapeHtml(bill.customerName || "-")}</td>
+          <td class="py-2 whitespace-nowrap">
+            <div class="font-medium text-gray-700">${escapeHtml(bill.transactionId)}</div>
+            <div class="text-[11px] text-gray-400 mt-0.5"><i class="fa-solid fa-user text-[9px] mr-0.5"></i>${escapeHtml(bill.cashier)}</div>
+          </td>
+          <td class="py-2 pl-1 pr-2 text-gray-600 break-words">${escapeHtml(bill.customerName || "-")}</td>
+          <td class="py-2 pr-3 text-xs text-gray-600">${itemsCell}</td>
           <td class="py-2 text-right font-semibold text-gray-700 whitespace-nowrap">${formatMoney(bill.grandTotal)}</td>
           <td class="py-2 text-center">${statusCell}</td>
           <td class="py-2 text-center">${actionCell}</td>
         </tr>`;
     })
     .join("");
+
+  // ปุ่ม "ดูเพิ่ม / ย่อ" ของคอลัมน์รายการสินค้า
+  tbody.querySelectorAll(".trans-items-toggle").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const more = btn.closest("td").querySelector(".trans-items-more");
+      if (!more) return;
+      const nowHidden = more.classList.toggle("hidden");
+      btn.querySelector(".trans-items-toggle-label").textContent = nowHidden
+        ? `ดูเพิ่ม (อีก ${btn.getAttribute("data-count")} ชิ้น)`
+        : "ย่อ";
+      const icon = btn.querySelector("i");
+      icon.classList.toggle("fa-chevron-down", nowHidden);
+      icon.classList.toggle("fa-chevron-up", !nowHidden);
+    });
+  });
 
   // Wire up every "ขอยกเลิก" button rendered just now.
   tbody.querySelectorAll(".void-bill-btn").forEach((btn) => {
