@@ -8255,6 +8255,10 @@ const PAY_CHANNEL_INFO = {
   copay:    { label: "คนละครึ่ง", icon: "🤝", bar: "bg-pink-400",    solid: "bg-pink-400 text-white",       tint: "bg-pink-50",    text: "text-pink-700",    chip: "bg-pink-50 text-pink-700 border-pink-300",          field: "copayPaid" }
 };
 
+// ป้ายวิธีมัดจำเดิม (ใต้รายการ Rec) / วิธีมัดจำวันนี้ (ตาราง Pre) — "mixed" คือ
+// จ่ายมัดจำมาหลายงวดคนละวิธี (เงินสดบ้าง โอนบ้าง)
+const DEPOSIT_METHOD_LABEL = { cash: "เงินสด", transfer: "โอน", mixed: "หลายวิธี" };
+
 // ตัด ".00" ทิ้ง — โชว์ทศนิยม 2 ตำแหน่งเฉพาะยอดที่มีสตางค์จริง (ใช้ในตารางรายการขาย)
 function formatMoneySmart_(n) {
   const v = Math.round((Number(n) || 0) * 100) / 100;
@@ -8408,25 +8412,34 @@ function renderReportBillsTable_() {
   }
 
   const totals = { cash: 0, transfer: 0, card: 0, copay: 0, all: 0 };
+  const oldDepTotals = { cash: 0, transfer: 0 };
   let pieceCount = 0;
   const body = list.map((b, bi) => {
     PAY_CHANNELS.forEach((k) => { totals[k] += billPayAmount_(b, k); });
     totals.all += Number(b.billTotal) || 0;
+    oldDepTotals.cash += Number(b.oldDepositCash) || 0;
+    oldDepTotals.transfer += Number(b.oldDepositTransfer) || 0;
     const items = (b.items && b.items.length) ? b.items : [{ barcode: "", name: "(ไม่มีรายการสินค้า)", qty: 0, price: 0, lineTotal: 0 }];
     const n = items.length;
     pieceCount += items.reduce((q, it) => q + (Number(it.qty) || 0), 0);
-    const bg = bi % 2 ? "bg-gray-50" : "bg-white";
+    const hasRec = items.some((it) => it.type === "rec");
+    const bg = hasRec ? "bg-pink-50/50" : (bi % 2 ? "bg-gray-50" : "bg-white");
     const time = b.timestamp ? new Date(b.timestamp).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }) : "";
     const shortId = "#" + String(b.transactionId || "").split("-").pop();
 
     const payCells = PAY_CHANNELS.map((k) => {
       const amt = billPayAmount_(b, k);
-      let sub = "";
-      if (k === "cash" && amt > 0 && Number(b.changeGiven) > 0) sub = `ทอน ${formatMoneySmart_(b.changeGiven)}`;
-      if (k === "transfer" && amt > 0 && b.bankAccount && !b.bankIsDefault) sub = `→ ${escapeHtml(shortBankLabel_(b.bankAccount))}`;
+      const subs = [];
+      if (k === "cash" && amt > 0 && Number(b.changeGiven) > 0) subs.push(`ทอน ${formatMoneySmart_(b.changeGiven)}`);
+      if (k === "transfer" && amt > 0 && b.bankAccount && !b.bankIsDefault) subs.push(`→ ${escapeHtml(shortBankLabel_(b.bankAccount))}`);
+      const oldDep = k === "cash" ? Number(b.oldDepositCash) || 0 : k === "transfer" ? Number(b.oldDepositTransfer) || 0 : 0;
+      let oldDepHtml = "";
+      if (oldDep > 0) {
+        oldDepHtml = `<div class="text-gray-400 font-normal leading-tight" style="font-size:.72em" title="มัดจำที่ลูกค้าจ่ายไว้ก่อนหน้า นับเป็นเงินเข้าไปแล้วตอนนั้น ไม่ใช่เงินที่เข้าวันนี้">+มัดจำเดิม ${formatMoneySmart_(oldDep)}</div>`;
+      }
       return `<td rowspan="${n}" class="px-1.5 py-1.5 text-right align-top ${PAY_CHANNEL_INFO[k].tint} ${amt ? PAY_CHANNEL_INFO[k].text : "text-gray-300"} border-l border-white"
                   style="font-size:.9em;${amt ? "font-weight:700" : ""}" ${k === "transfer" && amt > 0 && b.bankAccount ? `title="${escapeHtml(b.bankAccount)}"` : ""}>
-        ${amt ? formatMoneySmart_(amt) : "–"}${sub ? `<div class="font-semibold leading-tight" style="font-size:.78em">${sub}</div>` : ""}
+        ${amt ? formatMoneySmart_(amt) : "–"}${subs.map((s) => `<div class="font-semibold leading-tight" style="font-size:.78em">${s}</div>`).join("")}${oldDepHtml}
       </td>`;
     }).join("");
 
@@ -8437,15 +8450,28 @@ function renderReportBillsTable_() {
         ? Number(it.lineTotal) || 0
         : (Number(it.price) || 0) * qty;
       const barcode = String(it.barcode || "").trim();
+      const isRec = it.type === "rec";
+      const recTag = isRec ? `<span class="flex-shrink-0 bg-pink-500 text-white font-bold rounded px-1 mr-1" style="font-size:.68em">Rec</span>` : "";
+      let recDetail = "";
+      if (isRec && it.rec) {
+        const r = it.rec;
+        const methodLabel = DEPOSIT_METHOD_LABEL[r.depositMethod] || r.depositMethod || "";
+        const depDate = r.depositDate ? new Date(r.depositDate).toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit" }) : "";
+        recDetail = `<div class="text-pink-700 leading-tight" style="font-size:.72em;padding-left:2.4em">
+          ${r.poId ? `ใบจอง ${escapeHtml(r.poId)} · ` : ""}ราคาตกลง ${formatMoneySmart_(lineTotal)} · มัดจำแล้ว ${formatMoneySmart_(r.depositPaid)}${methodLabel ? ` (${methodLabel}${depDate ? " " + depDate : ""})` : ""} · <b>เก็บวันนี้ ${formatMoneySmart_(r.collectToday)}</b>
+        </div>`;
+      }
       const itemCell = `
-        <td class="pl-1 pr-1.5 ${isFirst ? "pt-1.5" : "pt-0.5"} ${isLast ? "pb-1.5" : "pb-0.5"}">
+        <td class="pl-1 pr-1.5 ${isFirst ? "pt-1.5" : "pt-0.5"} ${isLast ? "pb-1.5" : "pb-0.5"} ${isRec ? "bg-pink-100/70" : ""}">
           <div class="flex items-baseline gap-1">
             <span class="text-gray-400 flex-shrink-0 text-right" style="font-size:.7em;width:1.1em">${ii + 1}.</span>
+            ${recTag}
             <span class="flex-1 min-w-0 text-gray-900 font-medium whitespace-nowrap overflow-hidden text-ellipsis" title="${escapeHtml(barcode + " " + (it.name || ""))}">${barcode ? `<span class="text-blue-700 font-semibold font-mono mr-1.5" style="font-size:.88em">${escapeHtml(barcode)}</span>` : ""}${escapeHtml(it.name || "")}</span>
             <span class="flex-shrink-0 ${qty > 1 ? "bg-orange-600 text-white" : "bg-gray-100 text-gray-500"} font-bold rounded-full text-center" style="font-size:.75em;min-width:1.8em;padding:0 .35em">${qty}</span>
             <span class="flex-shrink-0 text-gray-400 text-right" style="font-size:.78em;width:3.7em">${formatMoneySmart_(it.price)}</span>
             <span class="flex-shrink-0 text-gray-800 font-semibold text-right" style="font-size:.85em;width:4em">${formatMoneySmart_(lineTotal)}</span>
           </div>
+          ${recDetail}
         </td>`;
       if (!isFirst) return `<tr class="${bg}">${itemCell}</tr>`;
       return `
@@ -8455,6 +8481,7 @@ function renderReportBillsTable_() {
             <div class="text-gray-500 leading-tight" style="font-size:.72em">${time} · ${escapeHtml(b.cashier || "")}</div>
             ${b.customerName ? `<div class="text-gray-500 leading-tight truncate" style="font-size:.72em">${escapeHtml(b.customerName)}</div>` : ""}
             ${n > 1 ? `<div class="text-orange-700 font-semibold leading-tight" style="font-size:.72em">${n} รายการ</div>` : ""}
+            ${hasRec ? `<div class="text-pink-600 font-semibold leading-tight" style="font-size:.72em">📦 รับของจอง</div>` : ""}
             ${b.deliveryMethod === "delivery" ? `<div class="text-orange-600 font-semibold leading-tight" style="font-size:.72em">🚚 จัดส่ง</div>` : ""}
             ${b.remark ? `<div class="text-amber-700 leading-tight truncate" style="font-size:.72em">📝 ${escapeHtml(b.remark)}</div>` : ""}
           </td>
@@ -8465,7 +8492,45 @@ function renderReportBillsTable_() {
     }).join("");
   }).join("");
 
+  const oldDepAll = oldDepTotals.cash + oldDepTotals.transfer;
+  const todayAll = PAY_CHANNELS.reduce((s, k) => s + totals[k], 0);
+  const footRow = (labelHtml, vals, lastHtml, rowCls) => `
+    <tr class="${rowCls}" style="font-size:.92em">
+      <td colspan="2" class="px-1.5 py-2">${labelHtml}</td>
+      ${PAY_CHANNELS.map((k) => `<td class="px-1.5 py-2 text-right ${vals[k] ? PAY_CHANNEL_INFO[k].text : "text-gray-300"}">${vals[k] ? formatMoneySmart_(vals[k]) : "–"}</td>`).join("")}
+      <td class="px-1.5 py-2 text-right">${lastHtml}</td>
+    </tr>`;
+
+  const footerHtml = oldDepAll > 0
+    ? footRow(
+        `<span class="text-gray-700">รวม ${list.length.toLocaleString()} บิล · ${pieceCount.toLocaleString()} ชิ้น — <b>เงินเข้าวันนี้</b></span>`,
+        totals, `<span class="font-bold">${formatMoneySmart_(todayAll)}</span>`,
+        "border-t-2 border-gray-400 font-bold bg-gray-100 text-gray-700"
+      ) +
+      footRow(
+        `<span class="text-gray-500 font-normal">+ มัดจำเดิมที่ตัดในบิลรับของวันนี้ (จ่ายไว้วันก่อนแล้ว)</span>`,
+        { cash: oldDepTotals.cash, transfer: oldDepTotals.transfer, card: 0, copay: 0 },
+        `<span class="text-gray-500">${formatMoneySmart_(oldDepAll)}</span>`,
+        "bg-gray-50"
+      ) +
+      footRow(
+        `<span class="font-bold text-gray-900">= ยอดขายรวม (ยอดบิล)</span>`,
+        { cash: 0, transfer: 0, card: 0, copay: 0 },
+        `<span class="font-bold text-gray-900">${formatMoneySmart_(totals.all)}</span>`,
+        "bg-gray-100 border-t border-gray-300"
+      )
+    : `<tr class="border-t-2 border-gray-400 font-bold bg-gray-100" style="font-size:.92em">
+        <td colspan="2" class="px-1.5 py-2 text-gray-700">รวม ${list.length.toLocaleString()} บิล · ${pieceCount.toLocaleString()} ชิ้น</td>
+        ${PAY_CHANNELS.map((k) => `<td class="px-1.5 py-2 text-right ${PAY_CHANNEL_INFO[k].text}">${formatMoneySmart_(totals[k])}</td>`).join("")}
+        <td class="px-1.5 py-2 text-right text-gray-900">${formatMoneySmart_(totals.all)}</td>
+      </tr>`;
+
   container.innerHTML = `
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2 text-xs text-gray-500">
+      <span class="font-semibold text-gray-400">สีแถวสินค้า:</span>
+      <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded bg-white border border-gray-300 inline-block"></span>ขายปกติ</span>
+      <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded bg-pink-100 border border-pink-300 inline-block"></span>Rec — รับของจอง</span>
+    </div>
     <div class="overflow-x-auto rounded-lg border border-gray-200">
       <table class="w-full table-fixed min-w-[900px]" style="font-size:15px;font-variant-numeric:tabular-nums">
         <colgroup>
@@ -8484,20 +8549,31 @@ function renderReportBillsTable_() {
           </tr>
         </thead>
         <tbody>${body}</tbody>
-        <tfoot>
-          <tr class="border-t-2 border-gray-400 font-bold bg-gray-100" style="font-size:.92em">
-            <td colspan="2" class="px-1.5 py-2 text-gray-700">รวม ${list.length.toLocaleString()} บิล · ${pieceCount.toLocaleString()} ชิ้น</td>
-            ${PAY_CHANNELS.map((k) => `<td class="px-1.5 py-2 text-right ${PAY_CHANNEL_INFO[k].text}">${formatMoneySmart_(totals[k])}</td>`).join("")}
-            <td class="px-1.5 py-2 text-right text-gray-900">${formatMoneySmart_(totals.all)}</td>
-          </tr>
-        </tfoot>
+        <tfoot>${footerHtml}</tfoot>
       </table>
     </div>`;
 }
 
-// การ์ดมัดจำ Pre ที่รับวันนี้ — ยังใช้หน้าตาเดิม (preRowCardHtml_) แต่ย้ายมาอยู่ใต้
-// ตารางบิลขายแทนการแทรกปนในลิสต์ (ตารางบิลมียอดรวมท้ายตารางที่ต้องตรงกับคอลัมน์
-// "ขายหน้าร้าน" ในการ์ดสรุป — มัดจำไม่ใช่ยอดขาย เลยแยกไว้)
+// จัดกลุ่ม preRows (1 แถว = มัดจำ 1 event) ตาม poId ให้เป็น "1 กลุ่มต่อ 1 ใบจอง"
+// — ใบจองที่มีหลายสินค้า (จองพร้อมกันหลายชิ้น) จะรวมอยู่กลุ่มเดียวกัน
+function groupPreRowsByPo_(rows) {
+  const order = [];
+  const map = {};
+  rows.forEach((r) => {
+    const key = r.poId || r.lineId;
+    if (!map[key]) {
+      map[key] = { poId: r.poId, time: r.timestamp, customer: r.customerName, cashier: r.cashier, items: [] };
+      order.push(map[key]);
+    }
+    map[key].items.push(r);
+  });
+  return order;
+}
+
+// ตาราง "มัดจำ Pre ที่รับวันนี้" (2026-10, per Wing's อนุมัติ mockup_report_rec_pre.html
+// — แบบ 1 "แยกตาราง Pre ไว้ใต้ตารางขาย", จัดกลุ่มเป็น 1 แถวต่อ 1 ใบจอง) — แทนที่
+// รายการการ์ด preRowCardHtml_ เดิม (ซึ่งยังใช้อยู่ที่ Report Master ทุกสาขา ไม่ได้
+// เปลี่ยนตรงนั้น — ดูคอมเมนต์หัวข้อ "REPORT MASTER" ด้านล่าง)
 function renderReportPreList_() {
   const preRows = reportBillsState.preRows;
   const section = document.getElementById("reportPreSection");
@@ -8509,9 +8585,100 @@ function renderReportPreList_() {
   }
   section.classList.remove("hidden");
   const sum = preRows.reduce((s, p) => s + (Number(p.depositAmount) || 0), 0);
+  const groups = groupPreRowsByPo_(preRows);
   document.getElementById("reportPreCountLabel").textContent =
-    `${preRows.length.toLocaleString()} รายการ · รวม ${formatMoney(sum)}`;
-  list.innerHTML = preRows.map((p) => preRowCardHtml_(p, false)).join("");
+    `${groups.length.toLocaleString()} ใบจอง (${preRows.length.toLocaleString()} รายการ) · รวมมัดจำ ${formatMoney(sum)}`;
+
+  const totals = { cash: 0, transfer: 0, card: 0, copay: 0 };
+  const body = groups.map((g, gi) => {
+    const n = g.items.length;
+    const bg = gi % 2 ? "bg-amber-50/60" : "bg-white";
+    const sums = { cash: 0, transfer: 0, card: 0, copay: 0 };
+    g.items.forEach((it) => {
+      const key = it.depositMethod === "transfer" ? "transfer" : "cash";
+      sums[key] += Number(it.depositAmount) || 0;
+    });
+    PAY_CHANNELS.forEach((k) => { totals[k] += sums[k]; });
+    const depTotal = PAY_CHANNELS.reduce((s, k) => s + sums[k], 0);
+    const payCells = PAY_CHANNELS.map((k) => `
+      <td rowspan="${n}" class="px-1.5 py-1.5 text-right align-top ${PAY_CHANNEL_INFO[k].tint} ${sums[k] ? PAY_CHANNEL_INFO[k].text : "text-gray-300"} border-l border-white"
+          style="font-size:.9em;${sums[k] ? "font-weight:700" : ""}">${sums[k] ? formatMoneySmart_(sums[k]) : "–"}</td>`).join("");
+
+    const itemRows = g.items.map((it, ii) => {
+      const isFirst = ii === 0, isLast = ii === n - 1;
+      const qty = Number(it.qty) || 0;
+      const agreedTotal = Number(it.agreedTotal) || 0;
+      const price = qty > 0 ? agreedTotal / qty : agreedTotal;
+      const depositRunning = Number(it.depositAmountRunning) || 0;
+      const remaining = Math.max(0, agreedTotal - depositRunning);
+      const withBillHtml = it.withBill ? ` · จองพร้อมบิล #${escapeHtml(String(it.withBill).split("-").pop())}` : "";
+      const itemCell = `
+        <td class="pl-1 pr-1.5 ${isFirst ? "pt-1.5" : "pt-0.5"} ${isLast ? "pb-1.5" : "pb-0.5"} bg-amber-100/70">
+          <div class="flex items-baseline gap-1">
+            <span class="text-gray-400 flex-shrink-0 text-right" style="font-size:.7em;width:1.1em">${ii + 1}.</span>
+            <span class="flex-shrink-0 bg-amber-500 text-white font-bold rounded px-1 mr-1" style="font-size:.68em">Pre</span>
+            <span class="flex-1 min-w-0 text-gray-900 font-medium whitespace-nowrap overflow-hidden text-ellipsis" title="${escapeHtml(it.itemName || "")}">${escapeHtml(it.itemName || "")}</span>
+            <span class="flex-shrink-0 ${qty > 1 ? "bg-orange-600 text-white" : "bg-gray-100 text-gray-500"} font-bold rounded-full text-center" style="font-size:.75em;min-width:1.8em;padding:0 .35em">${qty}</span>
+            <span class="flex-shrink-0 text-gray-400 text-right" style="font-size:.78em;width:3.7em">${formatMoneySmart_(price)}</span>
+            <span class="flex-shrink-0 text-gray-800 font-semibold text-right" style="font-size:.85em;width:4em">${formatMoneySmart_(agreedTotal)}</span>
+          </div>
+          <div class="text-amber-800 leading-tight" style="font-size:.72em;padding-left:2.4em">
+            ราคาตกลง ${formatMoneySmart_(agreedTotal)} · <b>มัดจำวันนี้ ${formatMoneySmart_(it.depositAmount)}</b> · ค้าง ${formatMoneySmart_(remaining)}${withBillHtml}
+          </div>
+        </td>`;
+      if (!isFirst) return `<tr class="${bg}">${itemCell}</tr>`;
+      return `
+        <tr class="${bg} border-t-2 border-gray-300">
+          <td rowspan="${n}" class="px-1.5 py-1.5 align-top">
+            <div class="flex items-center gap-1">
+              <span class="bg-amber-500 text-white font-bold rounded px-1" style="font-size:.68em">Pre</span>
+              <span class="font-bold text-amber-800" style="font-size:.8em">${escapeHtml(g.poId || "")}</span>
+            </div>
+            <div class="text-gray-500 leading-tight" style="font-size:.72em">${g.time ? new Date(g.time).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }) : ""} · ${escapeHtml(g.cashier || "")}</div>
+            <div class="text-gray-500 leading-tight truncate" style="font-size:.72em">${escapeHtml(g.customer || "ลูกค้าขาจร")}</div>
+            <button type="button" class="pre-edit-customer-btn text-amber-700 hover:underline" style="font-size:.68em" data-line-id="${escapeHtml(g.items[0].lineId)}">
+              <i class="fa-solid fa-pen" style="font-size:.85em"></i> แก้ชื่อ
+            </button>
+          </td>
+          ${itemCell}
+          ${payCells}
+          <td rowspan="${n}" class="px-1.5 py-1.5 text-right align-top" style="font-size:.85em">
+            <div class="text-amber-700 font-semibold" style="font-size:.8em">มัดจำ</div>
+            <div class="font-bold text-amber-800">${formatMoneySmart_(depTotal)}</div>
+          </td>
+        </tr>`;
+    }).join("");
+    return itemRows;
+  }).join("");
+
+  list.innerHTML = `
+    <div class="overflow-x-auto rounded-lg border border-amber-200">
+      <table class="w-full table-fixed min-w-[900px]" style="font-size:15px;font-variant-numeric:tabular-nums">
+        <colgroup>
+          <col style="width:6.2em"><col>
+          <col style="width:4.9em"><col style="width:4.9em"><col style="width:4.9em"><col style="width:4.9em">
+          <col style="width:5.4em">
+        </colgroup>
+        <thead>
+          <tr class="font-semibold text-amber-700 border-b border-amber-200 bg-amber-100" style="font-size:.75em">
+            <th class="px-1.5 py-1.5 text-left">ใบจอง</th>
+            <th class="pl-1 pr-1.5 py-1.5 text-left">
+              <div class="flex gap-1"><span class="flex-1 pl-[1.4em]">สินค้าที่จอง</span><span style="width:2.4em" class="text-center">จำนวน</span><span style="width:5em" class="text-right">ราคา</span><span style="width:4.6em" class="text-right">รวม</span></div>
+            </th>
+            ${PAY_CHANNELS.map((k) => `<th class="px-1.5 py-1.5 text-right whitespace-nowrap ${PAY_CHANNEL_INFO[k].solid}" style="font-size:1.05em">${PAY_CHANNEL_INFO[k].label}</th>`).join("")}
+            <th class="px-1.5 py-1.5 text-right">มัดจำ</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+        <tfoot>
+          <tr class="border-t-2 border-amber-300 font-bold bg-amber-50 text-amber-800" style="font-size:.92em">
+            <td colspan="2" class="px-1.5 py-2">รวมมัดจำ Pre วันนี้ ${groups.length.toLocaleString()} ใบจอง</td>
+            ${PAY_CHANNELS.map((k) => `<td class="px-1.5 py-2 text-right">${totals[k] ? formatMoneySmart_(totals[k]) : "–"}</td>`).join("")}
+            <td class="px-1.5 py-2 text-right">${formatMoneySmart_(sum)}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>`;
   wirePreEditButtons_(list, preRows);
 }
 
