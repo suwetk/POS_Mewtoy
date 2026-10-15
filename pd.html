@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PD — ฐานข้อมูลสินค้า</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans Thai", sans-serif; background:#f3f4f6; margin:0; color:#111827; }
+  * { box-sizing:border-box; }
+  .chip { display:inline-flex; align-items:center; gap:4px; font-size:11px; padding:2px 8px; border-radius:999px; font-weight:600; white-space:nowrap; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; font-size:13px; font-weight:600; padding:7px 12px; border-radius:10px; border:1px solid transparent; cursor:pointer; white-space:nowrap; }
+  .btn:active { transform:scale(.97); } .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .btn-p { background:#6d28d9; color:#fff; } .btn-w { background:#fff; border-color:#d1d5db; color:#374151; } .btn-d { background:#fff; border-color:#fecaca; color:#dc2626; }
+  .btn-s { padding:4px 9px; font-size:12px; }
+  .card { background:#fff; border-radius:16px; box-shadow:0 1px 2px rgba(0,0,0,.06); padding:16px; }
+  .nav { display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius:12px; font-size:13px; font-weight:600; white-space:nowrap; cursor:pointer; color:#4b5563; }
+  .nav.on { background:#6d28d9; color:#fff; }
+  .tab { padding:7px 12px; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; background:#fff; border:1px solid #e5e7eb; color:#4b5563; white-space:nowrap; }
+  .tab.on { background:#ede9fe; border-color:#c4b5fd; color:#5b21b6; }
+  .drop { display:block; border:2px dashed #d1d5db; border-radius:14px; padding:18px; text-align:center; cursor:pointer; transition:.15s; }
+  .drop.drag { border-color:#6d28d9; background:#f5f3ff; }
+  table.g { border-collapse:separate; border-spacing:0; width:100%; font-size:13px; }
+  table.g th { background:#f9fafb; font-weight:600; color:#4b5563; text-align:left; padding:6px 8px; border-bottom:1px solid #e5e7eb; position:sticky; top:0; z-index:2; white-space:nowrap; }
+  table.g td { padding:5px 8px; border-bottom:1px solid #f3f4f6; vertical-align:middle; }
+  table.g tr:hover td { background:#fafafa; }
+  table.g .sl { position:sticky; left:0; background:#fff; z-index:1; } table.g th.sl { z-index:3; background:#f9fafb; }
+  table.g .num { text-align:right; font-variant-numeric:tabular-nums; }
+  .qin { width:62px; text-align:right; border:1px solid #d1d5db; border-radius:8px; padding:3px 6px; font-variant-numeric:tabular-nums; background:#fff; }
+  .qin:focus { outline:2px solid #c4b5fd; border-color:#8b5cf6; } .qin.dirty { background:#fef9c3; } .qin.bad { border-color:#ef4444; background:#fef2f2; }
+  .scrollbox { overflow:auto; max-height:66vh; border:1px solid #e5e7eb; border-radius:12px; background:#fff; }
+  .nm { min-width:220px; max-width:420px; }
+  .era { font-size:10px; padding:1px 6px; border-radius:999px; font-weight:700; white-space:nowrap; }
+  .bcchip { display:inline-flex; gap:4px; align-items:center; font-variant-numeric:tabular-nums; font-size:12px; } .muted { color:#6b7280; }
+  select.sel, input.inp, textarea.inp { border:1px solid #d1d5db; border-radius:8px; padding:5px 8px; font-size:13px; background:#fff; }
+  .kpi { font-size:11px; color:#6b7280; } .kpi + b { font-size:18px; }
+  #printArea { display:none; }
+  @media print { body > *:not(#printArea) { display:none !important; } #printArea { display:block !important; } body { background:#fff; } .pbreak { break-after:page; } }
+</style>
+</head>
+<body>
+
+<div id="loginView" class="min-h-screen flex items-center justify-center p-4">
+  <div class="card w-full max-w-sm">
+    <div class="flex items-center gap-2 mb-1"><i class="fa-solid fa-database text-violet-700 text-xl"></i><h1 class="text-lg font-bold">PD — ฐานข้อมูลสินค้า</h1></div>
+    <p class="text-sm text-gray-500 mb-4">สินค้า · บาร์โค้ดทุกยุค · ประวัติราคา · Product_ID</p>
+    <input id="pinInput" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN (เดียวกับ POS)"
+      class="w-full border rounded-xl px-4 py-3 text-center text-xl tracking-widest mb-3 outline-none focus:ring-2 focus:ring-violet-300">
+    <button id="loginBtn" class="btn btn-p w-full py-3 text-base">เข้าสู่ระบบ</button>
+    <p id="loginErr" class="text-sm text-red-600 mt-3 hidden"></p>
+    <button class="text-xs text-gray-400 mt-4 underline" onclick="openUrlSetting()">⚙️ URL เซิร์ฟเวอร์</button>
+  </div>
+</div>
+
+<div id="mainView" class="hidden max-w-7xl mx-auto p-3 sm:p-5">
+  <header class="flex flex-wrap items-center gap-2 mb-3">
+    <i class="fa-solid fa-database text-violet-700 text-xl"></i>
+    <h1 class="text-lg font-bold mr-2">PD</h1>
+    <nav id="nav" class="flex gap-1 overflow-x-auto mr-auto"></nav>
+    <span id="busy" class="text-xs text-gray-400 hidden"><i class="fa-solid fa-spinner fa-spin"></i></span>
+    <span class="text-sm text-gray-600"><i class="fa-regular fa-user"></i> <span id="userName"></span></span>
+    <button class="btn btn-w btn-s" onclick="openUrlSetting()" title="URL เซิร์ฟเวอร์"><i class="fa-solid fa-gear"></i></button>
+    <button class="btn btn-w btn-s" onclick="logout()">ออก</button>
+  </header>
+  <div id="view"></div>
+</div>
+
+<div id="modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="bg-white w-full sm:max-w-3xl rounded-t-2xl sm:rounded-2xl p-5 max-h-[92vh] overflow-auto" id="modalBody"></div>
+</div>
+<div id="toast" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 text-white text-sm px-4 py-2.5 rounded-full shadow-lg z-[200] max-w-[90%] text-center"></div>
+<div id="printArea"></div>
+
+<script>
+// ---------- utils ----------
+function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+function ss(k, v) { try { if (v === undefined) return sessionStorage.getItem(k); if (v === null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) { return null; } }
+function apiUrl() { return (ls(URL_KEY) || "").trim() || API_URL_DEFAULT; }
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function jsq(s) { return esc(JSON.stringify(String(s == null ? "" : s))); }
+function n0(v) { const n = Number(v); return isNaN(n) ? 0 : n; }
+function isBlank(v) { return v === "" || v === null || v === undefined; }
+function fmt(n) { return Number(n || 0).toLocaleString("th-TH", { maximumFractionDigits: 2 }); }
+function fmt2(n) { return Number(n || 0).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function money(n) { return "฿" + fmt2(n); }
+function r2(x) { return Math.round(n0(x) * 100) / 100; }
+function fmtDate(s) { if (!s) return ""; const p = String(s).slice(0, 10).split("-"); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : s; }
+function todayStr() { return new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10); }
+function daysTo(dateStr) { if (!dateStr) return null; const d = new Date(String(dateStr).slice(0, 10) + "T00:00:00+07:00"); const t = new Date(todayStr() + "T00:00:00+07:00"); return Math.round((d - t) / 86400e3); }
+function chip(s) { return `<span class="chip ${STATUS_COLOR[s] || "bg-gray-100 text-gray-600"}">${esc(s)}</span>`; }
+function safeFile(s) { return String(s || "").replace(/[\\/:*?"<>|]+/g, "_").trim(); }
+let toastTimer;
+function toast(msg, isErr) {
+  const t = document.getElementById("toast"); t.textContent = msg;
+  t.className = "fixed bottom-5 left-1/2 -translate-x-1/2 text-white text-sm px-4 py-2.5 rounded-full shadow-lg z-[200] max-w-[90%] text-center " + (isErr ? "bg-red-600" : "bg-gray-900");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add("hidden"), isErr ? 6000 : 2600);
+}
+let busyN = 0; function busy(on) { busyN += on ? 1 : -1; document.getElementById("busy").classList.toggle("hidden", busyN <= 0); }
+async function api(action, payload) {
+  const url = apiUrl(); if (!url) throw new Error("ยังไม่ได้ตั้ง URL เซิร์ฟเวอร์ — กด ⚙️");
+  busy(true);
+  try {
+    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(Object.assign({ action, pin: S.pin }, payload || {})) });
+    const r = await res.json();
+    if (!r || r.status !== "success") throw new Error((r && r.message) || "เซิร์ฟเวอร์ตอบผิดพลาด");
+    return r.data;
+  } finally { busy(false); }
+}
+async function run(fn) { try { return await fn(); } catch (e) { console.error(e); toast(e.message || String(e), true); } }
+function download(blob, name) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); }
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); toast("คัดลอกแล้ว — วางใน LINE ได้เลย"); }
+  catch (e) { openModal(`<h3 class="font-bold mb-2">คัดลอกข้อความ</h3><textarea class="w-full h-72 border rounded-lg p-2 text-sm" readonly>${esc(text)}</textarea><div class="text-right mt-2"><button class="btn btn-w" onclick="closeModal()">ปิด</button></div>`); }
+}
+function openModal(html) { document.getElementById("modalBody").innerHTML = html; document.getElementById("modal").classList.remove("hidden"); }
+function closeModal() { document.getElementById("modal").classList.add("hidden"); }
+document.getElementById("modal").addEventListener("click", e => { if (e.target.id === "modal") closeModal(); });
+function openUrlSetting() {
+  openModal(`<h3 class="font-bold mb-2">⚙️ URL เซิร์ฟเวอร์ (Apps Script)</h3>
+    <p class="text-xs text-gray-500 mb-2">คัดลอกจาก Apps Script &gt; Deploy &gt; Manage deployments (ลงท้าย /exec)</p>
+    <input id="urlInput" class="w-full border rounded-lg px-3 py-2 text-sm" value="${esc(apiUrl())}">
+    <div class="flex justify-end gap-2 mt-3"><button class="btn btn-w" onclick="closeModal()">ปิด</button>
+    <button class="btn btn-p" onclick="ls('${URL_KEY}', document.getElementById('urlInput').value.trim()); closeModal(); toast('บันทึก URL แล้ว')">บันทึก</button></div>`);
+}
+function wireDrop(id, cb) {
+  const el = document.getElementById(id); if (!el) return;
+  ["dragenter", "dragover"].forEach(ev => el.addEventListener(ev, e => { e.preventDefault(); el.classList.add("drag"); }));
+  ["dragleave", "drop"].forEach(ev => el.addEventListener(ev, e => { e.preventDefault(); el.classList.remove("drag"); }));
+  el.addEventListener("drop", e => { if (e.dataTransfer.files.length) cb(e.dataTransfer.files); });
+}
+function pickFiles(accept, multiple, cb) {
+  // ต้องแปะ input ไว้ในหน้า (ซ่อน) — บางเบราว์เซอร์/iPad ไม่ส่ง change ให้ input ที่ไม่ได้อยู่ในหน้า
+  const i = document.createElement("input"); i.type = "file"; i.accept = accept; i.multiple = !!multiple; i.style.display = "none";
+  i.onchange = () => { const f = Array.from(i.files || []); i.remove(); if (f.length) cb(f); };
+  document.body.appendChild(i); i.click();
+}
+
+</script>
+<script>
+// ===== อ่านไฟล์ Excel (สำเนาจาก PM — แยกไฟล์กันเพื่อไม่ให้ระบบหนึ่งพังแล้วพาอีกระบบพัง) =====
+async function readBook(file) { const buf = await file.arrayBuffer(); return { buf, wb: XLSX.read(buf, { type: "array" }) }; }
+function gridOf(ws, maxRows) {
+  if (!ws || !ws["!ref"]) return [];
+  const r = XLSX.utils.decode_range(ws["!ref"]), out = [];
+  for (let R = 0; R <= Math.min(r.e.r, (maxRows || 20000) - 1); R++) {
+    const row = [];
+    for (let C = 0; C <= Math.min(r.e.c, 60); C++) { const c = ws[XLSX.utils.encode_cell({ r: R, c: C })]; row[C] = c ? c.v : null; }
+    out.push(row);
+  }
+  return out;
+}
+function normBarcode(v) {
+  if (v === null || v === undefined || v === "") return "";
+  if (typeof v === "number") return v > 0 && Number.isFinite(v) ? String(Math.round(v)) : "";
+  const s = String(v).trim().replace(/^'+/, "");
+  if (/^[\d\s\-]+$/.test(s)) return s.replace(/\D/g, "");
+  if (/^\d+(\.\d+)?e\+\d+$/i.test(s)) return String(Math.round(Number(s)));
+  return "";
+}
+function toQty(v) { if (typeof v === "number") return v; const s = String(v == null ? "" : v).replace(/[, ]/g, ""); return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : 0; }
+function hdr(v) { return String(v == null ? "" : v).replace(/\s+/g, " ").trim(); }
+function itemKeyOf(barcode, name) { const b = String(barcode || "").replace(/\D/g, ""); return b.length >= 6 ? b : "N:" + String(name || "").toUpperCase().replace(/\s+/g, " ").trim(); }
+function colName(i) { return XLSX.utils.encode_col(i); }
+const RX = {
+  barcode: [/full\s*jan/i, /barcode|บาร์โค้ด/i, /jan|ean/i],
+  oldBarcode: [/old\s*full\s*jan/i, /old\s*barcode/i],
+  name: [/item\s*name/i, /description/i, /ชื่อสินค้า|รายการสินค้า/, /product/i, /^name$/i],
+  itemCode: [/^item\s*(no\.?|code)$/i],
+  series: [/^series/i], month: [/^month$/i], yen: [/retail.*jpy|yen|jpy/i],
+  pcsCtn: [/pcs\.?\s*\/?\s*c(ar)?t(o)?n|qty\s*\/\s*ctn|ชิ้น\s*\/\s*ลัง/i],
+  price1: [/price\s*1|p1\s*thb/i], price2: [/price\s*2|p2\s*thb/i],
+  remark: [/^remarks?$/i], isNew: [/^new\s*item$/i], offer: [/^offer$/i], type: [/^type$/i],
+  qty: [/order\s*\(\s*pcs\s*\)/i, /mew\s*toy\s*order/i, /order\s*qty|qty\s*order/i, /confirm/i, /^qty$|^จำนวน$/i, /จำนวน|สั่ง/, /qty/i, /^order$/i]
+};
+const NOT_QTY = /ctn|carton|ลัง|amt|amount|ยอดเงิน|price|ราคา|total|retail/i;
+function findHeaderRow(grid) {
+  const all = [].concat(RX.barcode, RX.name, RX.pcsCtn, RX.price1, RX.price2, RX.qty.slice(0, 4), RX.itemCode, RX.offer);
+  let best = -1, bs = 0;
+  for (let r = 0; r < Math.min(grid.length, 40); r++) {
+    let s = 0; (grid[r] || []).forEach(v => { const t = hdr(v); if (t && t.length < 60 && all.some(x => x.test(t))) s++; });
+    if (s > bs) { bs = s; best = r; }
+  }
+  return bs >= 2 ? best : -1;
+}
+function findCol(grid, hr, list, exclude, notCols) {
+  if (hr < 0) return -1; const row = grid[hr] || [];
+  for (const rx of list) for (let c = 0; c < row.length; c++) {
+    const t = hdr(row[c]); if (!t || (notCols && notCols.includes(c)) || (exclude && exclude.test(t))) continue;
+    if (rx.test(t)) return c;
+  }
+  return -1;
+}
+function findBarcodeCol(grid, start, keySet) {
+  const sc = [];
+  for (let r = Math.max(0, start); r < grid.length; r++) (grid[r] || []).forEach((v, c) => {
+    const b = normBarcode(v); if (!b) return;
+    if (keySet) { if (keySet.has(b)) sc[c] = (sc[c] || 0) + 1; }
+    else if (b.length >= 8 && b.length <= 14) sc[c] = (sc[c] || 0) + (b.length === 13 ? 2 : 1);
+  });
+  let best = -1, bs = 0; sc.forEach((s, c) => { if (s > bs) { bs = s; best = c; } }); return best;
+}
+/** วิเคราะห์ชีต → map คอลัมน์ (ใช้ได้ทั้ง Offer / ไฟล์ WS / บิลสินค้าเข้า / List of Stock) */
+function detectMap(grid, keySet) {
+  const hr = findHeaderRow(grid);
+  const m = { headerRow: Math.max(hr, 0) };
+  m.barcode = findBarcodeCol(grid, hr + 1, keySet);
+  if (m.barcode < 0) m.barcode = findCol(grid, hr, RX.barcode, /old/i);
+  m.oldBarcode = findCol(grid, hr, RX.oldBarcode, null, [m.barcode]);
+  m.name = findCol(grid, hr, RX.name, /old|series/i, [m.barcode]);
+  if (m.name < 0) {   // ไม่มีหัว → คอลัมน์ข้อความยาวที่เยอะสุด
+    const sc = []; for (let r = hr + 1; r < Math.min(grid.length, hr + 300); r++) (grid[r] || []).forEach((v, c) => { if (c !== m.barcode && typeof v === "string" && v.trim().length >= 6 && !normBarcode(v)) sc[c] = (sc[c] || 0) + 1; });
+    let b = -1, bs = 0; sc.forEach((s, c) => { if (s > bs) { bs = s; b = c; } }); m.name = b;
+  }
+  m.itemCode = findCol(grid, hr, RX.itemCode, /old/i); m.series = findCol(grid, hr, RX.series); m.month = findCol(grid, hr, RX.month);
+  m.yen = findCol(grid, hr, RX.yen); m.pcsCtn = findCol(grid, hr, RX.pcsCtn); m.price1 = findCol(grid, hr, RX.price1); m.price2 = findCol(grid, hr, RX.price2);
+  m.remark = findCol(grid, hr, RX.remark); m.isNew = findCol(grid, hr, RX.isNew); m.offer = findCol(grid, hr, RX.offer); m.type = findCol(grid, hr, RX.type);
+  m.qty = findCol(grid, hr, RX.qty, NOT_QTY, [m.barcode, m.name, m.pcsCtn]);
+  if (hr < 0) { m.headerRow = 0; if (m.barcode < 0) m.barcode = 1; if (m.name < 0) m.name = 2; if (m.qty < 0) m.qty = 4; }
+  return m;
+}
+function pickSheet(wb, keySet, prefer) {
+  if (prefer) { const s = wb.SheetNames.find(n => n.trim() === prefer); if (s) return s; }
+  let best = wb.SheetNames[0], bs = -1;
+  wb.SheetNames.forEach(n => {
+    let cnt = 0; gridOf(wb.Sheets[n], 3000).forEach(r => (r || []).forEach(v => { const b = normBarcode(v); if (b && (keySet ? keySet.has(b) : b.length >= 12 && b.length <= 14)) cnt++; }));
+    if (cnt > bs) { bs = cnt; best = n; }
+  });
+  return best;
+}
+function extract(grid, m) {
+  const out = [], g = (row, c) => c >= 0 ? row[c] : null;
+  for (let r = m.headerRow + 1; r < grid.length; r++) {
+    const row = grid[r] || [];
+    const barcode = normBarcode(g(row, m.barcode)), name = hdr(g(row, m.name));
+    if (!barcode && !name) continue;
+    if (!barcode && /^(grand\s*)?total|^รวม|^ยอดรวม|^-$/i.test(name)) continue;
+    out.push({
+      r, barcode, name, oldBarcode: normBarcode(g(row, m.oldBarcode)), itemCode: hdr(g(row, m.itemCode)), series: hdr(g(row, m.series)),
+      month: hdr(g(row, m.month)), yen: toQty(g(row, m.yen)) || "", pcsCtn: toQty(g(row, m.pcsCtn)) || "", price1: toQty(g(row, m.price1)) || "",
+      price2: toQty(g(row, m.price2)) || "", remark: hdr(g(row, m.remark)), isNew: /new/i.test(hdr(g(row, m.isNew))),
+      offer: hdr(g(row, m.offer)), cut: /cut/i.test(hdr(g(row, m.type))), qty: m.qty >= 0 ? toQty(g(row, m.qty)) : 0,
+      qtyBlank: m.qty < 0 || g(row, m.qty) === null || g(row, m.qty) === ""
+    });
+  }
+  return out;
+}
+function colOptions(grid, m, sel, allowNone) {
+  const hr = grid[m.headerRow] || [];
+  const width = Math.max(hr.length, ...(grid.slice(m.headerRow, m.headerRow + 30).map(r => (r || []).length)), 1);
+  let h = allowNone !== false ? `<option value="-1" ${sel < 0 ? "selected" : ""}>— ไม่มี —</option>` : "";
+  for (let c = 0; c < width; c++) { const t = hdr(hr[c]); h += `<option value="${c}" ${c === sel ? "selected" : ""}>${colName(c)}${t ? " · " + esc(t.slice(0, 26)) : ""}</option>`; }
+  return h;
+}
+const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+/** หา Closing date ในไฟล์ เช่น "Closing date: September 16, 2026 (Wed) 12:00 JST" / "(ปิดรับ 19/4/26 22.00)" / "(CLOSING 19-4-2026)" */
+function findCloseDate(grid, fileName) {
+  const texts = []; grid.slice(0, 12).forEach(r => (r || []).forEach(v => { if (typeof v === "string") texts.push(v); }));
+  texts.push(fileName || "");
+  for (const t of texts) {
+    let m = /clos\w*\s*(?:date)?\s*:?\s*([A-Za-z]{3,})\.?\s+(\d{1,2}),?\s+(\d{4})/i.exec(t);
+    if (m && MONTHS[m[1].slice(0, 3).toLowerCase()]) return `${m[3]}-${String(MONTHS[m[1].slice(0, 3).toLowerCase()]).padStart(2, "0")}-${m[2].padStart(2, "0")}`;
+    m = /(?:clos\w*|ปิดรับ)\s*:?\s*(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/i.exec(t);
+    if (m) { let y = Number(m[3]); if (y < 100) y += 2000; if (y > 2400) y -= 543; return `${y}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`; }
+  }
+  return "";
+}
+function findOfferNo(rows, fileName) {
+  const cnt = {}; rows.forEach(r => { if (r.offer && r.offer !== "-") cnt[r.offer] = (cnt[r.offer] || 0) + 1; });
+  const top = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
+  if (top) return top[0];
+  const m = /offer[_\s.#]*(?:no\.?)?\s*0*(\d{1,4})/i.exec(fileName || "");
+  if (m) return m[1].padStart(3, "0");
+  if (/list\s*(of\s*)?stock/i.test(fileName || "")) return "LS";
+  return "";
+}
+function findTitle(grid, fileName) {
+  // ชื่อเรื่องจริง (เช่น "★Offer No.013 (AUG) …") — ข้ามหัวคอลัมน์สั้นๆ อย่าง "OFFER"
+  for (const r of grid.slice(0, 6)) for (const v of (r || [])) {
+    const t = typeof v === "string" ? v.trim() : "";
+    if (t.length >= 10 && t.length < 120 && /offer|stock|รายการสินค้า/i.test(t) && !/^closing/i.test(t)) return t;
+  }
+  return fileName.replace(/\.[^.]+$/, "").replace(/^fill\s*/i, "").trim();
+}
+
+</script>
+<script>
+// ===================================================================
+// PD — ฐานข้อมูลสินค้า · หน้าเว็บ static คุยกับ pd_backend.gs
+// โหลดสินค้าทั้งหมดมาไว้ในเครื่อง (ค้นหา/จับคู่เร็ว) แล้วส่งเฉพาะการเปลี่ยนแปลงกลับ
+// ===================================================================
+const API_URL_DEFAULT = "";          // << ใส่ URL /exec ของ pd_backend.gs หรือตั้งผ่าน ⚙️
+const URL_KEY = "pd_api_url", PIN_KEY = "pd_pin";
+const STATUS_COLOR = {};
+let S = { pin: "", user: null, page: "home", all: null, X: null, q: "", flt: "", pg: 0, pairTab: "strong", pairPg: 0, skip: new Set(), sel: {}, imp: [] };
+const ERA_CLS = ["bg-gray-100 text-gray-600", "bg-red-100 text-red-700", "bg-sky-100 text-sky-700", "bg-amber-100 text-amber-800", "bg-violet-100 text-violet-700", "bg-green-100 text-green-700"];
+
+// ---------- login / nav ----------
+async function login(pin) {
+  S.pin = pin; const u = await api("login"); S.user = u; ss(PIN_KEY, pin);
+  document.getElementById("userName").innerHTML = esc(u.name) + ` (${esc(u.role)})` + (u.requirePin === false ? ` <span class="chip bg-amber-100 text-amber-700" title="pd_backend.gs: REQUIRE_PIN = false">โหมดทดสอบ ไม่ใช้ PIN</span>` : "");
+  document.getElementById("loginView").classList.add("hidden"); document.getElementById("mainView").classList.remove("hidden");
+  await loadAll();
+  const h = location.hash.replace(/^#/, "");
+  if (h.startsWith("p=")) { go("products", true); openProduct(decodeURIComponent(h.slice(2))); } else go("home");
+}
+document.getElementById("loginBtn").onclick = async () => {
+  const pin = document.getElementById("pinInput").value.trim(), err = document.getElementById("loginErr"), btn = document.getElementById("loginBtn");
+  err.classList.add("hidden"); btn.disabled = true;
+  try { await login(pin); } catch (e) { err.textContent = e.message; err.classList.remove("hidden"); }
+  btn.disabled = false;
+};
+document.getElementById("pinInput").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("loginBtn").click(); });
+function logout() { ss(PIN_KEY, null); location.hash = ""; location.reload(); }
+function isAdmin() { return S.user && S.user.role === "Admin"; }
+const PAGES = [
+  { id: "home", icon: "fa-house", label: "ภาพรวม" }, { id: "products", icon: "fa-boxes-stacked", label: "สินค้า" },
+  { id: "pairs", icon: "fa-link", label: "จับคู่บาร์โค้ด" }, { id: "import", icon: "fa-file-import", label: "นำเข้า" },
+  { id: "settings", icon: "fa-sliders", label: "ตั้งค่า" }
+];
+function renderNav() {
+  document.getElementById("nav").innerHTML = PAGES.map(p => `<div class="nav ${S.page === p.id ? "on" : ""}" onclick="go('${p.id}')"><i class="fa-solid ${p.icon}"></i><span class="hidden sm:inline">${p.label}${p.id === "pairs" && S.X ? ` <span class="chip bg-white/80 text-violet-700">${S.X.pairCount}</span>` : ""}</span></div>`).join("");
+}
+function go(page, keepHash) {
+  S.page = page; if (!keepHash) location.hash = ""; renderNav();
+  const v = document.getElementById("view");
+  ({ home: renderHome, products: renderProducts, pairs: renderPairs, import: renderImport, settings: renderSettings })[page](v);
+}
+async function reloadAll(msg) { await loadAll(); renderNav(); go(S.page, true); if (msg) toast(msg); }
+
+// ---------- ข้อมูลในเครื่อง ----------
+async function loadAll() { S.all = await api("getAll"); buildIndex(); }
+function eraOf(bc) { let b = null; (S.all.rules || []).forEach(r => { if (String(bc).startsWith(r.prefix) && (!b || r.prefix.length > b.prefix.length)) b = r; }); return b; }
+function eraChip(bc) { const e = eraOf(bc); return e ? `<span class="era ${ERA_CLS[e.order] || ERA_CLS[0]}">${esc(e.era)}</span>` : ""; }
+function bcHtml(bc) { return `<span class="bcchip">${eraChip(bc)}<span>${esc(bc)}</span></span>`; }
+function buildIndex() {
+  const A = S.all, P = {}, BC = {}, POS = {};
+  A.products.forEach(r => P[r[0]] = { id: r[0], name: r[1], brand: r[2], grade: r[3], scale: r[4], series: r[5], yen: r[6], status: r[7], merged: r[8], bcs: [], names: [], pos: [] });
+  A.barcodes.forEach(r => { BC[r[0]] = r[1]; if (P[r[1]]) P[r[1]].bcs.push(r[0]); });
+  A.names.forEach(r => { if (P[r[0]]) P[r[0]].names.push(r[1]); });
+  A.pos.forEach(r => { const o = { bc: r[0], name: r[1], p1: r[2], p2: r[3], yen: r[4], row: r[5] }; (POS[r[0]] = POS[r[0]] || []).push(o); if (BC[r[0]] && P[BC[r[0]]]) P[BC[r[0]]].pos.push(o); });
+  S.X = { P, BC, POS };
+  rebuildDiff();
+  Object.values(P).forEach(p => p.hay = hayOf(p));
+  S.X.pairs = computePairs(); S.X.pairCount = S.X.pairs.length;
+}
+function hayOf(p) { return (p.id + " " + p.name + " " + p.names.join(" ") + " " + p.bcs.join(" ") + " " + p.series).toLowerCase(); }
+function rebuildDiff() {
+  const D = new Set(), BC = S.X.BC;
+  S.all.links.forEach(l => { if (l[2] !== "different") return; const a = BC[l[0]], b = BC[l[1]]; if (a && b) { D.add(a + "|" + b); D.add(b + "|" + a); } });
+  S.X.diff = D;
+}
+function active() { return Object.values(S.X.P).filter(p => p.status !== "รวมแล้ว"); }
+function posPrice(p) { const r = p.pos[0]; return r ? [r.p1, r.p2].filter(x => x !== "").join(" / ") : ""; }
+
+// ---------- จับคู่: หาว่าบาร์โค้ดยุคเก่าตัวไหนน่าจะเป็นสินค้าเดียวกับยุคใหม่ ----------
+const STOP = new Set(["THE", "OF", "AND", "GUNDAM", "VER", "MOBILE", "SUIT", "KIT", "MODEL", "PLASTIC", "BANDAI", "SPIRITS", "NEW", "P", "PB", "PBANDAI", "PREMIUM",
+  "HG", "HGUC", "HGCE", "HGBF", "HGBD", "HGAC", "HGFC", "MG", "RG", "PG", "SD", "BB", "EG", "ENTRY", "GRADE", "HIGH", "MASTER", "REAL", "PERFECT_", "1", "MS"]);
+function normName(n) {
+  return String(n || "").toUpperCase().replace(/P-?BANDAI\s*:?/g, " ").replace(/1\s*\/\s*\d{2,4}/g, " ").replace(/VER\.?\s*KA/g, " VERKA ")
+    .replace(/Ν/g, "NU ").replace(/(\d)\.(\d)/g, "$1x$2").replace(/[^A-Z0-9ก-๙x]+/g, " ").replace(/([A-Z])(\d)/g, "$1 $2").replace(/(\d)([A-Z])/g, "$1 $2");
+}
+const CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
+const TOKC = new Map();
+function toks(n) {
+  const k = String(n || ""); if (TOKC.has(k)) return TOKC.get(k);
+  const s = k.replace(/[①-⑳]/g, c => " " + (CIRCLED.indexOf(c) + 1) + " ");
+  const t = new Set(normName(s).split(" ").filter(t => t && !STOP.has(t)));
+  TOKC.set(k, t); return t;
+}
+let IDF = null;   // คำที่เจอบ่อย (FIGUARTS, OPTION, PARTS…) มีน้ำหนักน้อย
+function wt(t) { return IDF ? (IDF.get(t) || IDF.max) : 1; }
+function gradeOf(name) {
+  const u = " " + String(name || "").toUpperCase().replace(/1\s*\/\s*\d{2,4}/g, " ").replace(/([A-Z])(\d)/g, "$1 $2").replace(/(\d)([A-Z])/g, "$1 $2").replace(/[^A-Z0-9\/]+/g, " ") + " ";
+  const g = [["PG", "PG"], ["MGEX", "MGEX"], ["MGSD", "MGSD"], ["MG", "MG"], ["RG", "RG"], ["HGUC", "HG"], ["HGCE", "HG"], ["HGBF", "HG"], ["HGBD", "HG"], ["HGAC", "HG"], ["HGFC", "HG"], ["HG", "HG"],
+    ["RE/100", "RE/100"], ["RE 100", "RE/100"], ["FULL MECHANICS", "FM"], ["SDCS", "SD"], ["SDW", "SD"], ["BB", "SD"], ["SD", "SD"], ["EG", "EG"], ["ENTRY GRADE", "EG"], ["30 MM", "30MM"], ["30 MS", "30MS"], ["FIGURE RISE", "FRS"]];
+  for (const [k, v] of g) if (u.includes(" " + k + " ")) return v;
+  return "";
+}
+function scaleOf(name) { const m = /1\s*\/\s*(\d{2,4})/.exec(String(name || "")); return m ? "1/" + m[1] : ""; }
+function nameScore(A, B) {
+  let best = 0;
+  A.forEach(a => B.forEach(b => {
+    const ta = toks(a), tb = toks(b); if (!ta.size || !tb.size) return;
+    let inter = 0, uni = 0; ta.forEach(t => { uni += wt(t); if (tb.has(t)) inter += wt(t); }); tb.forEach(t => { if (!ta.has(t)) uni += wt(t); });
+    let s = inter / uni;
+    const na = [...ta].filter(t => /\d/.test(t)), nb = [...tb].filter(t => /\d/.test(t));
+    // เลขที่ต่างกันทั้งสองฝั่ง (SET 01 vs 08, Ver 2.0 vs 3.0) / ตัวอักษรเดี่ยวต่างกัน (COLOR A vs C) = มักเป็นคนละตัว
+    if (na.some(t => !nb.includes(t)) && nb.some(t => !na.includes(t))) s *= 0.55;
+    const la = [...ta].filter(t => /^[A-Z]$/.test(t)), lb = [...tb].filter(t => /^[A-Z]$/.test(t));
+    if (la.some(t => !lb.includes(t)) && lb.some(t => !la.includes(t))) s *= 0.6;
+    if (s > best) best = s;
+  }));
+  return best;
+}
+function computePairs() {
+  const P = S.X.P, rules = S.all.rules || [], top = {};
+  rules.forEach(r => top[r.brand] = Math.max(top[r.brand] || 0, r.order));
+  const fam = {};
+  const act = active();
+  const df = new Map(); act.forEach(p => toks(p.name).forEach(t => df.set(t, (df.get(t) || 0) + 1)));
+  IDF = new Map(); const N = act.length || 1; df.forEach((c, t) => IDF.set(t, Math.log(1 + N / c))); IDF.max = Math.log(1 + N);
+  act.forEach(p => p.bcs.forEach(bc => { const e = eraOf(bc); if (!e) return; const f = (fam[p.id] = fam[p.id] || {}); const x = (f[e.brand] = f[e.brand] || { min: 99, max: 0 }); x.min = Math.min(x.min, e.order); x.max = Math.max(x.max, e.order); }));
+  // ดัชนีคำ ของสินค้าที่มีบาร์โค้ดยุค ≥ 2
+  const idx = {};
+  act.forEach(p => { const f = fam[p.id]; if (!f || !Object.values(f).some(x => x.max >= 2)) return; const ns = [p.name, ...p.names]; ns.forEach(n => toks(n).forEach(t => (idx[t] = idx[t] || new Set()).add(p.id))); });
+  const out = [];
+  act.forEach(o => {
+    const f = fam[o.id]; if (!f) return;
+    Object.entries(f).forEach(([brand, x]) => {
+      if (x.max >= (top[brand] || 0)) return;
+      const on = [o.name, ...o.names], cand = new Map();
+      on.forEach(n => toks(n).forEach(t => (idx[t] || []).forEach(id => cand.set(id, (cand.get(id) || 0) + 1))));
+      const go = gradeOf(o.name), so = scaleOf(o.name);
+      const list = [];
+      cand.forEach((cnt, id) => {
+        if (id === o.id || S.X.diff.has(o.id + "|" + id)) return;
+        const n = P[id], fn = (fam[id] || {})[brand]; if (!fn || fn.min <= x.max) return;
+        const gn = gradeOf(n.name), sn = scaleOf(n.name);
+        if (go && gn && go !== gn) return; if (so && sn && so !== sn) return;
+        let s = nameScore(on, [n.name, ...n.names]);
+        const yo = n0(o.yen || (o.pos[0] || {}).yen), yn = n0(n.yen || (n.pos[0] || {}).yen);
+        if (yo && yn) { if (yo === yn) s += 0.05; else if (Math.max(yo, yn) / Math.min(yo, yn) > 1.8) s -= 0.1; }
+        const via = nameScore([o.name], [n.name]) < s - 0.15;   // ตรงเพราะ "ชื่ออื่น" ไม่ใช่ชื่อหลัก
+        if (s >= (x.max >= 2 ? 0.6 : 0.45)) list.push({ id, s: Math.min(1, Math.round(s * 100) / 100), via });
+      });
+      if (!list.length) return;
+      list.sort((a, b) => b.s - a.s);
+      const strong = list[0].s >= 0.8 && !list[0].via && (!list[1] || list[1].s < 0.8);
+      out.push({ old: o.id, brand, cands: list.slice(0, 4), best: list[0].s, strong });
+    });
+  });
+  out.sort((a, b) => b.best - a.best);
+  return out;
+}
+// ทำในเครื่องให้ตรงกับเซิร์ฟเวอร์ (ไม่ต้องโหลดใหม่ทุกครั้ง)
+function localMerge(keep, drop, name) {
+  const P = S.X.P, K = P[keep], D = P[drop]; if (!K || !D || keep === drop) return;
+  D.bcs.forEach(bc => { S.X.BC[bc] = keep; K.bcs.push(bc); });
+  K.names.push(...D.names); if (D.name && D.name.toUpperCase() !== K.name.toUpperCase()) K.names.push(D.name);
+  if (name) { K.names.push(K.name); K.name = name; }
+  K.pos.push(...D.pos); ["brand", "grade", "scale", "series", "yen"].forEach(f => { if (!K[f] && D[f]) K[f] = D[f]; });
+  D.bcs = []; D.status = "รวมแล้ว"; D.merged = keep; K.hay = hayOf(K);
+  Object.values(P).forEach(p => { if (p.merged === drop) p.merged = keep; });
+}
+function refreshPairs() { rebuildDiff(); S.X.pairs = computePairs(); S.X.pairCount = S.X.pairs.length; renderNav(); }
+
+// ===================================================================
+//  ภาพรวม
+// ===================================================================
+function renderHome(v) {
+  const act = active(), X = S.X, rules = S.all.rules || [];
+  const eraCnt = {}; let other = 0;
+  Object.keys(X.BC).forEach(bc => { const e = eraOf(bc); if (e) eraCnt[e.era] = (eraCnt[e.era] || 0) + 1; else other++; });
+  const multi = act.filter(p => p.bcs.length > 1).length;
+  const dups = Object.values(X.POS).filter(a => a.length > 1 && a[0].bc).length;
+  const lastSync = (S.all.sources || []).find(s => s.type === "Product_ID");
+  v.innerHTML = `
+    ${!act.length ? `<div class="card mb-3 border-2 border-violet-200"><h2 class="font-bold mb-1">เริ่มต้น</h2><p class="text-sm muted mb-3">ดึงสินค้าทั้งหมดจาก Product_ID ของ POS มาเป็นฐาน (อ่านอย่างเดียว ไม่แก้ไฟล์เดิม)</p>
+      <button class="btn btn-p" onclick="syncPid()"><i class="fa-solid fa-cloud-arrow-down"></i> ดึงจาก Product_ID</button></div>` : ""}
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+      <div class="card"><div class="kpi">สินค้า</div><b>${fmt(act.length)}</b><div class="text-xs muted">${fmt(multi)} ตัวมีหลายบาร์โค้ด</div></div>
+      <div class="card"><div class="kpi">บาร์โค้ด</div><b>${fmt(Object.keys(X.BC).length)}</b><div class="text-xs muted">${rules.map(r => `${esc(r.era)} ${fmt(eraCnt[r.era] || 0)}`).join(" · ")} · อื่น ${fmt(other)}</div></div>
+      <div class="card cursor-pointer" onclick="go('pairs')"><div class="kpi">รอจับคู่</div><b class="text-violet-700">${fmt(X.pairCount)}</b><div class="text-xs muted">ชัวร์ ${fmt(X.pairs.filter(p => p.strong).length)} · ต้องดู ${fmt(X.pairs.filter(p => !p.strong).length)}</div></div>
+      <div class="card cursor-pointer" onclick="S.flt='dup'; go('products')"><div class="kpi">บาร์โค้ดซ้ำใน Product_ID</div><b class="${dups ? "text-amber-700" : ""}">${fmt(dups)}</b><div class="text-xs muted">บาร์โค้ดเดียวอยู่หลายแถว</div></div>
+    </div>
+    <div class="card mb-3"><div class="flex flex-wrap items-center gap-2">
+      <div class="mr-auto text-sm">${lastSync ? `ดึง Product_ID ล่าสุด ${esc(lastSync.at)} โดย ${esc(lastSync.by)}` : "ยังไม่ได้ดึง Product_ID"}</div>
+      <button class="btn btn-w" onclick="syncPid()"><i class="fa-solid fa-cloud-arrow-down"></i> ดึงจาก Product_ID อีกครั้ง</button>
+      <button class="btn btn-w" onclick="go('import')"><i class="fa-solid fa-file-import"></i> นำเข้าไฟล์ Dreamtoy</button>
+      <button class="btn btn-p" onclick="exportPid()"><i class="fa-solid fa-table"></i> สร้าง Product_ID ใหม่</button></div>
+      <p class="text-xs muted mt-2">"สร้าง Product_ID ใหม่" เขียนลงแท็บ Product_ID_New ในไฟล์ PD (ไม่แตะ Product_ID ที่ POS ใช้) — คอลัมน์ A–M ตำแหน่งเดิม + Product ID / ยุค ต่อท้าย</p></div>
+    ${sourcesTable(8)}`;
+}
+function sourcesTable(limit) {
+  const src = (S.all.sources || []).slice(0, limit || 999);
+  return `<div class="card"><h3 class="font-bold mb-2">ประวัติการนำเข้า</h3>${src.length ? `<div class="overflow-auto"><table class="g"><thead><tr><th>เมื่อ</th><th>ประเภท</th><th>ไฟล์</th><th>วันที่ไฟล์</th><th>สรุป</th><th>โดย</th></tr></thead><tbody>
+    ${src.map(s => `<tr><td class="text-xs whitespace-nowrap">${esc(s.at)}</td><td>${esc(s.type)} <span class="text-xs muted">${esc(s.supplier)}</span></td><td class="text-xs">${esc(s.fileName)}</td><td class="text-xs">${fmtDate(s.fileDate)}</td><td class="text-xs">${esc(s.summary)}</td><td class="text-xs">${esc(s.by)}</td></tr>`).join("")}
+    </tbody></table></div>` : `<p class="muted text-sm">ยังไม่มี</p>`}</div>`;
+}
+async function syncPid() {
+  if (!confirm("ดึงข้อมูลจาก Product_ID ของ POS (อ่านอย่างเดียว) — บาร์โค้ดใหม่จะสร้างเป็นสินค้า, ชื่อที่ต่างจะเก็บเป็นชื่ออื่น ทำเลยไหม?")) return;
+  await run(async () => { const r = await api("syncProductId"); await reloadAll(); toast("ดึงแล้ว · " + r.summary); });
+}
+async function exportPid() {
+  await run(async () => {
+    const r = await api("exportProductId");
+    const ws = XLSX.utils.aoa_to_sheet(r.data);
+    for (let i = 1; i < r.data.length; i++) { const c = ws[XLSX.utils.encode_cell({ r: i, c: 0 })]; if (c) { c.t = "s"; c.z = "@"; } }
+    ws["!cols"] = [{ wch: 16 }, { wch: 50 }];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Product_ID");
+    XLSX.writeFile(wb, `Product_ID_New_${todayStr()}.xlsx`);
+    toast(`เขียนแท็บ ${r.sheet} แล้ว ${fmt(r.rows)} แถว (บาร์โค้ดใหม่ ${fmt(r.added)}) + ดาวน์โหลด Excel`);
+  });
+}
+
+// ===================================================================
+//  สินค้า
+// ===================================================================
+function renderProducts(v) {
+  const q = S.q.trim().toLowerCase(), terms = q.split(/\s+/).filter(Boolean);
+  const rules = S.all.rules || [];
+  let list = Object.values(S.X.P).filter(p => S.flt === "merged" ? p.status === "รวมแล้ว" : p.status !== "รวมแล้ว");
+  if (S.flt === "multi") list = list.filter(p => p.bcs.length > 1);
+  if (S.flt === "dup") list = list.filter(p => p.bcs.some(bc => (S.X.POS[bc] || []).length > 1));
+  if (S.flt === "noera") list = list.filter(p => p.bcs.length && !p.bcs.some(eraOf));
+  if (S.flt.startsWith("era:")) { const ord = Number(S.flt.slice(4)); list = list.filter(p => p.bcs.some(bc => (eraOf(bc) || {}).order === ord)); }
+  if (terms.length) list = list.filter(p => terms.every(t => p.hay.includes(t)));
+  const per = 100, pages = Math.max(1, Math.ceil(list.length / per)); S.pg = Math.min(S.pg, pages - 1);
+  const shown = list.slice(S.pg * per, S.pg * per + per);
+  v.innerHTML = `
+    <div class="card mb-3 flex flex-wrap items-center gap-2">
+      <input id="pq" class="inp w-72" placeholder="ค้นหา ชื่อ / ชื่ออื่น / บาร์โค้ด / PD…" value="${esc(S.q)}" oninput="clearTimeout(window._qt); window._qt=setTimeout(()=>{S.q=this.value; S.pg=0; renderProducts(document.getElementById('view')); const i=document.getElementById('pq'); i.focus(); i.setSelectionRange(i.value.length,i.value.length);},250)">
+      <select class="sel" onchange="S.flt=this.value; S.pg=0; renderProducts(document.getElementById('view'))">
+        ${[["", "ทั้งหมด"], ["multi", "มีหลายบาร์โค้ด (เชื่อมแล้ว)"], ["dup", "บาร์โค้ดซ้ำใน Product_ID"], ...rules.map(r => ["era:" + r.order, "มีบาร์โค้ด" + r.era]), ["noera", "ไม่ใช่ยุคที่ตั้งไว้"], ["merged", "ที่ถูกรวมไปแล้ว"]].map(([k, l]) => `<option value="${k}" ${S.flt === k ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>
+      <span class="text-sm muted mr-auto">${fmt(list.length)} รายการ</span>
+      ${pages > 1 ? `<button class="btn btn-w btn-s" ${S.pg ? "" : "disabled"} onclick="S.pg--; renderProducts(document.getElementById('view'))">‹</button><span class="text-sm">${S.pg + 1}/${pages}</span><button class="btn btn-w btn-s" ${S.pg < pages - 1 ? "" : "disabled"} onclick="S.pg++; renderProducts(document.getElementById('view'))">›</button>` : ""}
+    </div>
+    <div class="scrollbox"><table class="g"><thead><tr><th>รหัส</th><th class="nm">สินค้า</th><th>ยี่ห้อ / เกรด</th><th>บาร์โค้ด</th><th class="num">Product_ID P1 / P2</th><th class="num">เยน</th></tr></thead><tbody>
+      ${shown.map(p => `<tr class="cursor-pointer" onclick="openProduct(${jsq(p.id)})"><td class="text-xs muted whitespace-nowrap">${esc(p.id)}</td>
+        <td class="nm"><div class="font-medium leading-tight">${esc(p.name)}</div>${p.names.length ? `<div class="text-[11px] muted truncate" style="max-width:400px">ชื่ออื่น: ${esc(p.names.slice(0, 3).join(" · "))}${p.names.length > 3 ? " …" : ""}</div>` : ""}${p.merged ? `<div class="text-[11px] text-violet-700">→ รวมเข้า ${esc(p.merged)}</div>` : ""}</td>
+        <td class="text-xs">${esc(p.brand)} ${esc([p.grade, p.scale].filter(Boolean).join(" "))}</td>
+        <td><div class="flex flex-col gap-0.5">${p.bcs.map(bc => bcHtml(bc) + ((S.X.POS[bc] || []).length > 1 ? ` <span class="chip bg-amber-100 text-amber-700">ซ้ำ ${S.X.POS[bc].length} แถว</span>` : "")).join("")}</div></td>
+        <td class="num text-xs">${esc(posPrice(p))}</td><td class="num text-xs">${p.yen ? fmt(p.yen) : ""}</td></tr>`).join("") || `<tr><td colspan="6" class="text-center muted py-6">ไม่พบ</td></tr>`}
+    </tbody></table></div>`;
+}
+async function openProduct(pid) {
+  location.hash = "p=" + encodeURIComponent(pid);
+  openModal(`<div class="text-center muted py-8"><i class="fa-solid fa-spinner fa-spin"></i></div>`);
+  await run(async () => { S.prod = await api("getProduct", { productId: pid }); drawProduct(); });
+}
+function drawProduct() {
+  const D = S.prod, p = D.product, pid = p["Product ID"], merged = p["Status"] === "รวมแล้ว";
+  const sh = (h, rows, cols) => rows.length ? `<h4 class="font-semibold text-sm mt-4 mb-1">${h}</h4><div class="overflow-auto border rounded-lg"><table class="g"><thead><tr>${cols.map(c => `<th>${c[0]}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${cols.map(c => `<td class="${c[2] || ""}">${c[1](r)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>` : "";
+  openModal(`<div class="flex items-start gap-2 mb-2"><div class="mr-auto"><div class="text-xs muted">${esc(pid)} · ${esc(p["Status"])}${merged ? ` → <a class="underline text-violet-700 cursor-pointer" onclick="openProduct(${jsq(p["Merged Into"])})">${esc(p["Merged Into"])}</a>` : ""}</div>
+      <input id="pdName" class="inp w-full font-bold text-base mt-1" style="min-width:320px" value="${esc(p["Name"])}"></div><button class="btn btn-w btn-s" onclick="closeModal(); location.hash=''">✕</button></div>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+      ${[["Brand", "ยี่ห้อ"], ["Grade", "เกรด"], ["Scale", "สเกล"], ["Series", "ซีรีส์"]].map(([k, l]) => `<label>${l}<input class="inp w-full mt-1" data-pf="${k.toLowerCase()}" value="${esc(p[k])}"></label>`).join("")}</div>
+    <div class="flex gap-2 mt-2"><button class="btn btn-p btn-s" onclick="saveProduct()">บันทึกข้อมูลสินค้า</button>${p["Yen"] ? `<span class="text-sm muted self-center">ราคาญี่ปุ่นล่าสุด ¥${fmt(p["Yen"])}</span>` : ""}</div>
+    ${sh("บาร์โค้ด (" + D.barcodes.length + ")", D.barcodes, [["บาร์โค้ด", b => bcHtml(b["Barcode"])], ["ที่มา", b => esc(b["Source"]), "text-xs"], ["เห็นครั้งแรก–ล่าสุด", b => esc(fmtDate(b["First Seen"]) + " – " + fmtDate(b["Last Seen"])), "text-xs"],
+      ["", b => D.barcodes.length > 1 ? `<button class="btn btn-w btn-s" onclick="splitBc(${jsq(b["Barcode"])})" title="รวมผิด → แยกบาร์โค้ดนี้ออกเป็นสินค้าใหม่">แยกออก</button>` : ""]])}
+    ${D.names.length ? `<h4 class="font-semibold text-sm mt-4 mb-1">ชื่ออื่น</h4><div class="text-sm">${D.names.map(n => `<div>• ${esc(n["Name"])} <span class="text-xs muted">${esc(n["Source"])}</span></div>`).join("")}</div>` : ""}
+    ${sh("แถวใน Product_ID (POS)", D.pos, [["แถว", r => esc(r["Row"])], ["บาร์โค้ด", r => esc(r["Barcode"]), "text-xs"], ["Full Name", r => esc(r["Full Name"])], ["Shopee", r => esc(r["Shopee"]), "num"], ["Price 1", r => esc(r["Price 1"]), "num"], ["Price 2", r => esc(r["Price 2"]), "num"], ["Yen", r => esc(r["Yen"]), "num"], ["Cost", r => esc(r["Cost"]), "num"], ["Brand", r => esc(r["Brand"])]])}
+    ${sh("ประวัติราคาทุน", D.prices, [["วันที่", r => fmtDate(r["Date"])], ["ซัพ", r => esc(r["Supplier"])], ["บาร์โค้ด", r => esc(r["Barcode"]), "text-xs"], ["Price 1", r => fmt(r["Price 1"]), "num"], ["Price 2", r => fmt(r["Price 2"]), "num"], ["เยน", r => fmt(r["Yen"]), "num"], ["", r => esc(r["Note"]), "text-xs muted"]])}
+    ${sh("รหัสสินค้าของซัพ", D.supplierItems, [["ซัพ", r => esc(r["Supplier"])], ["รหัส", r => esc(r["Supplier Code"])], ["ชิ้น/ลัง", r => esc(r["Pcs/Ctn"]), "num"], ["เห็น", r => esc(fmtDate(r["First Seen"]) + " – " + fmtDate(r["Last Seen"])), "text-xs"]])}
+    ${sh("การตัดสินจับคู่", D.links, [["A", r => esc(r["Barcode A"]), "text-xs"], ["B", r => esc(r["Barcode B"]), "text-xs"], ["ผล", r => r["Decision"] === "same" ? "ตัวเดียวกัน" : "ไม่ใช่"], ["วิธี", r => esc(r["Method"]), "text-xs"], ["โดย", r => esc(r["By"] + " " + r["At"]), "text-xs muted"]])}
+    ${D.mergedFrom.length ? `<p class="text-xs muted mt-3">รวมมาจาก: ${esc(D.mergedFrom.join(", "))}</p>` : ""}
+    ${merged ? "" : `<div class="border-t mt-4 pt-3 flex flex-wrap items-center gap-2 text-sm"><span>รวมสินค้าอื่นเข้ามาที่ตัวนี้ (บาร์โค้ด หรือ PD…)</span><input id="mergeIn" class="inp w-56" placeholder="4543112…"><button class="btn btn-w btn-s" onclick="mergeInto()">รวม</button></div>`}`);
+}
+async function saveProduct() {
+  const p = { productId: S.prod.product["Product ID"], name: document.getElementById("pdName").value.trim() };
+  document.querySelectorAll("#modalBody [data-pf]").forEach(i => p[i.dataset.pf] = i.value.trim());
+  await run(async () => { await api("updateProduct", p); const L = S.X.P[p.productId]; if (L) { if (p.name && p.name !== L.name) { L.names.push(L.name); L.name = p.name; } ["brand", "grade", "scale", "series"].forEach(k => L[k] = p[k]); L.hay = hayOf(L); }
+    toast("บันทึกแล้ว"); S.prod = await api("getProduct", { productId: p.productId }); drawProduct(); });
+}
+async function splitBc(bc) {
+  if (!confirm(`แยกบาร์โค้ด ${bc} ออกเป็นสินค้าใหม่?`)) return;
+  await run(async () => { const r = await api("split", { barcode: bc }); await loadAll(); renderNav(); toast("แยกแล้ว → " + r.productId); openProduct(r.productId); });
+}
+async function mergeInto() {
+  const keep = S.prod.product["Product ID"], t = document.getElementById("mergeIn").value.trim();
+  const drop = S.X.P[t] ? t : S.X.BC[t.replace(/\D/g, "")] || S.X.BC[t];
+  if (!drop) return toast("ไม่พบบาร์โค้ด/รหัสนี้", true);
+  if (drop === keep) return toast("เป็นสินค้าเดียวกันอยู่แล้ว", true);
+  if (!confirm(`รวม "${S.X.P[drop].name}" เข้ากับสินค้านี้?`)) return;
+  await run(async () => { await api("merge", { pairs: [{ keep, drop, a: S.X.P[drop].bcs[0], b: S.prod.barcodes[0] && S.prod.barcodes[0]["Barcode"], method: "รวมเองจากหน้าสินค้า" }] });
+    localMerge(keep, drop); refreshPairs(); S.prod = await api("getProduct", { productId: keep }); drawProduct(); toast("รวมแล้ว"); });
+}
+
+// ===================================================================
+//  จับคู่บาร์โค้ด
+// ===================================================================
+function renderPairs(v) {
+  const X = S.X, all = X.pairs.filter(p => !S.skip.has(p.old));
+  const strong = all.filter(p => p.strong), med = all.filter(p => !p.strong);
+  const tab = S.pairTab;
+  v.innerHTML = `
+    <div class="card mb-3"><div class="flex flex-wrap items-center gap-2">
+      <div class="mr-auto text-sm">บาร์โค้ดยุคเก่าที่น่าจะเป็นสินค้าเดียวกับยุคใหม่ — ตัดสินแล้วระบบจำไว้ (ทั้ง "ใช่" และ "ไม่ใช่") ไม่ถามซ้ำ</div>
+      <div class="tab ${tab === "strong" ? "on" : ""}" onclick="S.pairTab='strong'; S.pairPg=0; renderPairs(document.getElementById('view'))">ชัวร์ ${strong.length}</div>
+      <div class="tab ${tab === "med" ? "on" : ""}" onclick="S.pairTab='med'; S.pairPg=0; renderPairs(document.getElementById('view'))">ต้องดู ${med.length}</div>
+      ${S.skip.size ? `<button class="btn btn-w btn-s" onclick="S.skip.clear(); renderPairs(document.getElementById('view'))">แสดงที่ข้าม (${S.skip.size})</button>` : ""}
+    </div><p class="text-xs muted mt-1">กฎยุค: ${(S.all.rules || []).map(r => `<span class="era ${ERA_CLS[r.order] || ERA_CLS[0]}">${esc(r.era)}</span> ${esc(r.prefix)}`).join(" · ")} (แก้ได้ที่ตั้งค่า) · ต้องเกรด/สเกลตรงกัน · รวมแล้วเก็บชื่อ+รหัสของตัวยุคใหม่</p></div>
+    <div id="pairBody"></div>`;
+  const body = document.getElementById("pairBody");
+  if (tab === "strong") drawStrong(body, strong); else drawMed(body, med);
+}
+function sideHtml(p) {
+  if (!p) return "";
+  return `<div class="font-medium leading-tight">${esc(p.name)}</div><div class="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">${p.bcs.map(bcHtml).join("")}</div>
+    <div class="text-[11px] muted">${esc(p.id)}${posPrice(p) ? " · P " + esc(posPrice(p)) : ""}${n0(p.yen || (p.pos[0] || {}).yen) ? " · ¥" + fmt(n0(p.yen || p.pos[0].yen)) : ""}${p.names.length ? " · ชื่ออื่น " + p.names.length : ""}</div>`;
+}
+function drawStrong(body, list) {
+  const per = 50, pages = Math.max(1, Math.ceil(list.length / per)); S.pairPg = Math.min(S.pairPg, pages - 1);
+  const shown = list.slice(S.pairPg * per, S.pairPg * per + per);
+  shown.forEach(p => { if (!(p.old in S.sel)) S.sel[p.old] = true; });
+  const nSel = shown.filter(p => S.sel[p.old]).length;
+  body.innerHTML = list.length ? `
+    <div class="card mb-2 flex flex-wrap items-center gap-2 sticky top-0 z-10"><span class="text-sm mr-auto">ชื่อแทบเหมือนกัน — ตรวจด้วยตาแล้วเอาติ๊กออกตัวที่ไม่ใช่ · หน้า ${S.pairPg + 1}/${pages}</span>
+      <button class="btn btn-w btn-s" onclick="${shown.map(p => `S.sel[${jsq(p.old)}]=false;`).join("")} renderPairs(document.getElementById('view'))">เอาติ๊กออกหมด</button>
+      <button class="btn btn-p" id="mergeSelBtn" onclick="mergeSelected()" ${nSel ? "" : "disabled"}><i class="fa-solid fa-link"></i> รวมที่ติ๊ก (${nSel})</button></div>
+    <div class="scrollbox" style="max-height:70vh"><table class="g"><thead><tr><th>✓</th><th class="nm">ยุคเก่า</th><th></th><th class="nm">ยุคใหม่</th><th class="num">คะแนน</th><th></th></tr></thead><tbody>
+    ${shown.map(p => { const O = S.X.P[p.old], N = S.X.P[p.cands[0].id];
+      return `<tr><td><input type="checkbox" ${S.sel[p.old] ? "checked" : ""} onchange="S.sel[${jsq(p.old)}]=this.checked; document.getElementById('mergeSelBtn').innerHTML='<i class=\\'fa-solid fa-link\\'></i> รวมที่ติ๊ก ('+document.querySelectorAll('#pairBody tbody input:checked').length+')'"></td>
+        <td class="nm">${sideHtml(O)}</td><td class="text-violet-500"><i class="fa-solid fa-arrow-right"></i></td><td class="nm">${sideHtml(N)}</td>
+        <td class="num font-semibold">${Math.round(p.cands[0].s * 100)}%</td>
+        <td class="whitespace-nowrap"><button class="btn btn-w btn-s" onclick="notSame(${jsq(p.old)}, [${jsq(p.cands[0].id)}])">ไม่ใช่</button></td></tr>`; }).join("")}
+    </tbody></table></div>
+    ${pages > 1 ? `<div class="flex justify-center gap-2 mt-2"><button class="btn btn-w btn-s" ${S.pairPg ? "" : "disabled"} onclick="S.pairPg--; renderPairs(document.getElementById('view'))">‹ ก่อนหน้า</button><button class="btn btn-w btn-s" ${S.pairPg < pages - 1 ? "" : "disabled"} onclick="S.pairPg++; renderPairs(document.getElementById('view'))">ถัดไป ›</button></div>` : ""}`
+    : `<div class="card text-center muted py-8">ไม่มีคู่ที่ชัวร์เหลือแล้ว 🎉 — ดูแท็บ "ต้องดู"</div>`;
+}
+function drawMed(body, list) {
+  const per = 15, pages = Math.max(1, Math.ceil(list.length / per)); S.pairPg = Math.min(S.pairPg, pages - 1);
+  const shown = list.slice(S.pairPg * per, S.pairPg * per + per);
+  body.innerHTML = list.length ? `<div class="space-y-3">${shown.map((p, i) => { const O = S.X.P[p.old];
+    return `<div class="card" data-old="${esc(p.old)}"><div class="grid md:grid-cols-2 gap-3">
+      <div><div class="text-xs font-semibold muted mb-1">ยุคเก่า</div>${sideHtml(O)}</div>
+      <div><div class="text-xs font-semibold muted mb-1">น่าจะเป็นตัวไหน?</div>
+        ${p.cands.map((c, j) => `<label class="flex items-start gap-2 p-1.5 rounded-lg hover:bg-violet-50 cursor-pointer"><input type="radio" name="pc${i}" value="${esc(c.id)}" ${j === 0 ? "checked" : ""} class="mt-1">
+          <div class="flex-1">${sideHtml(S.X.P[c.id])}</div><span class="text-xs font-semibold whitespace-nowrap">${Math.round(c.s * 100)}%${c.via ? `<div class="font-normal text-amber-700">ตรงกับชื่ออื่น</div>` : ""}</span></label>`).join("")}</div></div>
+      <div class="flex flex-wrap justify-end gap-2 mt-2">
+        <button class="btn btn-w btn-s" onclick="S.skip.add(${jsq(p.old)}); renderPairs(document.getElementById('view'))">ข้าม</button>
+        <button class="btn btn-d btn-s" onclick="notSame(${jsq(p.old)}, [${p.cands.map(c => jsq(c.id)).join(",")}])">ไม่มีคู่ (ไม่ใช่ทุกตัว)</button>
+        <button class="btn btn-p btn-s" onclick="mergeOne(${jsq(p.old)}, document.querySelector('input[name=pc${i}]:checked').value, ${jsq(String(p.cands[0].s))})"><i class="fa-solid fa-link"></i> ใช่ — ตัวที่เลือก</button></div></div>`; }).join("")}</div>
+    ${pages > 1 ? `<div class="flex justify-center gap-2 mt-3"><button class="btn btn-w btn-s" ${S.pairPg ? "" : "disabled"} onclick="S.pairPg--; renderPairs(document.getElementById('view'))">‹ ก่อนหน้า</button><span class="text-sm self-center">${S.pairPg + 1}/${pages}</span><button class="btn btn-w btn-s" ${S.pairPg < pages - 1 ? "" : "disabled"} onclick="S.pairPg++; renderPairs(document.getElementById('view'))">ถัดไป ›</button></div>` : ""}`
+    : `<div class="card text-center muted py-8">ไม่มีคู่ที่ต้องดูแล้ว</div>`;
+}
+function pairPayload(oldId, newId, score, method) {
+  const O = S.X.P[oldId], N = S.X.P[newId];
+  return { keep: newId, drop: oldId, a: O.bcs[0], b: N.bcs[0], score, method };
+}
+async function mergeSelected() {
+  const per = 50, strong = S.X.pairs.filter(p => p.strong && !S.skip.has(p.old));
+  const rows = strong.slice(S.pairPg * per, S.pairPg * per + per).filter(p => S.sel[p.old]);
+  if (!rows.length) return;
+  await run(async () => {
+    const pairs = rows.map(p => pairPayload(p.old, p.cands[0].id, p.cands[0].s, "คนยืนยัน (ชัวร์)"));
+    const r = await api("merge", { pairs });
+    pairs.forEach(p => localMerge(p.keep, p.drop));
+    refreshPairs(); renderPairs(document.getElementById("view")); toast(`รวมแล้ว ${r.merged} คู่`);
+  });
+}
+async function mergeOne(oldId, newId, score) {
+  await run(async () => { const p = pairPayload(oldId, newId, n0(score), "คนยืนยัน"); await api("merge", { pairs: [p] }); localMerge(p.keep, p.drop); refreshPairs(); renderPairs(document.getElementById("view")); toast("รวมแล้ว"); });
+}
+async function notSame(oldId, ids) {
+  await run(async () => {
+    const O = S.X.P[oldId], pairs = ids.map(id => ({ a: O.bcs[0], b: S.X.P[id].bcs[0] }));
+    await api("markDifferent", { pairs });
+    pairs.forEach(p => S.all.links.push([p.a, p.b, "different", "คนยืนยัน", ""]));
+    delete S.sel[oldId]; refreshPairs(); renderPairs(document.getElementById("view")); toast("บันทึกว่าไม่ใช่แล้ว");
+  });
+}
+
+// ===================================================================
+//  นำเข้า
+// ===================================================================
+function renderImport(v) {
+  v.innerHTML = `
+    <div class="grid md:grid-cols-2 gap-3 mb-3">
+      <div class="card"><h3 class="font-bold mb-1">ไฟล์ซัพ (Dreamtoy Offer / บิล / List of Stock)</h3>
+        <p class="text-sm muted mb-2">ลากได้หลายไฟล์ ระบบเรียงตามวันที่ไฟล์ให้ (เก่า → ใหม่) · ไฟล์เดิมนำเข้าซ้ำไม่ได้</p>
+        <label id="impDrop" class="drop" onclick="pickFiles('.xlsx,.xlsm,.xls', true, fs => run(() => impFiles(fs)))"><i class="fa-solid fa-file-excel text-2xl text-green-600"></i><div class="text-sm mt-1">ลากไฟล์มาวาง หรือกดเลือก</div></label>
+        <ul class="text-xs muted mt-2 list-disc ml-5"><li>ช่อง OLD FULL JAN / OLD BARCODE → เชื่อมบาร์โค้ดเก่า-ใหม่ให้เอง (ชัวร์ 100%)</li><li>ราคา P1 / P2 / เยน เก็บเป็นประวัติ เพิ่มแถวเมื่อราคาเปลี่ยน</li><li>สินค้าที่ยังไม่มี → สร้างใหม่ · ชื่อที่ต่าง → เก็บเป็นชื่ออื่น</li></ul></div>
+      <div class="card"><h3 class="font-bold mb-1">Product_ID (POS)</h3><p class="text-sm muted mb-2">อ่านอย่างเดียว — ดึงซ้ำได้เรื่อยๆ เวลามีคนเพิ่ม/แก้ใน Product_ID</p>
+        <button class="btn btn-w" onclick="syncPid()"><i class="fa-solid fa-cloud-arrow-down"></i> ดึงจาก Product_ID</button></div>
+    </div>
+    ${sourcesTable()}`;
+  wireDrop("impDrop", fs => run(() => impFiles(Array.from(fs))));
+}
+function dateFromName(name) {
+  const m = /(\d{1,2})\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{4})/i.exec(name);
+  if (m) return `${m[3]}-${String(MONTHS[m[2].toLowerCase()]).padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  const d = /(20\d\d)[\-.](\d{1,2})[\-.](\d{1,2})/.exec(name); if (d) return `${d[1]}-${d[2].padStart(2, "0")}-${d[3].padStart(2, "0")}`;
+  return "";
+}
+function hashOf(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return "h" + (h >>> 0).toString(36) + "-" + s.length; }
+async function impFiles(files) {
+  const out = [];
+  for (const file of files) {
+    const { wb } = await readBook(file), sheet = pickSheet(wb), grid = gridOf(wb.Sheets[sheet]), map = detectMap(grid);
+    const rows = extract(grid, map).filter(r => r.barcode && r.barcode.length >= 8).map(r => ({ barcode: r.barcode, oldBarcode: r.oldBarcode, itemCode: r.itemCode, name: r.name, series: r.series, yen: r.yen, pcsCtn: r.pcsCtn, price1: r.price1, price2: r.price2 }));
+    const type = /list\s*(of\s*)?stock/i.test(file.name) ? "List of Stock" : /offer/i.test(file.name + " " + findTitle(grid, file.name)) ? "Offer" : /confirm|รายการสินค้าเข้า|bill|บิล/i.test(file.name) ? "บิล" : "อื่นๆ";
+    out.push({ file, sheet, rows, type, supplier: "Dreamtoy", date: findCloseDate(grid, file.name) || dateFromName(file.name), old: rows.filter(r => r.oldBarcode).length, priced: rows.filter(r => r.price2 || r.price1).length,
+      hash: hashOf(sheet + JSON.stringify(rows.map(r => [r.barcode, r.oldBarcode, r.price1, r.price2, r.yen]))) });
+  }
+  S.imp = out; drawImp();
+}
+function drawImp() {
+  openModal(`<h3 class="font-bold mb-2">นำเข้าไฟล์ซัพ ${S.imp.length} ไฟล์</h3>
+    <div class="overflow-auto"><table class="g"><thead><tr><th>ไฟล์</th><th class="num">รายการ</th><th class="num">มี OLD JAN</th><th class="num">มีราคา</th><th>ประเภท</th><th>ซัพ</th><th>วันที่ไฟล์ *</th></tr></thead><tbody>
+    ${S.imp.map((f, i) => `<tr><td class="text-xs" style="max-width:260px">${esc(f.file.name)}<div class="muted">แท็บ ${esc(f.sheet)}</div></td><td class="num">${fmt(f.rows.length)}</td><td class="num">${fmt(f.old)}</td><td class="num">${fmt(f.priced)}</td>
+      <td><select class="sel" onchange="S.imp[${i}].type=this.value">${["Offer", "บิล", "List of Stock", "อื่นๆ"].map(t => `<option ${t === f.type ? "selected" : ""}>${t}</option>`).join("")}</select></td>
+      <td><input class="inp" style="width:100px" value="${esc(f.supplier)}" oninput="S.imp[${i}].supplier=this.value"></td>
+      <td><input type="date" class="inp ${f.date ? "" : "border-red-400"}" value="${esc(f.date)}" oninput="S.imp[${i}].date=this.value"></td></tr>`).join("")}
+    </tbody></table></div>
+    <p class="text-xs muted mt-2">วันที่ไฟล์ใช้เรียงประวัติราคา — Offer ใช้ Closing date, บิลใช้วันที่ในชื่อไฟล์ ถ้าไม่เจอให้ใส่เอง (ไฟล์เก่าประมาณเดือนก็ได้)</p>
+    <div id="impRes" class="text-sm mt-2"></div>
+    <div class="flex justify-end gap-2 mt-3"><button class="btn btn-w" onclick="closeModal()">ปิด</button><button class="btn btn-p" id="impBtn" onclick="doImp()">นำเข้า (เรียงเก่า → ใหม่)</button></div>`);
+}
+async function doImp() {
+  const bad = S.imp.filter(f => !f.date); if (bad.length) return toast("ใส่วันที่ไฟล์ให้ครบก่อน", true);
+  const list = S.imp.slice().sort((a, b) => a.date.localeCompare(b.date)), res = document.getElementById("impRes");
+  document.getElementById("impBtn").disabled = true;
+  const lines = [];
+  for (const f of list) {
+    try {
+      const r = await api("importSupplier", { supplier: f.supplier, type: f.type, fileName: f.file.name, fileDate: f.date, hash: f.hash, rows: f.rows });
+      lines.push(`<div class="text-green-700">✓ ${esc(f.file.name)} — ${esc(r.summary)}</div>`);
+    } catch (e) { lines.push(`<div class="text-red-600">✗ ${esc(f.file.name)} — ${esc(e.message)}</div>`); }
+    res.innerHTML = lines.join("");
+  }
+  await loadAll(); renderNav(); if (S.page === "import") renderImport(document.getElementById("view"));
+  toast("นำเข้าเสร็จ");
+}
+
+// ===================================================================
+//  ตั้งค่า
+// ===================================================================
+function renderSettings(v) {
+  const A = isAdmin();
+  S.setRules = (S.all.rules || []).map(r => Object.assign({}, r));
+  S.setRoles = (S.all.roles || []).map(r => Object.assign({}, r));
+  v.innerHTML = `<div class="grid lg:grid-cols-2 gap-3">
+    <div class="card"><h3 class="font-bold mb-1">ยุคบาร์โค้ด</h3><p class="text-xs muted mb-2">เลขขึ้นต้น → ยี่ห้อ + ยุค · ลำดับ 1 = เก่าสุด · ระบบเสนอคู่จากยุคเก่าไปยุคใหม่ของยี่ห้อเดียวกัน · ยี่ห้ออื่นที่เปลี่ยนบาร์โค้ดเพิ่มได้เลย</p>
+      <div id="ruleBox"></div>${A ? `<div class="flex gap-2 mt-2"><button class="btn btn-w" onclick="S.setRules.push({prefix:'',brand:'',era:'',order:1,note:''}); drawRules()"><i class="fa-solid fa-plus"></i> เพิ่ม</button><button class="btn btn-p" onclick="saveRules()">บันทึก</button></div>` : ""}</div>
+    <div class="card"><h3 class="font-bold mb-1">สิทธิ์ผู้ใช้ PD</h3><p class="text-xs muted mb-2">PIN ใช้ของ POS · Master = Admin อัตโนมัติ · Office = นำเข้า/จับคู่/แก้สินค้าได้</p>
+      <div id="roleBox"></div>${A ? `<div class="flex gap-2 mt-2"><button class="btn btn-w" onclick="S.setRoles.push({name:'',role:'Office'}); drawRoles()"><i class="fa-solid fa-plus"></i> เพิ่ม</button><button class="btn btn-p" onclick="saveRoles()">บันทึก</button></div>` : ""}
+      <p class="text-xs muted mt-3">เวอร์ชันเซิร์ฟเวอร์ ${esc(S.all.version)}</p></div></div>`;
+  drawRules(); drawRoles();
+}
+function drawRules() {
+  const A = isAdmin();
+  document.getElementById("ruleBox").innerHTML = `<table class="g"><thead><tr><th>ขึ้นต้น</th><th>ยี่ห้อ</th><th>ชื่อยุค</th><th>ลำดับ</th><th>หมายเหตุ</th><th></th></tr></thead><tbody>
+    ${S.setRules.map((r, i) => `<tr>${["prefix", "brand", "era", "order", "note"].map(k => `<td><input class="inp" style="width:${k === "order" ? 50 : k === "note" ? 150 : 100}px" value="${esc(r[k])}" ${A ? "" : "disabled"} oninput="S.setRules[${i}].${k}=this.value"></td>`).join("")}
+      <td>${A ? `<button class="btn btn-d btn-s" onclick="S.setRules.splice(${i},1); drawRules()"><i class="fa-solid fa-xmark"></i></button>` : ""}</td></tr>`).join("")}</tbody></table>`;
+}
+function drawRoles() {
+  const A = isAdmin();
+  document.getElementById("roleBox").innerHTML = S.setRoles.map((r, i) => `<div class="flex gap-2 mb-2"><input class="inp flex-1" placeholder="ชื่อ (ตรงกับ Staff)" value="${esc(r.name)}" ${A ? "" : "disabled"} oninput="S.setRoles[${i}].name=this.value">
+    <select class="sel" ${A ? "" : "disabled"} onchange="S.setRoles[${i}].role=this.value">${["Admin", "Office"].map(x => `<option ${x === r.role ? "selected" : ""}>${x}</option>`).join("")}</select>
+    ${A ? `<button class="btn btn-d btn-s" onclick="S.setRoles.splice(${i},1); drawRoles()"><i class="fa-solid fa-xmark"></i></button>` : ""}</div>`).join("") || `<p class="text-sm muted">ยังไม่มี</p>`;
+}
+async function saveRules() { await run(async () => { S.all.rules = await api("saveEraRules", { rules: S.setRules }); await loadAll(); renderNav(); toast("บันทึกยุคบาร์โค้ดแล้ว"); renderSettings(document.getElementById("view")); }); }
+async function saveRoles() { await run(async () => { S.all.roles = await api("saveRoles", { roles: S.setRoles }); toast("บันทึกสิทธิ์แล้ว"); }); }
+
+// ---------- start ----------
+document.getElementById("modal").addEventListener("click", e => { if (e.target.id === "modal" && location.hash.startsWith("#p=")) location.hash = ""; });
+(async () => {
+  if (!apiUrl()) { openUrlSetting(); return; }
+  const saved = ss(PIN_KEY) || "";
+  try { await login(saved); } catch (e) { ss(PIN_KEY, null); if (saved) { try { await login(""); } catch (e2) {} } }
+})();
+</script>
+</body>
+</html>
