@@ -4573,6 +4573,22 @@ function highlightScanSuggestion(items) {
   if (items[scanSuggestionIndex]) items[scanSuggestionIndex].scrollIntoView({ block: "nearest" });
 }
 
+/* P.Extra (2026-10, per Wing): ราคาพิเศษจากคอลัมน์ P.Extra ใน Product_ID —
+   หลังบ้านส่ง price = P.Extra (ถ้ามี) และแนบ price1 / priceExtra มาด้วย
+   ฟังก์ชันนี้คืนข้อมูลไว้โชว์ป้าย "P.Ext" + ราคาปกติ P1 ให้หน้าร้านเห็น */
+function pExtraInfo_(barcode) {
+  const p = productMap.get(String(barcode));
+  if (!p || !(Number(p.priceExtra) > 0)) return null;
+  return { extra: Number(p.priceExtra), p1: Number(p.price1) || 0 };
+}
+function pExtraBadgeHtml_(info, small) {
+  if (!info) return "";
+  return `<span class="inline-flex items-center gap-1 ${small ? "text-[10px]" : "text-xs"} font-bold text-orange-700 bg-orange-100 border border-orange-300 rounded-full px-2 py-0.5 whitespace-nowrap">
+            <i class="fa-solid fa-star"></i> P.Ext
+            ${info.p1 ? `<span class="font-normal text-orange-600">· ปกติ P1 <span class="line-through">${formatMoney(info.p1)}</span></span>` : ""}
+          </span>`;
+}
+
 function renderSuggestions(matches) {
   const box = document.getElementById("searchSuggestions");
   scanSuggestionIndex = -1; // fresh results — no stale highlight from the last keystroke
@@ -4588,7 +4604,11 @@ function renderSuggestions(matches) {
       <button type="button" data-barcode="${escapeHtml(p.barcode)}"
               class="suggestion-item w-full text-left px-4 py-2 hover:bg-emerald-50 flex justify-between items-center border-b last:border-b-0">
         <span class="text-sm text-gray-700">${escapeHtml(p.name)}</span>
-        <span class="text-xs text-gray-400">${escapeHtml(String(p.barcode))} &middot; ${formatMoney(p.price)} THB</span>
+        <span class="text-xs text-gray-400 flex items-center gap-2">${escapeHtml(String(p.barcode))} &middot;
+          ${Number(p.priceExtra) > 0
+            ? `<span class="font-bold text-orange-600">${formatMoney(p.price)} THB</span>${pExtraBadgeHtml_(pExtraInfo_(p.barcode), true)}`
+            : `${formatMoney(p.price)} THB`}
+        </span>
       </button>`
     )
     .join("");
@@ -4797,7 +4817,12 @@ function handleScan(rawValue) {
   if (product) {
     addOrIncrementCartItem(product.barcode, product.name, product.price, 1);
     hint.classList.add("hidden");
-    showToast(product.name + " เพิ่มลงตะกร้าแล้ว", "success");
+    const ext = pExtraInfo_(product.barcode);
+    if (ext) {
+      showToast("★ ราคาพิเศษ P.Ext " + formatMoney(ext.extra) + " บาท (ปกติ P1 " + formatMoney(ext.p1) + ") — " + product.name, "extra");
+    } else {
+      showToast(product.name + " เพิ่มลงตะกร้าแล้ว", "success");
+    }
   } else {
     // Not found: add it anyway with a blank name/price so scanning never
     // stalls. The row is highlighted amber in the cart until filled in.
@@ -5284,7 +5309,15 @@ function cartRowHtml(item) {
                  value="${item.price}" placeholder="0.00"
                  class="cart-edit-input w-24 text-right bg-transparent border border-transparent hover:border-gray-200
                         focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 focus:bg-white rounded px-2 py-1">
-               ${item.qty > 1 ? `<div class="line-total-hint text-xs text-gray-400 mt-1">= ${formatMoney(item.price * item.qty)} THB</div>` : ""}`
+               ${item.qty > 1 ? `<div class="line-total-hint text-xs text-gray-400 mt-1">= ${formatMoney(item.price * item.qty)} THB</div>` : ""}
+               ${(() => {
+                 const ext = pExtraInfo_(item.barcode);
+                 if (!ext) return "";
+                 // ราคายังเท่า P.Extra → ป้าย P.Ext + ราคาปกติ / แคชเชียร์แก้ราคาเอง → บอกแค่ราคาอ้างอิง
+                 return Math.abs(Number(item.price) - ext.extra) < 0.005
+                   ? `<div class="mt-1 flex justify-end">${pExtraBadgeHtml_(ext, true)}</div>`
+                   : `<div class="mt-1 text-[10px] text-gray-400">P.Ext ${formatMoney(ext.extra)} · P1 ${formatMoney(ext.p1)}</div>`;
+               })()}`
             : `<div class="row-price-display font-semibold px-2 py-1">${formatMoney(collectAmount(item))}</div>`
         }
       </td>
@@ -17344,7 +17377,7 @@ function showToast(message, type) {
   inner.textContent = message;
   inner.className =
     "px-5 py-3 rounded-lg shadow-lg text-white font-medium " +
-    (type === "error" ? "bg-red-500" : "bg-emerald-600");
+    (type === "error" ? "bg-red-500" : type === "extra" ? "bg-orange-500" : "bg-emerald-600");
   toast.classList.remove("hidden");
 
   clearTimeout(toastTimer);
