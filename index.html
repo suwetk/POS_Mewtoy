@@ -4585,7 +4585,7 @@ function pExtraBadgeHtml_(info, small) {
   if (!info) return "";
   return `<span class="inline-flex items-center gap-1 ${small ? "text-[10px]" : "text-xs"} font-bold text-orange-700 bg-orange-100 border border-orange-300 rounded-full px-2 py-0.5 whitespace-nowrap">
             <i class="fa-solid fa-star"></i> P.Ext
-            ${info.p1 ? `<span class="font-normal text-orange-600">· ปกติ P1 <span class="line-through">${formatMoney(info.p1)}</span></span>` : ""}
+            ${info.p1 ? `<span class="font-normal text-orange-600">· ปกติ P1 <span class="font-bold">${formatMoney(info.p1)}</span></span>` : ""}
           </span>`;
 }
 
