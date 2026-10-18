@@ -5104,6 +5104,8 @@ function renderCart() {
         } else {
           // agreed / deposit (pre only — rec's deposit is read-only) / wsPrice / spPrice
           item[field] = parseFloat(input.value) || 0;
+          if (field === "agreed") item.agreedTouched = true;   // พิมพ์ราคาจองเองแล้ว → เปลี่ยนประเภทไปมาไม่ทับ
+          if (field === "wsPrice") item.wsTouched = true;
           if (input.hasAttribute("data-rerender")) {
             // Patch this row's OTHER displayed fields (e.g. Balance Due) in
             // place — NOT a full renderCart(), which would rebuild every
@@ -5346,7 +5348,30 @@ function cartRowHtml(item) {
 function setRowType(id, type) {
   const item = cart.find((i) => i.id === id);
   if (!item) return;
+  const prev = item.type;
   item.type = type;
+  // ราคาตามประเภท (2026-10, ตามที่ตกลงกับ Wing):
+  //   Pre / Rec กรอกเอง → ราคาจอง = Price 2 · ไม่มี Price 2 → ใช้ราคาขายเดิม + เตือนให้เช็ก
+  //   WS → Price 2 · ไม่มี Price 2 → ใส่ 0 + เตือนให้กรอกราคาส่งเอง
+  // เปลี่ยนเฉพาะช่องที่แคชเชียร์ยังไม่ได้พิมพ์เอง · แถวที่ดึงจากใบจองจริง (lineId) ไม่แตะ
+  if (type !== prev && !item.lineId) {
+    const p = productMap.get(String(item.barcode || ""));
+    const p2 = p ? Number(p.price2) || 0 : 0;
+    if ((type === "pre" || type === "rec") && !item.agreedTouched) {
+      if (p2 > 0) item.agreed = p2;
+      else {
+        item.agreed = Number(item.price) || 0;
+        if (item.barcode) showToast("สินค้านี้ไม่มี Price 2 — Pre-Order Price ใช้ราคาขายไปก่อน กรุณาเช็กราคาจอง", "error");
+      }
+    }
+    if (type === "ws" && !item.wsTouched) {
+      if (p2 > 0) item.wsPrice = p2;
+      else {
+        item.wsPrice = 0;
+        if (item.barcode) showToast("สินค้านี้ไม่มี Price 2 — กรอกราคาส่งเอง", "error");
+      }
+    }
+  }
   renderCart();
 }
 
@@ -10126,7 +10151,7 @@ function poSuggestionRowHtml(p, i) {
   const active = i === poHighlightIndex;
   const rightSide = p.isDraft
     ? '<span class="bg-amber-100 text-amber-700 text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ml-2">ยังไม่มีบาร์โค้ดจริง</span>'
-    : `<span class="text-xs text-gray-400">${escapeHtml(String(p.barcode))} &middot; ${formatMoney(p.price)} THB</span>`;
+    : `<span class="text-xs text-gray-400">${escapeHtml(String(p.barcode))} &middot; ราคาจอง ${formatMoney(Number(p.price2) > 0 ? p.price2 : p.price)} THB${Number(p.price2) > 0 ? "" : " (ไม่มี P2)"}</span>`;
   return `
       <button type="button" data-idx="${i}"
               class="po-item-suggestion w-full text-left px-3 py-2 flex justify-between items-center border-b last:border-b-0 ${active ? "bg-emerald-100" : "hover:bg-emerald-50"}">
@@ -10189,7 +10214,9 @@ function selectPoItemSuggestion(p) {
     const totalInput = document.getElementById("poItemAgreedTotalInput");
     if (!totalInput.value) {
       const qty = Number(document.getElementById("poItemQtyInput").value) || 1;
-      totalInput.value = (p.price * qty) || "";
+      const unit = Number(p.price2) > 0 ? Number(p.price2) : Number(p.price) || 0;   // ราคาจอง = Price 2 (ไม่มี → ราคาขาย)
+      totalInput.value = (unit * qty) || "";
+      if (!(Number(p.price2) > 0)) showToast("สินค้านี้ไม่มี Price 2 — ราคาที่ตกลงใช้ราคาขายไปก่อน กรุณาเช็ก", "error");
     }
   }
   hidePoItemSuggestions();
