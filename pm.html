@@ -1476,6 +1476,7 @@ async function openSup(id) {
           tiers: i.tiers && i.tiers.t && i.tiers.t.length ? i.tiers : null };
       }) };
     if (!S.sp.rows.length) S.sp.rows.push(spEmptyRow());
+    spImgRestore(S.sp.rows);
     location.hash = "sup=" + encodeURIComponent(id);
     renderSup();
     run(loadProducts).then(() => { if (S.sp && S.sp.roundId === id && !stale(t)) renderSup(); });
@@ -1486,7 +1487,7 @@ async function openSup(id) {
 function spTotal(r) { return n0(r.shopQty) + n0(r.extraQty) + ((S.sp && S.sp.cust) || []).reduce((s, c) => s + n0((r.qty || {})[c.code]), 0); }
 function renderSup() {
   const m = S.sp, v = document.getElementById("view"); if (!m) return;
-  m.rows.forEach(spTierApply);
+  m.rows.forEach(spTierApply); m.rows.forEach(spImgAuto);
   const sups = (S.spList && S.spList.suppliers) || [];
   const cust = S.boot.customers || [];
   const rows = m.rows.filter(r => r.barcode || r.name);
@@ -1552,8 +1553,7 @@ function spCard(r, i) {
   const p1 = n0(r.price1), cost = n0(r.cost);
   return `<div class="card mb-3">
     <div class="flex flex-wrap gap-4">
-      <div class="w-28 h-28 shrink-0 rounded-lg border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center overflow-hidden text-xs muted text-center">
-        ${r.imageUrl ? `<img src="${esc(r.imageUrl)}" alt="" class="w-full h-full object-cover" onerror="this.replaceWith(document.createTextNode('โหลดรูปไม่ได้'))">` : "ไม่มีรูป<br>(ใส่ URL)"}</div>
+      ${spImgBox(r, i)}
       <div class="flex-1 min-w-[280px] grid grid-cols-2 sm:grid-cols-6 gap-2">
         <div class="col-span-2">${inp("barcode", "Barcode", "font-mono")}
           <div class="text-[11px] mt-0.5">${!b ? '<span class="muted">ใส่/ยิงบาร์โค้ด</span>' : ok === false ? '<span class="text-red-600">เลขตรวจไม่ถูก — เช็กบาร์โค้ด</span>' : '<span class="text-teal-700">✓ เลขตรวจถูก</span>'}
@@ -1700,7 +1700,7 @@ function spParseGrid(grid, fileName) {
     it.barcode = bc; it.name = name; it.itemCode = hdr(v(row, c.itemCode));
     it.series = [v(row, c.cat), v(row, c.series), v(row, c.ptype)].map(hdr).filter(Boolean).join(" · ");
     it.yen = spNum(v(row, c.yen)); it.pcsCtn = spNum(v(row, c.pcs)); it.price1 = spNum(v(row, c.retail)); it.cost = spNum(v(row, c.whole));
-    it.remark = hdr(v(row, c.remark)); it._jp = spYm(v(row, c.jp)); it._asia = spYm(v(row, c.asia));
+    it._row = r; it.remark = hdr(v(row, c.remark)); it._jp = spYm(v(row, c.jp)); it._asia = spYm(v(row, c.asia));
     ["yen", "pcsCtn", "price1", "cost"].forEach(k => { if (typeof it[k] !== "number") it[k] = ""; });
     items.push(it);
   }
@@ -1709,9 +1709,15 @@ function spParseGrid(grid, fileName) {
 async function spImportFile(file) {
   if (!file) return;
   await run(async () => {
-    const { wb } = await readBook(file);
+    const { buf, wb } = await readBook(file);
     let res = null;
-    for (const n of wb.SheetNames) { res = spParseGrid(gridOf(wb.Sheets[n], 3000), file.name); if (res && res.items.length) break; }
+    let sheetN = "";
+    for (const n of wb.SheetNames) { res = spParseGrid(gridOf(wb.Sheets[n], 3000), file.name); sheetN = n; if (res && res.items.length) break; }
+    if (res && res.items.length) {
+      try { const th = await imgExtract(buf, sheetN); res.items.forEach(it => { const u = imgPick(th, it._row, res.items.length); if (!u) return; it._imgFile = u;
+        if (!imgStored(imgKey(it))) { it._imgLocal = u; it._imgSrc = "ไฟล์ซัพ: " + file.name; } }); } catch (e) { console.warn(e); }
+      res.items.forEach(it => delete it._row);
+    }
     if (!res || !res.items.length) return toast("อ่านไฟล์ไม่ได้ — หาแถวหัวตารางที่มี Barcode + Item name ไม่เจอ (ใช้ วางจาก Excel แทน)", true);
     const m = S.sp, first = (k) => res.items.map(x => x[k]).filter(Boolean).sort()[0] || "";
     if (!m.offerNo && res.offerNo) m.offerNo = res.offerNo;
@@ -1779,20 +1785,85 @@ async function saveSup(draft) {
   }
   const bad = rows.filter(r => eanOk(String(r.barcode).replace(/\D/g, "")) === false);
   if (bad.length && !confirm("บาร์โค้ดเลขตรวจไม่ถูก " + bad.length + " รายการ (" + bad.map(r => r.barcode).join(", ") + ") — บันทึกต่อไหม?")) return;
-  const nz = x => x === "" || x == null ? "" : x;
+  await run(async () => {
+  const up = await imgUpload(rows, (m.supplier + " " + m.offerNo).trim());
   const payload = {
     roundId: m.roundId || "", supplier: m.supplier, supplierId: m.supplierId, offerNo: m.offerNo, title: m.title, type: m.type, closeAt: m.closeAt, jpLaunch: m.jpLaunch, arrive: m.arrive,
     remindDays: m.remindDays, notes: m.notes, fileName: m.fileName, draft: !!draft,
     items: rows.map(r => spPayloadItem(r)),
     ws: m.cust.map(c => ({ code: c.code, name: c.name, lines: rows.filter(r => n0(r.qty[c.code]) > 0).map(r => ({ key: itemKeyOf(r.barcode, r.name), qty: n0(r.qty[c.code]) })) }))
   };
-  await run(async () => {
     const res = await api("saveSup", payload);
+    spImgStash(rows);
     S.draft = {}; S.spList = null;
-    toast((draft ? "บันทึกร่าง " : "บันทึกบิล ") + m.supplier + " " + m.offerNo + " · " + res.items + " รายการ");
+    const im = imgUploadMsg(up);
+    toast((draft ? "บันทึกร่าง " : "บันทึกบิล ") + m.supplier + " " + m.offerNo + " · " + res.items + " รายการ" + (im ? " · " + im : ""), !!up.fail);
+    if (up.fail) console.warn(up.errs);
     await openSup(res.roundId);
   });
 }
+
+// ---------- รูปสินค้าในการ์ด (v3.7) ----------
+/** มีรูปของบาร์โค้ดนี้ในระบบแล้ว → ใช้เลย (เว้นแต่กด "ไม่ใช้รูป") */
+function spImgAuto(r) {
+  if (r.imageUrl || r._imgLocal || r._imgNone || !(r.barcode || r.name)) return;
+  const st = imgStored(imgKey(r)); if (st) r.imageUrl = st[0];
+}
+/** ก่อนโหลดบิลใหม่หลังบันทึก — เก็บรูปที่ยังไม่ได้อัป/รูปจากไฟล์ไว้ ใส่คืนตามบาร์โค้ด */
+function spImgStash(rows) {
+  S._imgPending = {};
+  rows.forEach(r => { if (r._imgLocal || r._imgFile || r._imgNone) S._imgPending[imgKey(r)] = { l: r._imgLocal, s: r._imgSrc, rp: r._imgReplace, f: r._imgFile, n: r._imgNone }; });
+}
+function spImgRestore(rows) {
+  const P = S._imgPending; if (!P) return;
+  rows.forEach(r => { const p = P[imgKey(r)]; if (!p) return;
+    if (p.l) { r._imgLocal = p.l; r._imgSrc = p.s; r._imgReplace = p.rp; } if (p.f) r._imgFile = p.f; if (p.n) r._imgNone = true; });
+  S._imgPending = null;
+}
+function spImgBox(r, i) {
+  const st = imgStored(imgKey(r)), target = S.sp && S.sp._paste === i;
+  const btn = (label, fn, cls) => `<button class="btn btn-s ${cls || "btn-w"}" style="padding:4px 8px" onclick="${fn}">${label}</button>`;
+  let src = "", badge = "", btns = "", border = "border-gray-300";
+  if (r._imgLocal) {
+    src = r._imgLocal; border = "border-gray-400";
+    badge = `<span class="chip bg-amber-100 text-amber-900">รูปใหม่ · อัปตอนบันทึก${r._imgReplace ? " (แทนรูปเดิม)" : ""}</span>`;
+    btns = btn("เปลี่ยนรูป", `spImgPick(${i})`) + btn("วางรูป", `spImgTarget(${i})`) + btn("ไม่ใช้รูป", `spImgClear(${i})`, "btn-w text-red-600");
+  } else if (r.imageUrl) {
+    src = r.imageUrl; const inSys = st && st[0] === r.imageUrl; border = inSys ? "border-teal-600 border-2" : "border-gray-300";
+    badge = inSys ? `<span class="chip bg-teal-100 text-teal-900">มีรูปในระบบแล้ว</span>` : `<span class="chip bg-gray-100 text-gray-700">ลิงก์รูปภายนอก</span>`;
+    btns = btn("เปลี่ยนรูป", `spImgPick(${i})`) + btn("วางรูป", `spImgTarget(${i})`)
+      + (r._imgFile && r._imgFile !== r.imageUrl ? btn("ใช้รูปจากไฟล์ซัพ", `spImgFromFile(${i})`) : "") + btn("ไม่ใช้รูป", `spImgClear(${i})`, "btn-w text-red-600");
+  } else {
+    btns = btn("วางรูป (Ctrl+V)", `spImgTarget(${i})`, target ? "btn-p" : "btn-w") + btn("เลือกไฟล์รูป", `spImgPick(${i})`)
+      + (r._imgFile ? btn("ใช้รูปจากไฟล์ซัพ", `spImgFromFile(${i})`) : "");
+  }
+  const inner = src
+    ? `<img src="${esc(src)}" alt="" class="max-w-full max-h-full object-contain cursor-zoom-in" onclick="spImgZoom(${i})" onerror="this.replaceWith(document.createTextNode('โหลดรูปไม่ได้'))">`
+    : `<button class="w-full h-full flex flex-col items-center justify-center text-xs ${target ? "text-teal-800 font-semibold" : "muted"}" onclick="spImgTarget(${i})">${target ? "กด Ctrl+V<br>วางรูปได้เลย" : "ไม่มีรูป<br>คลิกแล้ว Ctrl+V"}</button>`;
+  return `<div class="w-32 shrink-0 flex flex-col gap-1">
+    <div id="spImg${i}" class="w-28 h-28 rounded-lg border ${src ? border : "border-dashed " + (target ? "border-teal-600 border-2 bg-teal-50" : "border-gray-300 bg-gray-50")} flex items-center justify-center overflow-hidden bg-white text-center"
+      ondragover="event.preventDefault()" ondrop="spImgDrop(event, ${i})">${inner}</div>
+    ${badge ? `<div class="text-[11px]">${badge}</div>` : ""}
+    <div class="flex flex-wrap gap-1">${btns}</div></div>`;
+}
+function spImgSet(i, file, src) {
+  if (!file || !/^image\//.test(file.type || "")) return toast("ไฟล์นี้ไม่ใช่รูป", true);
+  const r = S.sp.rows[i];
+  r._imgLocal = URL.createObjectURL(file); r._imgSrc = src; r._imgReplace = !!imgStored(imgKey(r)); delete r._imgNone;
+  S.sp._paste = null; spDirty(); renderSup();
+}
+function spImgPick(i) { pickFiles("image/*", false, f => spImgSet(i, f[0], "เลือกไฟล์")); }
+function spImgTarget(i) { S.sp._paste = i; renderSup(); toast("คัดลอกรูป (จากเว็บ/ไฟล์) แล้วกด Ctrl+V"); }
+function spImgDrop(e, i) { e.preventDefault(); const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) spImgSet(i, f, "ลากวาง"); }
+function spImgFromFile(i) { const r = S.sp.rows[i]; r._imgLocal = r._imgFile; r._imgSrc = "ไฟล์ซัพ: " + (S.sp.fileName || ""); r._imgReplace = !!imgStored(imgKey(r)); delete r._imgNone; spDirty(); renderSup(); }
+function spImgClear(i) { const r = S.sp.rows[i]; delete r._imgLocal; delete r._imgReplace; r.imageUrl = ""; r._imgNone = true; spDirty(); renderSup(); }
+function spImgZoom(i) { const r = S.sp.rows[i]; imgZoom(r._imgLocal || r.imageUrl, r.name, r.barcode); }
+document.addEventListener("paste", e => {
+  if (!S.sp || S.sp._paste == null || !document.getElementById("spImg" + S.sp._paste)) return;
+  const it = Array.from((e.clipboardData && e.clipboardData.items) || []).find(x => x.kind === "file" && /^image\//.test(x.type));
+  if (!it) return toast("ในคลิปบอร์ดไม่มีรูป — คลิกขวาที่รูปแล้วเลือก \"คัดลอกรูปภาพ\" ก่อน", true);
+  e.preventDefault(); spImgSet(S.sp._paste, it.getAsFile(), "วางเอง");
+});
 
 // ---------- ค้นหาซัพ (จากแท็บ Supplier ในไฟล์ Customer) — v3.5 ----------
 function spKey(v) { return String(v || "").toLowerCase().replace(/[^0-9a-z฀-๿]/g, ""); }
@@ -2000,7 +2071,7 @@ function imApply(grid, cfg, fileName) {
     const bc = normBarcode(g(row, "barcode")), name = hdr(g(row, "name"));
     if (!/^\d{8,14}$/.test(bc)) { if (row.some(x => hdr(x))) out.skipped++; continue; }
     if (seen.has(bc)) { out.dup++; continue; } seen.add(bc);
-    const it = { bc, name: name || bc, code: hdr(g(row, "itemCode")), group: hdr(g(row, "group")), ctn: imNum(g(row, "ctn")), moq: imNum(g(row, "moq")),
+    const it = { row: r, bc, name: name || bc, code: hdr(g(row, "itemCode")), group: hdr(g(row, "group")), ctn: imNum(g(row, "ctn")), moq: imNum(g(row, "moq")),
       cost: money(imNum(g(row, "cost"))), sell: imNum(g(row, "sell")), yen: imNum(g(row, "yen")), deadline: imDate(g(row, "deadline")),
       jp: imYm(g(row, "jp")), note: hdr(g(row, "note")), img: /^https?:\/\//.test(hdr(g(row, "img"))) ? hdr(g(row, "img")) : "", tiers: [] };
     tiers.forEach(t => { const q = imNum(row[t.q]), p = money(imNum(row[t.p])); if (q > 0 && p > 0) it.tiers.push({ min: q, price: p, label: t.label }); });
@@ -2076,8 +2147,8 @@ function imPickSheet(n) { S.im.sheet = n; imParse(false); imRender(); }
 async function imLoadFile(file) {
   if (!file) return;
   await run(async () => {
-    const { wb } = await readBook(file);
-    Object.assign(S.im, { file: { name: file.name }, wb, sheet: "", mapId: "", res: null, sel: new Set(), group: "*", q: "", grids: {} });
+    const { buf, wb } = await readBook(file);
+    Object.assign(S.im, { file: { name: file.name }, wb, buf, thumbs: {}, sheet: "", mapId: "", res: null, sel: new Set(), group: "*", q: "", grids: {} });
     imAuto();
     S.draft = { im: { x: 1 } };
     imRender();
@@ -2126,7 +2197,9 @@ function imRenderList() {
   const R = I.res, cfg = imCfg();
   if (!R || !R.ok) { box.innerHTML = I.wb ? "" : `<div class="card text-center muted py-8 text-sm">เลือกซัพ แล้วเลือกไฟล์ Excel ของซัพ — ระบบจะหาแม่แบบที่ตรงให้เอง</div>`; foot.innerHTML = ""; foot.classList.add("hidden"); return; }
   foot.classList.remove("hidden");
+  if (R._thumbSheet !== I.sheet) { R._thumbSheet = I.sheet; imLoadThumbs(); }
   const { all, view, closed } = imView(), today = todayStr();
+  const nThumb = R.rows.filter(r => r.thumb).length;
   const groups = [...new Set(all.map(r => imGroupOf(r, cfg)))].sort((a, b) => cfg.groupBy === "deadline" ? a.localeCompare(b) : 0);
   const gLabel = (g) => cfg.groupBy === "deadline" && /^\d{4}-/.test(g) ? "ปิด " + fmtDate(g) : g;
   const cnt = (g) => all.filter(r => imGroupOf(r, cfg) === g), allOn = view.length > 0 && view.every(r => I.sel.has(r.bc));
@@ -2147,16 +2220,17 @@ function imRenderList() {
       <button class="btn btn-w btn-s" onclick="imClear()">ล้างที่เลือก</button>
       <button class="btn btn-s ${I.newOnly ? "btn-p" : "btn-w"}" onclick="imSet('newOnly', ${!I.newOnly})">เฉพาะที่ยังไม่มีใน Product_ID</button>
       ${hasDl ? `<button class="btn btn-s ${I.showClosed ? "btn-p" : "btn-w"}" onclick="imSet('showClosed', ${!I.showClosed})">แสดงที่ปิดสั่งไปแล้ว${!I.showClosed && closed ? " (" + closed + ")" : ""}</button>` : ""}
-      <span class="ml-auto muted">แสดง ${fmt(view.length)} · เลือกแล้ว <b class="text-gray-900">${fmt(I.sel.size)}</b> / ${fmt(R.rows.length)}</span>
+      <span class="ml-auto muted">${I.thumbs && I.thumbs[I.sheet] ? `รูปในไฟล์ ${fmt(nThumb)} รายการ · ` : (I.buf ? '<i class="fa-solid fa-spinner fa-spin"></i> กำลังอ่านรูป · ' : "")}แสดง ${fmt(view.length)} · เลือกแล้ว <b class="text-gray-900">${fmt(I.sel.size)}</b> / ${fmt(R.rows.length)}</span>
     </div>
     <div class="overflow-auto" style="max-height:62vh"><table class="g" style="min-width:${hasT ? 1100 : 980}px"><thead style="position:sticky;top:0;z-index:2"><tr>
-      <th style="width:44px"><span class="sr-only">เลือก</span></th><th>บาร์โค้ด</th><th>ชื่อสินค้า</th><th>${cfg.groupBy === "deadline" ? "ปิดสั่ง" : "กลุ่ม"}</th>
+      <th style="width:44px"><span class="sr-only">เลือก</span></th><th style="width:60px">รูป</th><th>บาร์โค้ด</th><th>ชื่อสินค้า</th><th>${cfg.groupBy === "deadline" ? "ปิดสั่ง" : "กลุ่ม"}</th>
       <th class="num">ชิ้น/ลัง</th><th class="num">MOQ</th><th class="num">ทุน${hasT ? " (ขั้นราคา)" : ""}</th><th class="num">ราคาขาย</th>${hasDl && cfg.groupBy !== "deadline" ? "<th>ปิดสั่ง</th>" : ""}<th>Product_ID</th></tr></thead>
       <tbody>${show.map(r => {
         const on = I.sel.has(r.bc), p = S.products ? S.products.get(r.bc) : undefined, past = r.deadline && r.deadline < today;
         return `<tr class="${on ? "bg-teal-50" : ""} cursor-pointer" onclick="if(event.target.closest('a'))return; imToggle(${jsq(r.bc)})">
           <td><button class="w-9 h-9 flex items-center justify-center text-lg ${on ? "text-teal-700" : "text-gray-400"}" aria-pressed="${on}" aria-label="${on ? "เอาออก" : "เลือก"} ${esc(r.name)}"
             onclick="event.stopPropagation(); imToggle(${jsq(r.bc)})"><i class="fa-${on ? "solid fa-square-check" : "regular fa-square"}"></i></button></td>
+          <td>${imThumbCell(r)}</td>
           <td class="font-mono text-xs whitespace-nowrap">${esc(r.bc)}${eanOk(r.bc) === false ? ' <span class="text-red-600" title="เลขตรวจไม่ถูก">!</span>' : ""}</td>
           <td><div>${esc(r.name)}</div><div class="text-[11px] muted">${[r.code, r.jp ? "วางขาย " + spMonth(r.jp) : "", r.yen ? "¥" + fmt(r.yen) : ""].filter(Boolean).map(esc).join(" · ")}
             ${r.note ? ` <span class="font-semibold ${/web\s*order|หมด|sold|cancel|ยกเลิก/i.test(r.note) ? "text-red-700" : "text-amber-800"}">${esc(r.note)}</span>` : ""}</div></td>
@@ -2194,11 +2268,15 @@ function imBills(sel) {
   const m = new Map(); sel.forEach(r => { const k = r.deadline || (R && R.closeAt) || ""; if (!m.has(k)) m.set(k, []); m.get(k).push(r); });
   return [...m.entries()].sort((a, b) => (a[0] || "9").localeCompare(b[0] || "9")).map(([closeAt, rows]) => ({ closeAt, rows }));
 }
-function imRow(r, cfg) {
+function imRow(r, cfg, fileName) {
   const x = spEmptyRow(), p = S.products && S.products.get(r.bc);
   x.barcode = r.bc; x.name = r.name; x.itemCode = r.code; x.series = cfg.groupBy === "deadline" ? "" : r.group;
   x.yen = r.yen == null ? "" : r.yen; x.cost = r.cost == null ? "" : r.cost; x.pcsCtn = r.ctn == null ? "" : r.ctn;
-  x.price1 = r.sell != null ? r.sell : (p ? p.p1 : ""); x.price2 = p ? p.p2 : ""; x.imageUrl = r.img; x.remark = r.note;
+  x.price1 = r.sell != null ? r.sell : (p ? p.p1 : ""); x.price2 = p ? p.p2 : ""; x.remark = r.note;
+  const st = imgStored(r.bc); x._imgFile = r.thumb || "";
+  if (st) x.imageUrl = st[0];                                                     // มีรูปในระบบแล้ว → ใช้รูปเดิม ไม่อัปซ้ำ
+  else if (r.thumb) { x._imgLocal = r.thumb; x._imgSrc = "ไฟล์ซัพ: " + (fileName || ""); }
+  else if (r.img) x.imageUrl = r.img;                                            // ลิงก์รูปจากไฟล์ (เช่น KO คอลัมน์ PIC)
   x.shopQty = r.moq ? r.moq : ""; x._jp = r.jp;
   if (r.tiers.length) x.tiers = { t: r.tiers.map(t => ({ min: t.min, price: t.price, label: t.label })), vat: n0(cfg.vat) || 0 };
   return x;
@@ -2209,7 +2287,7 @@ function imConfirm() {
   const sel = I.res.rows.filter(r => I.sel.has(r.bc)); if (!sel.length) return;
   const bills = imBills(sel), R = I.res;
   if (bills.length === 1) {
-    const b = bills[0], rows = b.rows.map(r => imRow(r, cfg));
+    const b = bills[0], rows = b.rows.map(r => imRow(r, cfg, I.file.name));
     const jp = rows.map(r => r._jp).filter(Boolean).sort()[0] || ""; rows.forEach(r => delete r._jp);
     S.sp = { roundId: "", isEdit: false, status: "ร่าง", supplier: sup.nick || sup.name, supplierId: sup.id, offerNo: R.offerNo || "", title: R.title || "",
       type: SP_TYPES[0], closeAt: b.closeAt || "", jpLaunch: jp, arrive: "", remindDays: "3,1",
@@ -2233,19 +2311,43 @@ async function imSaveMany() {
   const bills = imBills(I.res.rows.filter(r => I.sel.has(r.bc)));
   closeModal();
   await run(async () => {
-    const made = [];
+    const made = []; let imgFail = 0;
     for (const b of bills) {
-      const rows = b.rows.map(r => imRow(r, cfg)), jp = rows.map(r => r._jp).filter(Boolean).sort()[0] || "";
+      const rows = b.rows.map(r => imRow(r, cfg, I.file.name)), jp = rows.map(r => r._jp).filter(Boolean).sort()[0] || "";
       const offerNo = base + (b.closeAt ? "-" + b.closeAt.slice(8, 10) + b.closeAt.slice(5, 7) : "");
+      const up = await imgUpload(rows, (sup.nick || sup.name) + " " + offerNo); if (up.fail) imgFail += up.fail;
       const res = await api("saveSup", { roundId: "", supplier: sup.nick || sup.name, supplierId: sup.id, offerNo, title, type: SP_TYPES[0], closeAt: b.closeAt, jpLaunch: jp, arrive: "",
         remindDays: "3,1", notes: cfg.vat ? `ทุนจากไฟล์บวก VAT ${cfg.vat}% แล้ว` : "", fileName: I.file.name, draft: true,
         items: rows.map(r => { spTierApply(r); return spPayloadItem(r); }), ws: [] });
       made.push(offerNo + " (" + res.items + ")");
     }
     S.im = null; S.draft = {}; S.spList = null; ss("pm_spf", "draft");
-    toast("สร้างร่างแล้ว " + made.length + " บิล: " + made.join(", "));
+    toast("สร้างร่างแล้ว " + made.length + " บิล: " + made.join(", ") + (imgFail ? " · อัปรูปไม่ผ่าน " + imgFail + " รูป (เปิดบิลแล้วใส่รูปใหม่ได้)" : ""), !!imgFail);
     go("sup");
   });
+}
+
+// ---------- รูปในตารางเลือก (v3.7) ----------
+async function imLoadThumbs() {
+  const I = S.im; if (!I || !I.buf || !I.res || !I.res.ok) return;
+  const sh = I.sheet;
+  if (!I.thumbs[sh]) { try { I.thumbs[sh] = await imgExtract(I.buf, sh); } catch (e) { console.warn(e); I.thumbs[sh] = {}; } }
+  if (S.im !== I || I.sheet !== sh || !I.res) return;
+  I.res.rows.forEach(r => { r.thumb = imgPick(I.thumbs[sh], r.row, I.res.rows.length); });
+  imRenderList();
+}
+function imThumbCell(r) {
+  const src = r.thumb || r.img, st = imgStored(r.bc);
+  if (!src && !st) return `<span class="text-[11px] muted">—</span>`;
+  const u = src || st[0];
+  return `<button class="w-12 h-12 rounded border ${st ? "border-teal-600 border-2" : "border-gray-200"} bg-white flex items-center justify-center overflow-hidden cursor-zoom-in" title="${st ? "มีรูปในระบบแล้ว · " : ""}คลิกเพื่อขยาย"
+    onclick="event.stopPropagation(); imZoomRow(${jsq(r.bc)})"><img src="${esc(u)}" alt="" loading="lazy" class="max-w-full max-h-full object-contain" onerror="this.replaceWith(document.createTextNode('—'))"></button>`;
+}
+function imZoomRow(bc) {
+  const r = S.im.res.rows.find(x => x.bc === bc); if (!r) return;
+  const st = imgStored(bc), on = S.im.sel.has(bc);
+  imgZoom(r.thumb || r.img || (st && st[0]), r.name, r.bc + (st ? " · มีรูปในระบบแล้ว" : ""),
+    `<button class="btn btn-p" onclick="imToggle(${jsq(bc)}); closeModal()">${on ? "เอาออกจากที่เลือก" : "เลือกตัวนี้"}</button>`);
 }
 
 // ---------- แก้ / สร้างแม่แบบ ----------
@@ -2365,6 +2467,159 @@ async function imDelMap() {
   });
 }
 function imRemoveTry() { const i = IM_BUILTIN.findIndex(x => x.id === "TRY"); if (i >= 0) IM_BUILTIN.splice(i, 1); }
+</script>
+<script>
+// ===================================================================
+//  รูปสินค้า (v3.7)
+//  - แกะรูปจากไฟล์ซัพ .xlsx ในเบราว์เซอร์: รูปฝังในช่อง (Place in cell / richData) + รูปลอย (drawing) → ผูกกับแถว
+//  - ย่อรูปด้านยาวไม่เกิน 600 px เป็น JPEG ก่อนอัป (รูปที่เล็กกว่าไม่ขยาย)
+//  - อัปขึ้น Google Drive ผ่าน imgSave (ชื่อไฟล์ = บาร์โค้ด.jpg · มีแล้วไม่อัปซ้ำ)
+// ===================================================================
+const IMG_MAX = 600;
+const NS_R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+const imgXml = s => new DOMParser().parseFromString(s, "application/xml");
+const tagAll = (doc, name) => Array.from(doc.getElementsByTagNameNS("*", name));
+function imgResolve(base, target) {
+  if (target.startsWith("/")) return target.slice(1);
+  const parts = base.split("/"); parts.pop();
+  target.split("/").forEach(p => { if (p === "..") parts.pop(); else if (p && p !== ".") parts.push(p); });
+  return parts.join("/");
+}
+async function imgRels(zip, part) {
+  const dir = part.split("/"), name = dir.pop(), relPath = dir.concat(["_rels", name + ".rels"]).join("/");
+  const f = zip.file(relPath); if (!f) return {};
+  const out = {};
+  tagAll(imgXml(await f.async("string")), "Relationship").forEach(r => { out[r.getAttribute("Id")] = imgResolve(part, r.getAttribute("Target")); });
+  return out;
+}
+/** { row0: mediaPath } ของแท็บนี้ — รูปฝังในช่องก่อน แล้วรูปลอยที่มุมบนซ้ายอยู่ในแถวนั้น · หลายรูปในแถวเดียว = เอาคอลัมน์ซ้ายสุด */
+async function imgExtract(buf, sheetName) {
+  const zip = await JSZip.loadAsync(buf), out = {}, colOf = {};
+  const put = (row, col, path) => { if (!path || !zip.file(path)) return; if (out[row] === undefined || col < colOf[row]) { out[row] = path; colOf[row] = col; } };
+  const sheet = await sheetPath(zip, sheetName);
+  const sheetXml = await zip.file(sheet).async("string");
+  // 1) รูปในช่อง (Excel 365 "Place in cell") : c@vm → metadata → richValue → richValueRel → media
+  try {
+    const meta = zip.file("xl/metadata.xml"), rvF = zip.file("xl/richData/rdrichvalue.xml"), relF = zip.file("xl/richData/richValueRel.xml");
+    if (meta && rvF && relF) {
+      const md = imgXml(await meta.async("string"));
+      const vmBk = (tagAll(md, "valueMetadata")[0] ? Array.from(tagAll(md, "valueMetadata")[0].children) : []).map(bk => { const rc = tagAll(bk, "rc")[0]; return rc ? +rc.getAttribute("v") : -1; });
+      const fm = tagAll(md, "futureMetadata").find(f => f.getAttribute("name") === "XLRICHVALUE");
+      const fmBk = fm ? Array.from(fm.children).filter(e => e.localName === "bk").map(bk => { const rvb = tagAll(bk, "rvb")[0]; return rvb ? +rvb.getAttribute("i") : -1; }) : [];
+      const rvDoc = imgXml(await rvF.async("string")), rvs = tagAll(rvDoc, "rv");
+      let keyPos = [];
+      const stF = zip.file("xl/richData/rdrichvaluestructure.xml");
+      if (stF) keyPos = tagAll(imgXml(await stF.async("string")), "s").map(s => tagAll(s, "k").findIndex(k => /LocalImageIdentifier/.test(k.getAttribute("n") || "")));
+      const relIds = tagAll(imgXml(await relF.async("string")), "rel").map(r => r.getAttributeNS(NS_R, "id") || r.getAttribute("r:id"));
+      const relMap = await imgRels(zip, "xl/richData/richValueRel.xml");
+      const cellRe = /<c\b([^>]*)>/g; let m;
+      while ((m = cellRe.exec(sheetXml))) {
+        const a = m[1], vm = /\bvm="(\d+)"/.exec(a), ref = /\br="([A-Z]+)(\d+)"/.exec(a); if (!vm || !ref) continue;
+        const fmi = vmBk[+vm[1] - 1]; const rvi = fmi >= 0 ? fmBk[fmi] : -1; const rv = rvs[rvi]; if (!rv) continue;
+        const kp = keyPos[+rv.getAttribute("s")]; const vs = tagAll(rv, "v");
+        const relIdx = +((vs[kp >= 0 ? kp : 0] || {}).textContent);
+        put(+ref[2] - 1, XLSX.utils.decode_col(ref[1]), relMap[relIds[relIdx]]);
+      }
+    }
+  } catch (e) { console.warn("in-cell images", e); }
+  // 2) รูปลอย (drawing) : ผูกกับแถวของมุมบนซ้าย
+  try {
+    const sRels = await imgRels(zip, sheet), dm = /<drawing\b[^>]*r:id="([^"]+)"/.exec(sheetXml);
+    const dPath = dm && sRels[dm[1]];
+    if (dPath && zip.file(dPath)) {
+      const dd = imgXml(await zip.file(dPath).async("string")), dRels = await imgRels(zip, dPath);
+      tagAll(dd, "twoCellAnchor").concat(tagAll(dd, "oneCellAnchor")).forEach(an => {
+        const from = tagAll(an, "from")[0], blip = tagAll(an, "blip")[0]; if (!from || !blip) return;
+        const row = +(tagAll(from, "row")[0] || {}).textContent, col = +(tagAll(from, "col")[0] || {}).textContent;
+        put(row, col, dRels[blip.getAttributeNS(NS_R, "embed") || blip.getAttribute("r:embed")]);
+      });
+    }
+  } catch (e) { console.warn("drawing images", e); }
+  const urls = {}, cache = {};
+  for (const [row, path] of Object.entries(out)) {
+    if (!cache[path]) {
+      const ext = path.split(".").pop().toLowerCase(), type = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", bmp: "image/bmp" }[ext];
+      if (!type) continue;   // emf/wmf ฯลฯ เบราว์เซอร์แสดงไม่ได้
+      cache[path] = URL.createObjectURL(new Blob([await zip.file(path).async("uint8array")], { type }));
+    }
+    urls[row] = cache[path];
+  }
+  return urls;
+}
+/** โหลดรูป → { data (base64 JPEG), w, h } ด้านยาวไม่เกิน max (ไม่ขยายรูปเล็ก) พื้นขาวแทนโปร่งใส */
+function imgToJpeg(src, max) {
+  return new Promise((ok, bad) => {
+    const im = new Image();
+    im.onload = () => {
+      const k = Math.min(1, (max || IMG_MAX) / Math.max(im.naturalWidth, im.naturalHeight));
+      const w = Math.max(1, Math.round(im.naturalWidth * k)), h = Math.max(1, Math.round(im.naturalHeight * k));
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.drawImage(im, 0, 0, w, h);
+      try { ok({ data: c.toDataURL("image/jpeg", 0.86).split(",")[1], w, h }); } catch (e) { bad(new Error("อ่านรูปนี้ไม่ได้ (รูปจากเว็บอื่น) — บันทึกรูปลงเครื่องแล้วเลือกไฟล์แทน")); }
+    };
+    im.onerror = () => bad(new Error("โหลดรูปไม่ได้"));
+    im.src = src;
+  });
+}
+/** ไฟล์มีสินค้า 1 ตัว + รูป 1 รูป แต่รูปวางไว้นอกแถวสินค้า (เช่น Bigone วางรูปใหญ่ใต้ตาราง) → ถือว่าเป็นรูปของสินค้านั้น */
+function imgPick(th, row, nItems) {
+  if (th[row]) return th[row];
+  const all = [...new Set(Object.values(th))];
+  return nItems === 1 && all.length === 1 ? all[0] : "";
+}
+function imgSize(src) { return new Promise(ok => { const im = new Image(); im.onload = () => ok([im.naturalWidth, im.naturalHeight]); im.onerror = () => ok([0, 0]); im.src = src; }); }
+function imgHash(s) { let h = 5381; for (const ch of String(s)) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(36); }
+function imgKey(r) { const b = String(r.barcode || "").replace(/\D/g, ""); return b.length >= 6 ? b : "NB_" + imgHash(String(r.name || "").toUpperCase().replace(/\s+/g, " ").trim()); }
+function imgStored(key) { const m = (S.spList && S.spList.images) || {}; return m[key] || null; }
+
+/** อัปรูปที่รอ (r._imgLocal) ทีละ 6 รูป · คืน { ok, skip, fail } — รูปที่อัปไม่ผ่านยังค้างใน r._imgLocal ไว้ลองใหม่ */
+async function imgUpload(rows, ref) {
+  const todo = rows.filter(r => r._imgLocal);
+  const res = { ok: 0, skip: 0, fail: 0, errs: [] };
+  if (!todo.length) return res;
+  const show = (n) => openModal(`<h3 class="font-bold mb-2"><i class="fa-solid fa-image"></i> กำลังอัปรูปขึ้น Drive</h3>
+    <div class="text-sm mb-1">${n} / ${todo.length} รูป</div><div class="h-2 rounded bg-gray-200"><div class="h-2 rounded bg-teal-600" style="width:${Math.round(n / todo.length * 100)}%"></div></div>
+    <div class="text-xs muted mt-2">อย่าปิดหน้านี้ · รูปที่มีในระบบแล้วจะข้าม ไม่อัปซ้ำ</div>`);
+  show(0);
+  for (let k = 0; k < todo.length; k += 6) {
+    const chunk = todo.slice(k, k + 6), items = [], rowsOf = {};
+    for (const r of chunk) {
+      try { const j = await imgToJpeg(r._imgLocal, IMG_MAX); const key = imgKey(r); rowsOf[key] = (rowsOf[key] || []).concat([r]);
+        items.push({ key, data: j.data, w: j.w, h: j.h, source: r._imgSrc || "", replace: !!r._imgReplace }); }
+      catch (e) { res.fail++; res.errs.push((r.name || r.barcode) + ": " + e.message); }
+    }
+    if (items.length) {
+      try {
+        const out = await api("imgSave", { ref, items });
+        (out.saved || []).forEach(s => {
+          (rowsOf[s.key] || []).forEach(r => {
+            if (s.error) { res.fail++; res.errs.push((r.name || r.barcode) + ": " + s.error); return; }
+            r.imageUrl = s.url; delete r._imgLocal; delete r._imgReplace; delete r._imgSrc;
+            S.spList = S.spList || {}; S.spList.images = S.spList.images || {}; S.spList.images[s.key] = [s.url, s.w, s.h, "", ""];
+            if (s.skipped) res.skip++; else res.ok++;
+          });
+        });
+      } catch (e) { res.fail += items.length; res.errs.push(e.message); }
+    }
+    show(Math.min(todo.length, k + chunk.length));
+  }
+  closeModal();
+  return res;
+}
+function imgUploadMsg(res) {
+  const p = [];
+  if (res.ok) p.push("อัปรูป " + res.ok); if (res.skip) p.push("ใช้รูปเดิม " + res.skip); if (res.fail) p.push("อัปไม่ผ่าน " + res.fail);
+  return p.join(" · ");
+}
+/** ขยายรูป (แสดงขนาดจริงของรูป + เตือนถ้าเล็ก) */
+async function imgZoom(src, title, sub, actions) {
+  const [w, h] = await imgSize(src), small = w && Math.max(w, h) < 200;
+  openModal(`<div class="flex items-start gap-2 mb-2"><div class="mr-auto"><div class="font-bold">${esc(title || "")}</div><div class="text-xs font-mono muted">${esc(sub || "")}</div></div>
+      <button class="btn btn-w btn-s" onclick="closeModal()" aria-label="ปิด">✕</button></div>
+    <div class="flex items-center justify-center border border-gray-200 rounded-lg bg-white" style="height:320px"><img src="${esc(src)}" alt="" style="height:290px;width:auto;max-width:100%;object-fit:contain"></div>
+    <div class="text-xs rounded-lg p-2 mt-2 ${small ? "bg-amber-50 text-amber-900" : "bg-teal-50 text-teal-900"}">${w ? `รูป ${w}×${h} px` : ""}${small ? " — รูปเล็ก ขยายแล้วแตก พอดูว่าใช่ตัวไหน (อยากได้รูปชัด ใส่รูปใหญ่แทนได้ในหน้าแก้บิล)" : w ? ` — ตอนอัปย่อเหลือด้านยาวไม่เกิน ${IMG_MAX} px` : ""}</div>
+    ${actions ? `<div class="flex flex-wrap gap-2 mt-3">${actions}</div>` : ""}`);
+}
 </script>
 <script>
 // ===================================================================
