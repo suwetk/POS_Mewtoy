@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mewtoy · เพิ่มสินค้า Product_ID</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'IBM Plex Sans Thai', sans-serif; background: #F4F5F7; color: #1B1F24; }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  .inp { border: 1px solid #D5DAE0; border-radius: 8px; padding: 9px 11px; font-size: 15px; width: 100%; background: #fff; }
+  .inp:focus { outline: none; border-color: #0F766E; box-shadow: 0 0 0 2px #CCE7E2; }
+  .inp.auto { background: #FFFBEB; border-color: #E8C468; }
+  .inp.ext { border-color: #F0C9A0; }
+  .inp.bad { border: 2px solid #DC6B6B; }
+  .lbl { font-size: 12px; color: #5B6470; font-weight: 600; display: block; margin-bottom: 4px; }
+  .chip { font-size: 12px; padding: 4px 10px; border-radius: 999px; font-weight: 600; display: inline-block; }
+  .c-ok { background: #E7F5EE; color: #166534; } .c-blue { background: #E6F0FB; color: #1E4E8C; }
+  .c-warn { background: #FFF4E5; color: #9A4A0B; } .c-err { background: #FDECEC; color: #9B1C1C; } .c-gray { background: #EEF1F4; color: #3F4752; }
+  .card { background: #fff; border: 1px solid #E3E6EA; border-radius: 12px; }
+  .btn { min-height: 42px; padding: 0 16px; border-radius: 10px; font-weight: 600; font-size: 14px; }
+  .btn-p { background: #0F766E; color: #fff; } .btn-p:hover { background: #115E59; }
+  .btn-s { background: #fff; border: 1px solid #D5DAE0; } .btn-s:hover { background: #F7F8FA; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .tab { padding: 9px 14px; border-radius: 8px; background: #EEF1F4; font-weight: 600; font-size: 14px; }
+  .tab.on { background: #0F766E; color: #fff; }
+  .grid td { padding: 4px 4px; vertical-align: top; } .grid input { padding: 6px 7px; font-size: 14px; }
+  .master-only { } body:not(.is-master) .master-only { display: none !important; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- ===================== header ===================== -->
+<header class="bg-white border-b border-gray-200 px-4 sm:px-7 py-3 flex flex-wrap gap-3 items-center justify-between">
+  <div class="flex items-center gap-3">
+    <div class="w-9 h-9 rounded-lg bg-teal-700 text-white flex items-center justify-center font-bold">M</div>
+    <div>
+      <div class="font-bold text-[17px]">Mewtoy · เพิ่มสินค้า Product_ID</div>
+      <div class="text-xs text-gray-500"><span id="modeLabel">ยังไม่เชื่อมต่อ</span> · ผู้ใช้: <b id="userLabel">-</b> · <a href="#" id="logoutBtn" class="text-teal-700">ออก</a></div>
+    </div>
+  </div>
+  <nav class="flex flex-wrap gap-1.5" id="tabs">
+    <button class="tab on" data-tab="single">เพิ่มทีละตัว</button>
+    <button class="tab" data-tab="batch">เพิ่มเป็นชุด (Manual)</button>
+    <button class="tab" data-tab="import">นำเข้าจากไฟล์</button>
+    <button class="tab" data-tab="edit">ค้นหา / แก้ไข</button>
+    <button class="tab" data-tab="log">ประวัติการแก้</button>
+  </nav>
+</header>
+
+<main class="max-w-[1240px] mx-auto px-4 sm:px-7 pt-5 pb-32">
+
+<!-- ===================== 1. single ===================== -->
+<section id="tab-single" class="flex flex-wrap gap-5 items-start">
+  <div class="flex-[999_1_620px] min-w-0 flex flex-col gap-4">
+    <div class="card p-5">
+      <label for="sBc" class="block font-semibold text-sm mb-2">1. ยิงบาร์โค้ด / พิมพ์บาร์โค้ด แล้วกด Enter</label>
+      <div class="flex gap-2 flex-wrap">
+        <input id="sBc" class="inp mono flex-[1_1_260px]" style="font-size:22px;font-weight:600;border:2px solid #0F766E;letter-spacing:1px" autocomplete="off">
+        <button id="sCheck" class="btn btn-p">ตรวจ</button>
+      </div>
+      <div id="sChips" class="flex flex-wrap gap-2 mt-3"></div>
+    </div>
+
+    <div class="card p-5 flex flex-col gap-4" id="sForm">
+      <div class="flex justify-between items-center flex-wrap gap-2">
+        <div class="font-semibold text-sm">2. ข้อมูลสินค้า <span id="sFormHint" class="font-normal text-gray-500"></span></div>
+        <span class="text-xs text-gray-500">ช่องสีเหลือง = เติมอัตโนมัติ (แก้ได้)</span>
+      </div>
+      <div class="grid grid-cols-4 gap-3">
+        <div class="col-span-4"><label class="lbl" for="f_name">B · Full Name</label><input id="f_name" class="inp" data-f="Full Name"></div>
+        <div class="col-span-2"><label class="lbl" for="f_brand">L · Brand</label><input id="f_brand" class="inp" data-f="Brand" list="brandList"></div>
+        <div class="col-span-2"><label class="lbl" for="f_series">M · SERIES_Product</label><input id="f_series" class="inp" data-f="SERIES_Product" list="seriesList"></div>
+      </div>
+      <div class="border-t border-dashed border-gray-200 pt-3">
+        <div class="text-sm font-semibold mb-2">ราคาขาย</div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div><label class="lbl" for="f_px" style="color:#9A4A0B">D · P.Extra (ถ้ามี)</label><input id="f_px" class="inp ext" data-f="P.Extra" placeholder="ว่าง = ใช้ Price 1"></div>
+          <div><label class="lbl" for="f_p1">E · Price 1</label><input id="f_p1" class="inp" data-f="Price 1" style="font-weight:600"></div>
+          <div><label class="lbl" for="f_p2">F · Price 2 (WS)</label><input id="f_p2" class="inp" data-f="Price 2"></div>
+          <div><label class="lbl" for="f_sh">C · Shopee</label><input id="f_sh" class="inp" data-f="Shopee"></div>
+        </div>
+      </div>
+      <div class="border-t border-dashed border-gray-200 pt-3">
+        <div class="text-sm font-semibold mb-2">อื่น ๆ <span class="font-normal text-gray-500 master-only">(ทุน/เยน เห็นเฉพาะ Master)</span></div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="master-only"><label class="lbl" for="f_y1">G · Yen (เยนเดิม)</label><input id="f_y1" class="inp" data-f="Yen"></div>
+          <div class="master-only"><label class="lbl" for="f_y2">J · New Yen</label><input id="f_y2" class="inp" data-f="New Yen" placeholder="ใส่เมื่อญี่ปุ่นขึ้นราคา"></div>
+          <div class="master-only"><label class="lbl" for="f_cost">H · Cost</label><input id="f_cost" class="inp" data-f="Cost"></div>
+          <div class="master-only"><label class="lbl" for="f_data">K · DATA (กรอกเอง)</label><input id="f_data" class="inp" data-f="DATA"></div>
+          <div class="col-span-2"><label class="lbl" for="f_sp">I · Special (โน้ต)</label><input id="f_sp" class="inp" data-f="Special"></div>
+          <div class="col-span-2"><label class="lbl" for="f_pr">N · Priority</label><input id="f_pr" class="inp" data-f="Priority"></div>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2 justify-end border-t border-gray-200 pt-3">
+        <button id="sClear" class="btn btn-s">ล้างฟอร์ม</button>
+        <button id="sQueue" class="btn btn-p">+ ใส่คิว (ยังไม่บันทึก)</button>
+      </div>
+    </div>
+  </div>
+
+  <aside class="flex-[1_1_330px] min-w-0 flex flex-col gap-4">
+    <div class="card p-4" id="sDt"><div class="font-semibold text-sm mb-1">ข้อมูลจาก Dreamtoy</div><div class="text-sm text-gray-500">ยิงบาร์โค้ดก่อน</div></div>
+    <div class="card p-4 hidden" id="sLink" style="background:#FFF8EF;border-color:#F0C9A0"></div>
+  </aside>
+</section>
+
+<!-- ===================== 2. batch ===================== -->
+<section id="tab-batch" class="hidden flex flex-col gap-4">
+  <div class="card p-4 flex flex-col gap-3">
+    <div class="flex flex-wrap justify-between gap-3 items-start">
+      <div>
+        <div class="font-bold">กรอกหลายตัวพร้อมกัน — พิมพ์ในตาราง หรือก๊อปจาก Excel / LINE แล้ววาง</div>
+        <div class="text-sm text-gray-500">วางได้ทีละหลายแถว ลำดับคอลัมน์: <b>Barcode · Full Name · Price 1 · Price 2 · P.Extra · Yen</b> (มีไม่ครบก็ได้)</div>
+      </div>
+      <div class="flex gap-2 flex-wrap">
+        <button id="bPasteBtn" class="btn btn-s">วางจากคลิปบอร์ด</button>
+        <button id="bAdd" class="btn btn-s">+ เพิ่ม 10 แถว</button>
+        <button id="bClear" class="btn btn-s">ล้างตาราง</button>
+      </div>
+    </div>
+    <div class="flex flex-wrap gap-3 items-end bg-gray-50 rounded-lg p-3">
+      <div class="text-sm font-semibold self-center">ใส่ค่าเดียวกันกับแถวที่ติ๊ก</div>
+      <div><label class="lbl" for="bBrand">Brand</label><input id="bBrand" class="inp" list="brandList" style="min-width:150px"></div>
+      <div><label class="lbl" for="bSeries">SERIES_Product</label><input id="bSeries" class="inp" list="seriesList" style="min-width:150px"></div>
+      <div><label class="lbl" for="bP2">Price 2 =</label>
+        <select id="bP2" class="inp" style="min-width:160px"><option value="">กรอกเอง</option><option value="0.9">Price 1 − 10%</option><option value="0.85">Price 1 − 15%</option></select></div>
+      <button id="bApply" class="btn btn-p">ใช้กับแถวที่ติ๊ก</button>
+    </div>
+  </div>
+  <div class="card overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full grid text-sm" style="min-width:1080px;border-collapse:collapse">
+        <thead><tr class="bg-gray-50 text-left text-xs text-gray-500">
+          <th class="p-2 w-8"><input type="checkbox" id="bAll" checked aria-label="เลือกทั้งหมด" class="w-4 h-4"></th>
+          <th class="p-2 w-8">#</th><th class="p-2" style="width:150px">Barcode</th><th class="p-2">Full Name</th>
+          <th class="p-2" style="width:80px">P.Extra</th><th class="p-2" style="width:80px">Price 1</th><th class="p-2" style="width:80px">Price 2</th>
+          <th class="p-2 master-only" style="width:70px">Yen</th><th class="p-2" style="width:110px">Brand</th><th class="p-2" style="width:110px">Series</th><th class="p-2" style="width:200px">สถานะ</th>
+        </tr></thead>
+        <tbody id="bBody"></tbody>
+      </table>
+    </div>
+    <div id="bSummary" class="flex flex-wrap gap-4 px-4 py-3 border-t border-gray-100 text-sm text-gray-500"></div>
+  </div>
+  <div class="flex justify-end"><button id="bQueue" class="btn btn-p">ใส่คิว</button></div>
+</section>
+
+<!-- ===================== 3. import ===================== -->
+<section id="tab-import" class="hidden flex flex-col gap-4">
+  <div class="flex flex-wrap gap-4">
+    <label class="flex-[1_1_420px] card p-5 flex items-center gap-4 cursor-pointer" style="border:2px dashed #9FB7B3" id="iDrop">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0F766E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+      <div><div class="font-semibold">เลือก / ลากไฟล์ Offer Dreamtoy (.xlsx) มาวาง</div><div class="text-sm text-gray-500">อ่านได้หลายไฟล์พร้อมกัน</div></div>
+      <input type="file" id="iFile" accept=".xlsx,.xls" multiple class="hidden">
+    </label>
+    <div class="flex-[1_1_420px] card p-5 flex flex-col gap-2">
+      <div class="font-semibold">ดึงจากรอบสั่งของใน PM</div>
+      <div class="text-sm text-gray-500">ทำในขั้นต่อไป — ตอนนี้ใช้ไฟล์ Offer ไปก่อน</div>
+    </div>
+  </div>
+  <div class="card overflow-hidden hidden" id="iResult">
+    <div class="flex flex-wrap gap-3 items-center justify-between px-4 py-3 border-b border-gray-200">
+      <div><div class="font-bold" id="iTitle"></div><div class="text-sm text-gray-500" id="iSub"></div></div>
+      <div class="flex gap-1.5 flex-wrap" id="iFilters"></div>
+    </div>
+    <div class="overflow-x-auto"><table class="w-full text-sm" style="min-width:900px;border-collapse:collapse">
+      <thead><tr class="bg-gray-50 text-left text-xs text-gray-500">
+        <th class="p-3 w-9"><input type="checkbox" id="iAll" aria-label="เลือกทั้งหมด" class="w-4 h-4"></th><th class="p-2">บาร์โค้ด</th><th class="p-2">ชื่อ (จากไฟล์)</th>
+        <th class="p-2 text-right">P1</th><th class="p-2 text-right">P2</th><th class="p-2 text-right master-only">เยน</th><th class="p-3">จะทำอะไร</th></tr></thead>
+      <tbody id="iBody"></tbody></table></div>
+    <div class="px-4 py-3 text-sm text-gray-500 border-t border-gray-100">สินค้าใหม่: Price 1 = P1 · Price 2 = P2 · Brand = Bandai · Yen = เยนในไฟล์ · บาร์โค้ดใหม่ของสินค้าเดิมใช้ชื่อเดิม และปรับราคาทั้งกลุ่ม</div>
+    <div class="flex justify-end p-3"><button id="iQueue" class="btn btn-p">ใส่คิวรายการที่ติ๊ก</button></div>
+  </div>
+</section>
+
+<!-- ===================== 4. edit ===================== -->
+<section id="tab-edit" class="hidden flex flex-wrap gap-5 items-start">
+  <div class="flex-[1_1_380px] min-w-0 flex flex-col gap-3">
+    <div class="card p-4"><label for="eQ" class="block font-semibold text-sm mb-2">ค้นหาด้วยบาร์โค้ด หรือชื่อ</label>
+      <input id="eQ" class="inp" style="border:2px solid #0F766E;font-size:16px" placeholder="เช่น zaku 2.0 หรือ 4573102..." autocomplete="off"></div>
+    <div class="card overflow-hidden"><div id="eCount" class="px-4 py-2 text-xs text-gray-500 border-b border-gray-100">พิมพ์อย่างน้อย 2 ตัวอักษร</div><div id="eList"></div></div>
+  </div>
+  <div class="flex-[999_1_560px] min-w-0 card p-5" id="ePanel"><div class="text-gray-500 text-sm">เลือกสินค้าจากรายการด้านซ้าย</div></div>
+</section>
+
+<!-- ===================== 5. log ===================== -->
+<section id="tab-log" class="hidden">
+  <div class="card overflow-hidden">
+    <div class="flex justify-between items-center px-4 py-3 border-b border-gray-200"><div class="font-bold">ประวัติการเพิ่ม/แก้ (200 รายการล่าสุด)</div><button id="logReload" class="btn btn-s">โหลดใหม่</button></div>
+    <div class="overflow-x-auto"><table class="w-full text-sm" style="min-width:900px;border-collapse:collapse">
+      <thead><tr class="bg-gray-50 text-left text-xs text-gray-500"><th class="p-2">เวลา</th><th class="p-2">ใคร</th><th class="p-2">ทำอะไร</th><th class="p-2">บาร์โค้ด</th><th class="p-2">ช่อง</th><th class="p-2">เดิม</th><th class="p-2">ใหม่</th><th class="p-2">หมายเหตุ</th></tr></thead>
+      <tbody id="logBody"><tr><td class="p-4 text-gray-500" colspan="8">กด "โหลดใหม่"</td></tr></tbody></table></div>
+  </div>
+</section>
+</main>
+
+<datalist id="brandList"></datalist><datalist id="seriesList"></datalist>
+
+<!-- ===================== queue bar ===================== -->
+<div class="fixed left-0 right-0 bottom-0 bg-[#1B1F24] text-white px-4 sm:px-7 py-3 flex flex-wrap gap-3 items-center justify-between z-30">
+  <div class="flex flex-wrap gap-4 items-center text-sm">
+    <span class="font-bold" id="qCount">คิวรอบันทึก 0 รายการ</span>
+    <span class="text-gray-300" id="qDetail"></span>
+    <button id="qToggle" class="text-teal-300 font-semibold underline">ดูคิว</button>
+    <span id="qStatus" class="text-amber-300"></span>
+  </div>
+  <button id="qCommit" class="btn" style="background:#14B8A6;color:#06201D;font-weight:700">บันทึกทั้งหมดลงชีต</button>
+</div>
+<div id="qPanel" class="hidden fixed left-0 right-0 bottom-[66px] max-h-[50vh] overflow-auto bg-white border-t border-gray-300 shadow-2xl z-20">
+  <table class="w-full text-sm"><tbody id="qBody"></tbody></table>
+</div>
+
+<!-- ===================== dialogs ===================== -->
+<div id="loginBox" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl p-6 w-full max-w-sm flex flex-col gap-3">
+    <div class="font-bold text-lg">เข้าสู่ระบบ</div>
+    <div><label class="lbl" for="cfgUrl">ลิงก์ Web App (Apps Script)</label><input id="cfgUrl" class="inp text-xs" placeholder="https://script.google.com/macros/s/.../exec"></div>
+    <div><label class="lbl" for="pinIn">PIN (เหมือน POS)</label><input id="pinIn" type="password" inputmode="numeric" class="inp" style="font-size:22px;letter-spacing:6px"></div>
+    <div id="loginErr" class="text-sm text-red-700"></div>
+    <button id="loginBtn" class="btn btn-p">เข้าใช้</button>
+  </div>
+</div>
+<div id="pasteBox" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl p-5 w-full max-w-2xl flex flex-col gap-3">
+    <div class="font-bold">วางข้อมูลจาก Excel / LINE</div>
+    <div class="text-sm text-gray-500">ลำดับคอลัมน์: Barcode · Full Name · Price 1 · Price 2 · P.Extra · Yen (คั่นด้วย Tab หรือ ,)</div>
+    <textarea id="pasteTxt" rows="10" class="inp mono text-sm"></textarea>
+    <div class="flex justify-end gap-2"><button id="pasteCancel" class="btn btn-s">ยกเลิก</button><button id="pasteOk" class="btn btn-p">ใส่ในตาราง</button></div>
+  </div>
+</div>
+<div id="busy" class="hidden fixed inset-0 bg-white/70 flex items-center justify-center z-[60]"><div class="card px-6 py-4 font-semibold" id="busyText">กำลังโหลด…</div></div>
+<div id="toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-[70] px-5 py-3 rounded-lg shadow-lg text-white font-medium"></div>
+
+<script>
+/* =====================================================================
+   Mewtoy PI — หน้าเพิ่ม/แก้สินค้า Product_ID (คุยกับ pi_backend.gs)
+   ===================================================================== */
+const PI_FRONT = "2026-10-16-pi-v1";
+const COLS = ["Barcode","Full Name","Shopee","P.Extra","Price 1","Price 2","Yen","Cost","Special","New Yen","DATA","Brand","SERIES_Product","Priority"];
+const NUM = ["Shopee","P.Extra","Price 1","Price 2","Yen","Cost","New Yen","DATA"];
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (n) => (n === "" || n === null || n === undefined || isNaN(Number(n))) ? String(n ?? "") : Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
+const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+
+let S = { url: ls.get("pi_url", ""), pin: "", user: null, byBc: new Map(), list: [], pdOf: new Map(), members: new Map(), dt: {}, oldToNew: new Map(), queue: ls.get("pi_queue", []) };
+
+function toast(msg, type) {
+  const t = $("toast"); t.textContent = msg;
+  t.className = "fixed top-4 left-1/2 -translate-x-1/2 z-[70] px-5 py-3 rounded-lg shadow-lg text-white font-medium " + (type === "err" ? "bg-red-600" : type === "warn" ? "bg-orange-500" : "bg-teal-700");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add("hidden"), 3500);
+}
+function busy(on, text) { $("busy").classList.toggle("hidden", !on); if (text) $("busyText").textContent = text; }
+async function api(action, extra) {
+  if (!S.url) throw new Error("ยังไม่ได้ใส่ลิงก์ Web App");
+  const res = await fetch(S.url, { method: "POST", body: JSON.stringify(Object.assign({ action, pin: S.pin }, extra || {})) });
+  const txt = await res.text();
+  let j; try { j = JSON.parse(txt); } catch (e) { throw new Error("หลังบ้านตอบไม่ใช่ JSON — เช็กลิงก์ / Deploy ใหม่"); }
+  if (j.status !== "success") throw new Error(j.message || "ผิดพลาด");
+  return j.data;
+}
+
+/* ------------------------------ บาร์โค้ด ------------------------------ */
+function normBc(v) { return String(v ?? "").replace(/[\s -]/g, "").replace(/\.0+$/, "").trim(); }
+function checkDigitOk(b) {
+  if (!/^\d+$/.test(b) || (b.length !== 13 && b.length !== 8 && b.length !== 12)) return null;   // ไม่ใช่ EAN/UPC → ไม่เช็ก
+  const d = b.split("").map(Number), last = d.pop();
+  let s = 0; d.reverse().forEach((x, i) => { s += x * (i % 2 === 0 ? 3 : 1); });
+  return (10 - (s % 10)) % 10 === last;
+}
+function era(b) {
+  if (b.startsWith("4902425")) return "บันไดเก่า (490)"; if (b.startsWith("4543112")) return "บันไดแดง";
+  if (b.startsWith("4549660")) return "Bandai Spirits ยุคแรก"; if (b.startsWith("4573102")) return "บันไดฟ้า";
+  if (b.startsWith("4580886")) return "โอซาก้า"; return "";
+}
+function numOrText(v) { const s = String(v ?? "").replace(/,/g, "").trim(); if (s === "") return ""; return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : String(v).trim(); }
+function isNumOk(v) { return v === "" || typeof numOrText(v) === "number"; }
+
+/* ------------------------------ โหลดข้อมูล ------------------------------ */
+async function loadAll() {
+  busy(true, "กำลังโหลดสินค้า…");
+  try {
+    const d = await api("getAll");
+    S.byBc = new Map(); S.list = [];
+    d.products.forEach((r) => {
+      const o = { _row: r[0] }; COLS.forEach((c, i) => { o[c] = r[i + 1]; });
+      o.Barcode = normBc(o.Barcode);
+      S.list.push(o); if (o.Barcode && !S.byBc.has(o.Barcode)) S.byBc.set(o.Barcode, o);
+    });
+    S.pdOf = new Map(); S.members = new Map();
+    d.groups.forEach(([b, p]) => { b = normBc(b); S.pdOf.set(b, p); if (!S.members.has(p)) S.members.set(p, []); S.members.get(p).push(b); });
+    S.dt = d.dt || {}; S.oldToNew = new Map();
+    Object.keys(S.dt).forEach((b) => { const o = S.dt[b][8]; if (o && o !== b) S.oldToNew.set(o, b); });
+    const brands = new Set(), series = new Set();
+    S.list.forEach((p) => { if (p.Brand) brands.add(String(p.Brand)); if (p.SERIES_Product) series.add(String(p.SERIES_Product)); });
+    $("brandList").innerHTML = [...brands].sort().map((b) => `<option value="${esc(b)}">`).join("");
+    $("seriesList").innerHTML = [...series].sort().map((b) => `<option value="${esc(b)}">`).join("");
+    $("modeLabel").innerHTML = d.testMode ? `เขียนลง: <b style="color:#B45309">ไฟล์ทดลอง</b> · ${S.list.length.toLocaleString()} แถว` : `<b style="color:#9B1C1C">Product_ID ตัวจริง</b>`;
+  } finally { busy(false); }
+}
+/** สินค้าเดียวกันกับบาร์โค้ดนี้ (ในกลุ่ม PD เดียวกัน) */
+function groupOf(b) { const p = S.pdOf.get(b); return p ? (S.members.get(p) || [b]) : [b]; }
+/** บาร์โค้ดใหม่นี้เป็นของสินค้าเดิมตัวไหน (จาก OLD JAN ในไฟล์ Dreamtoy) */
+function findLink(b) {
+  const d = S.dt[b];
+  if (d && d[8] && S.byBc.has(d[8])) return { bc: d[8], why: "OLD JAN ในไฟล์ Dreamtoy" };
+  const nw = S.oldToNew.get(b);
+  if (nw && S.byBc.has(nw)) return { bc: nw, why: "เป็นบาร์โค้ดเก่าของสินค้านี้ (Dreamtoy)" };
+  return null;
+}
+function tokens(s) { return new Set(String(s || "").toUpperCase().match(/[A-Z0-9]{3,}/g) || []); }
+function nameClash(a, b) { const x = tokens(a), y = tokens(b); if (!x.size || !y.size) return false; let n = 0; x.forEach((t) => { if (y.has(t)) n++; }); return n / Math.min(x.size, y.size) < 0.34; }
+
+/* ------------------------------ คิว ------------------------------ */
+function saveQ() { ls.set("pi_queue", S.queue); renderQ(); }
+function queued(bc) { return S.queue.some((q) => normBc(q.op === "add" ? q.fields.Barcode : q.barcode) === bc && q.op === "add"); }
+function addQ(items) { items.forEach((it) => { it.id = Date.now() + Math.random(); S.queue.push(it); }); saveQ(); }
+function renderQ() {
+  const a = S.queue.filter((q) => q.op === "add").length, u = S.queue.length - a;
+  $("qCount").textContent = "คิวรอบันทึก " + S.queue.length + " รายการ";
+  $("qDetail").textContent = S.queue.length ? `เพิ่ม ${a} · แก้ไข ${u}` : "";
+  $("qCommit").disabled = !S.queue.length;
+  $("qBody").innerHTML = S.queue.length ? S.queue.map((q) => `<tr class="border-b border-gray-100">
+      <td class="p-2 pl-6"><span class="chip ${q.op === "add" ? "c-ok" : "c-blue"}">${q.op === "add" ? "เพิ่ม" : "แก้ไข"}</span></td>
+      <td class="p-2 mono">${esc(q.op === "add" ? q.fields.Barcode : q.barcode)}</td>
+      <td class="p-2">${esc(q.label || "")}${q.err ? `<div class="text-red-700 text-xs">${esc(q.err)}</div>` : ""}</td>
+      <td class="p-2 text-xs text-gray-500">${esc(Object.keys(q.fields).filter((k) => k !== "Barcode").map((k) => k + "=" + q.fields[k]).join(" · ")).slice(0, 160)}</td>
+      <td class="p-2 pr-6 text-right"><button class="text-red-600 font-semibold" data-qdel="${q.id}">เอาออก</button></td></tr>`).join("")
+    : `<tr><td class="p-4 pl-6 text-gray-500">ยังไม่มีรายการในคิว</td></tr>`;
+  document.querySelectorAll("[data-qdel]").forEach((b) => b.onclick = () => { S.queue = S.queue.filter((q) => String(q.id) !== b.dataset.qdel); saveQ(); });
+}
+async function commitQ() {
+  if (!S.queue.length) return;
+  busy(true, "กำลังบันทึก " + S.queue.length + " รายการ…");
+  try {
+    const items = S.queue.map((q) => ({ op: q.op, fields: q.fields, barcode: q.barcode, linkTo: q.linkTo, note: q.note }));
+    const r = await api("commit", { items });
+    const fail = [];
+    r.results.forEach((x) => { if (!x.ok) { const q = S.queue[x.i]; q.err = x.message; fail.push(q); } });
+    S.queue = fail; saveQ();
+    $("qStatus").textContent = fail.length ? "ไม่ผ่าน " + fail.length + " รายการ (ดูคิว)" : "";
+    toast(`บันทึกแล้ว: เพิ่ม ${r.added} · แก้ ${r.updated}` + (fail.length ? ` · ไม่ผ่าน ${fail.length}` : ""), fail.length ? "warn" : "");
+    await loadAll();
+  } catch (e) { toast("บันทึกไม่สำเร็จ: " + e.message, "err"); }
+  finally { busy(false); }
+}
+
+/* ------------------------------ 1. เพิ่มทีละตัว ------------------------------ */
+let single = { bc: "", link: null };
+function fval(id) { return $(id).value.trim(); }
+function setF(id, v, auto) { const el = $(id); el.value = v === undefined || v === null ? "" : v; el.classList.toggle("auto", !!auto && el.value !== ""); }
+function clearSingle(keepBc) {
+  document.querySelectorAll("#sForm [data-f]").forEach((el) => { el.value = ""; el.classList.remove("auto"); });
+  if (!keepBc) { $("sBc").value = ""; $("sChips").innerHTML = ""; }
+  $("sDt").innerHTML = `<div class="font-semibold text-sm mb-1">ข้อมูลจาก Dreamtoy</div><div class="text-sm text-gray-500">ยิงบาร์โค้ดก่อน</div>`;
+  $("sLink").classList.add("hidden"); single = { bc: "", link: null }; $("sFormHint").textContent = "";
+}
+function checkSingle() {
+  const b = normBc($("sBc").value); $("sBc").value = b;
+  clearSingle(true); if (!b) return;
+  single.bc = b;
+  const chips = [];
+  const cd = checkDigitOk(b);
+  if (cd === true) chips.push(`<span class="chip c-ok">✓ หลักตรวจสอบถูกต้อง</span>`);
+  if (cd === false) chips.push(`<span class="chip c-err">หลักตรวจสอบผิด — น่าจะพิมพ์ผิด</span>`);
+  if (era(b)) chips.push(`<span class="chip c-blue">${era(b)}</span>`);
+  const ex = S.byBc.get(b);
+  if (ex) {
+    chips.push(`<span class="chip c-err">มีใน Product_ID แล้ว (แถว ${ex._row}) — ${esc(ex["Full Name"])}</span> <button class="btn btn-s" id="sGoEdit">ไปแก้ไขตัวนี้</button>`);
+    $("sChips").innerHTML = chips.join(" ");
+    $("sGoEdit").onclick = () => { showTab("edit"); $("eQ").value = b; searchEdit(); openEdit(b); };
+    $("sQueue").disabled = true; return;
+  }
+  if (queued(b)) chips.push(`<span class="chip c-warn">อยู่ในคิวแล้ว</span>`);
+  chips.push(`<span class="chip c-ok">✓ ยังไม่มีใน Product_ID</span>`);
+  $("sQueue").disabled = false;
+
+  const d = S.dt[b];
+  if (d) {
+    $("sDt").innerHTML = `<div class="font-semibold text-sm mb-2">พบในไฟล์ Dreamtoy</div>
+      <div class="font-semibold">${esc(d[0])}</div><div class="text-xs text-gray-500">Offer ${esc(d[2])} · ปิดรับ ${esc(d[1])} · ชิ้น/ลัง ${fmt(d[6])} · เจอ ${d[9]} ครั้ง</div>
+      <div class="grid grid-cols-3 gap-2 mt-3">
+        <div class="bg-gray-100 rounded-lg px-3 py-2"><div class="text-[11px] text-gray-500">P1</div><div class="font-bold">${fmt(d[3])}</div></div>
+        <div class="bg-gray-100 rounded-lg px-3 py-2"><div class="text-[11px] text-gray-500">P2</div><div class="font-bold">${fmt(d[4])}</div></div>
+        <div class="bg-gray-100 rounded-lg px-3 py-2 master-only"><div class="text-[11px] text-gray-500">เยน</div><div class="font-bold">${d[5] ? fmt(d[5]) : "-"}</div></div></div>`;
+    setF("f_name", d[0], true); setF("f_p1", d[3], true); setF("f_p2", d[4], true); setF("f_brand", "Bandai", true);
+    if (S.user.master) {
+      if (d[10]) setF("f_y1", d[10], true);
+      if (d[5] && d[10] && d[5] !== d[10]) setF("f_y2", d[5], true);
+    }
+    $("sFormHint").textContent = "(เติมจาก Dreamtoy ให้แล้ว — แก้ได้)";
+  } else {
+    $("sDt").innerHTML = `<div class="font-semibold text-sm mb-1">ไม่พบในไฟล์ Dreamtoy</div><div class="text-sm text-gray-500">กรอกเองทั้งหมด (ซัพอื่น)</div>`;
+    chips.push(`<span class="chip c-gray">ไม่พบใน Dreamtoy</span>`);
+  }
+
+  const lk = findLink(b);
+  if (lk) {
+    const o = S.byBc.get(lk.bc), grp = groupOf(lk.bc);
+    const clash = d && nameClash(d[0], o["Full Name"]);
+    single.link = clash ? null : lk;
+    chips.push(`<span class="chip ${clash ? "c-err" : "c-warn"}">${clash ? "OLD JAN ชี้ไปสินค้าชื่ออื่น — ไม่รวมให้" : "พบสินค้าเดียวกัน (บาร์โค้ดอื่น) " + grp.length + " ตัว"}</span>`);
+    $("sLink").classList.remove("hidden");
+    $("sLink").innerHTML = `<div class="font-semibold text-sm mb-1" style="color:#9A4A0B">${clash ? "⚠ เช็กก่อน: OLD JAN ชี้ไปที่สินค้านี้" : "สินค้าเดียวกัน (" + esc(lk.why) + ")"}</div>
+      ${grp.map((g) => { const p = S.byBc.get(g) || {}; return `<div class="mono font-semibold">${esc(g)} <span class="font-sans font-normal text-xs text-gray-500">${esc(era(g))}</span></div><div class="text-sm">${esc(p["Full Name"] || "")}</div><div class="text-xs text-gray-500 mb-1">P1 ${fmt(p["Price 1"])} · P2 ${fmt(p["Price 2"])}</div>`; }).join("")}
+      ${clash ? `<div class="text-sm text-red-700 mt-2">ชื่อไม่ตรงกัน — จะเพิ่มเป็นสินค้าแยก ถ้าเป็นตัวเดียวกันจริงให้ติ๊กด้านล่าง</div>` : ""}
+      <div class="flex flex-col gap-2 mt-3 text-sm">
+        <label class="flex gap-2 items-start"><input type="checkbox" id="lkLink" ${clash ? "" : "checked"} class="w-4 h-4 mt-1"> เป็นสินค้าเดียวกัน (รวมกลุ่ม)</label>
+        <label class="flex gap-2 items-start"><input type="checkbox" id="lkName" ${clash ? "" : "checked"} class="w-4 h-4 mt-1"> ใช้ชื่อเดียวกับตัวเดิม</label>
+        <label class="flex gap-2 items-start"><input type="checkbox" id="lkPrice" ${clash ? "" : "checked"} class="w-4 h-4 mt-1"> ปรับราคาบาร์โค้ดเดิมให้เท่าตัวใหม่ (ของในสต็อกขายราคาใหม่)</label>
+      </div>`;
+    single.linkBc = lk.bc;
+    const applyName = () => { if ($("lkName").checked) setF("f_name", o["Full Name"], true); else if (d) setF("f_name", d[0], true); };
+    $("lkName").onchange = applyName; if (!clash) applyName();
+    if (!clash) { if (!d) { ["Price 1:f_p1", "Price 2:f_p2", "Brand:f_brand", "SERIES_Product:f_series", "Yen:f_y1", "New Yen:f_y2", "P.Extra:f_px", "Shopee:f_sh"].forEach((x) => { const [k, id] = x.split(":"); if (o[k] !== "" && o[k] !== undefined) setF(id, o[k], true); }); }
+      else { if (o.Brand) setF("f_brand", o.Brand, true); if (o.SERIES_Product) setF("f_series", o.SERIES_Product, true); if (S.user.master && o.Yen !== "" && typeof o.Yen === "number") setF("f_y1", o.Yen, true); } }
+  }
+  $("sChips").innerHTML = chips.join(" ");
+}
+function singleFields() {
+  const f = {};
+  document.querySelectorAll("#sForm [data-f]").forEach((el) => { if (el.value.trim() !== "") f[el.dataset.f] = numOrText(NUM.includes(el.dataset.f) ? el.value : el.value.trim()); });
+  return f;
+}
+function queueSingle() {
+  const b = single.bc; if (!b) return toast("ยิงบาร์โค้ดก่อน", "err");
+  if (S.byBc.has(b)) return toast("บาร์โค้ดนี้มีแล้ว", "err");
+  if (queued(b)) return toast("บาร์โค้ดนี้อยู่ในคิวแล้ว", "err");
+  const f = singleFields(); f.Barcode = b;
+  if (!f["Full Name"]) return toast("ใส่ชื่อสินค้าก่อน", "err");
+  if (f["Price 1"] === undefined) return toast("ใส่ Price 1 ก่อน", "err");
+  const bad = ["P.Extra", "Price 1", "Price 2"].filter((k) => f[k] !== undefined && typeof f[k] !== "number");
+  if (bad.length && !confirm(bad.join(", ") + " ไม่ใช่ตัวเลข — POS จะอ่านเป็น 0 ใส่คิวต่อไหม?")) return;
+  const linkOn = $("lkLink") && $("lkLink").checked && single.linkBc;
+  const items = [{ op: "add", fields: f, linkTo: linkOn ? single.linkBc : "", label: f["Full Name"] + (linkOn ? " (บาร์โค้ดเพิ่มของ " + single.linkBc + ")" : "") }];
+  if (linkOn && $("lkPrice").checked) items.push(...groupPriceUpdates(single.linkBc, f));
+  addQ(items); toast("ใส่คิวแล้ว " + items.length + " รายการ"); clearSingle(); $("sBc").focus();
+}
+/** ปรับราคาทุกบาร์โค้ดในกลุ่มให้เท่าตัวใหม่ */
+function groupPriceUpdates(linkBc, f) {
+  const out = [];
+  groupOf(linkBc).forEach((g) => {
+    const p = S.byBc.get(g); if (!p) return;
+    const ch = {};
+    ["Price 1", "Price 2", "P.Extra"].forEach((k) => { if (f[k] !== undefined && String(p[k]) !== String(f[k])) ch[k] = f[k]; });
+    if (S.user.master && f["New Yen"] !== undefined && String(p["New Yen"]) !== String(f["New Yen"])) ch["New Yen"] = f["New Yen"];
+    if (Object.keys(ch).length) out.push({ op: "update", barcode: g, fields: ch, label: p["Full Name"] + " (ราคาตามบาร์โค้ดใหม่)", note: "ปรับตามบาร์โค้ดใหม่ " + f.Barcode });
+  });
+  return out;
+}
+
+/* ------------------------------ 2. เพิ่มเป็นชุด ------------------------------ */
+let batch = [];
+const BF = ["Barcode", "Full Name", "P.Extra", "Price 1", "Price 2", "Yen", "Brand", "SERIES_Product"];
+function newRow() { return { on: true, Barcode: "", "Full Name": "", "P.Extra": "", "Price 1": "", "Price 2": "", Yen: "", Brand: "", SERIES_Product: "", mode: "add" }; }
+function batchStatus(r, i) {
+  const b = normBc(r.Barcode);
+  if (!b && !r["Full Name"]) return { k: "empty", t: "แถวว่าง", c: "text-gray-400" };
+  if (!b) return { k: "err", t: "ไม่มีบาร์โค้ด", c: "c-err" };
+  if (batch.some((x, j) => j < i && normBc(x.Barcode) === b)) return { k: "err", t: "ซ้ำกับแถวข้างบน", c: "c-err" };
+  if (checkDigitOk(b) === false) return { k: "err", t: "หลักตรวจสอบผิด", c: "c-err" };
+  const ex = S.byBc.get(b);
+  if (ex && r.mode !== "update") return { k: "dup", t: "มีแล้ว (แถว " + ex._row + ")", c: "c-err" };
+  if (!ex && queued(b)) return { k: "err", t: "อยู่ในคิวแล้ว", c: "c-err" };
+  if (!r["Full Name"] && !ex) return { k: "err", t: "ไม่มีชื่อ", c: "c-err" };
+  if (!isNumOk(r["Price 1"]) || !isNumOk(r["Price 2"]) || !isNumOk(r["P.Extra"])) return { k: "warn", t: "ราคาไม่ใช่ตัวเลข → POS = 0", c: "c-warn" };
+  if (r["Price 1"] === "" && !ex) return { k: "warn", t: "ไม่มี Price 1", c: "c-warn" };
+  if (ex) return { k: "ok", t: "✓ แก้ไขราคาแถวเดิม", c: "c-blue" };
+  return { k: "ok", t: r["P.Extra"] !== "" ? "✓ พร้อม — มี P.Ext" : (S.dt[b] ? "✓ พร้อม — เจอใน Dreamtoy" : "✓ พร้อม — สินค้าใหม่"), c: "c-ok" };
+}
+function renderBatch() {
+  const cnt = { ok: 0, warn: 0, err: 0, dup: 0 };
+  $("bBody").innerHTML = batch.map((r, i) => {
+    const st = batchStatus(r, i); if (cnt[st.k] !== undefined) cnt[st.k]++;
+    const cell = (k, w, cls) => `<td class="${k === "Yen" ? "master-only" : ""}"><input class="inp ${cls || ""} ${k === "Barcode" ? "mono" : ""} ${(k === "Barcode" && (st.k === "err" || st.k === "dup") && r.Barcode) ? "bad" : ""} ${["Price 1", "Price 2", "P.Extra"].includes(k) && !isNumOk(r[k]) ? "bad" : ""} ${r["_a_" + k] ? "auto" : ""}" data-b="${i}" data-k="${k}" value="${esc(r[k])}" aria-label="${k} แถว ${i + 1}"></td>`;
+    return `<tr class="border-t border-gray-100 ${st.k === "err" || st.k === "dup" ? "bg-red-50/60" : st.k === "warn" ? "bg-amber-50/60" : ""}">
+      <td class="p-2"><input type="checkbox" data-bon="${i}" ${r.on ? "checked" : ""} class="w-4 h-4" aria-label="เลือกแถว ${i + 1}"></td>
+      <td class="p-2 text-gray-400">${i + 1}</td>
+      ${cell("Barcode")}${cell("Full Name")}${cell("P.Extra", 0, "ext")}${cell("Price 1")}${cell("Price 2")}${cell("Yen")}${cell("Brand")}${cell("SERIES_Product")}
+      <td class="p-2"><span class="chip ${st.c}">${esc(st.t)}</span>${st.k === "dup" ? `<div><button class="text-teal-700 text-xs font-semibold mt-1" data-bupd="${i}">เปลี่ยนเป็นแก้ไขราคา</button></div>` : ""}</td></tr>`;
+  }).join("");
+  $("bSummary").innerHTML = `<span><b class="text-green-800">พร้อม ${cnt.ok}</b></span><span><b class="text-amber-700">เตือน ${cnt.warn}</b> (บันทึกได้ แต่ควรแก้)</span><span><b class="text-red-700">ติดปัญหา ${cnt.err + cnt.dup}</b> (ไม่ใส่คิว)</span><span>ช่องสีเหลือง = เติมให้อัตโนมัติ</span>`;
+  $("bQueue").textContent = "ใส่คิว " + batch.filter((r, i) => r.on && ["ok", "warn"].includes(batchStatus(r, i).k)).length + " แถว";
+  document.querySelectorAll("[data-b]").forEach((el) => {
+    el.onchange = () => { const r = batch[+el.dataset.b], k = el.dataset.k; r[k] = el.value.trim(); r["_a_" + k] = false;
+      if (k === "Barcode") { r.Barcode = normBc(r.Barcode); autoFillRow(r); } renderBatch(); };
+  });
+  document.querySelectorAll("[data-bon]").forEach((el) => el.onchange = () => { batch[+el.dataset.bon].on = el.checked; renderBatch(); });
+  document.querySelectorAll("[data-bupd]").forEach((el) => el.onclick = () => { batch[+el.dataset.bupd].mode = "update"; renderBatch(); });
+}
+function autoFillRow(r) {
+  const d = S.dt[normBc(r.Barcode)]; if (!d) return;
+  if (!r["Full Name"]) { r["Full Name"] = d[0]; r["_a_Full Name"] = true; }
+  if (r["Price 1"] === "") { r["Price 1"] = d[3]; r["_a_Price 1"] = true; }
+  if (r["Price 2"] === "") { r["Price 2"] = d[4]; r["_a_Price 2"] = true; }
+  if (r.Yen === "" && S.user.master && (d[10] || d[5])) { r.Yen = d[10] || d[5]; r._a_Yen = true; }
+  if (!r.Brand) { r.Brand = "Bandai"; r._a_Brand = true; }
+}
+function pasteRows(txt) {
+  const lines = txt.split(/\r?\n/).filter((l) => l.trim());
+  let i = batch.findIndex((r) => !r.Barcode && !r["Full Name"]); if (i < 0) i = batch.length;
+  lines.forEach((l) => {
+    const c = l.includes("\t") ? l.split("\t") : l.split(",");
+    const r = newRow();
+    r.Barcode = normBc(c[0]); r["Full Name"] = (c[1] || "").trim(); r["Price 1"] = (c[2] || "").trim(); r["Price 2"] = (c[3] || "").trim(); r["P.Extra"] = (c[4] || "").trim(); r.Yen = (c[5] || "").trim();
+    autoFillRow(r);
+    if (i < batch.length) batch[i] = r; else batch.push(r);
+    i++; while (i < batch.length && (batch[i].Barcode || batch[i]["Full Name"])) i++;
+  });
+  renderBatch();
+}
+function applyBulk() {
+  const br = $("bBrand").value.trim(), se = $("bSeries").value.trim(), p2 = $("bP2").value;
+  batch.forEach((r) => { if (!r.on || (!r.Barcode && !r["Full Name"])) return;
+    if (br) { r.Brand = br; r._a_Brand = true; } if (se) { r.SERIES_Product = se; r._a_SERIES_Product = true; }
+    if (p2 && typeof numOrText(r["Price 1"]) === "number") { r["Price 2"] = Math.round(numOrText(r["Price 1"]) * Number(p2)); r["_a_Price 2"] = true; } });
+  renderBatch();
+}
+function queueBatch() {
+  const items = [];
+  const keep = [];
+  batch.forEach((r, i) => {
+    const st = batchStatus(r, i);
+    if (!r.on || !["ok", "warn"].includes(st.k)) { keep.push(r); return; }
+    const b = normBc(r.Barcode), f = {};
+    ["Full Name", "P.Extra", "Price 1", "Price 2", "Yen", "Brand", "SERIES_Product"].forEach((k) => { if (String(r[k] ?? "") !== "") f[k] = NUM.includes(k) ? numOrText(r[k]) : String(r[k]).trim(); });
+    if (!S.user.master) delete f.Yen;
+    if (S.byBc.has(b)) {
+      const ex = S.byBc.get(b), ch = {};
+      Object.keys(f).forEach((k) => { if (String(ex[k]) !== String(f[k])) ch[k] = f[k]; });
+      if (Object.keys(ch).length) groupOf(b).forEach((g) => { const p = S.byBc.get(g); if (!p) return; const c2 = {}; Object.keys(ch).forEach((k) => { if (k === "Full Name" && g !== b) return; if (String(p[k]) !== String(ch[k])) c2[k] = ch[k]; }); if (Object.keys(c2).length) items.push({ op: "update", barcode: g, fields: c2, label: p["Full Name"], note: "แก้จากหน้าเพิ่มเป็นชุด" }); });
+    } else {
+      f.Barcode = b;
+      const lk = findLink(b); const linkOk = lk && !(S.dt[b] && nameClash(S.dt[b][0], S.byBc.get(lk.bc)["Full Name"]));
+      items.push({ op: "add", fields: f, linkTo: linkOk ? lk.bc : "", label: f["Full Name"] + (linkOk ? " (บาร์โค้ดเพิ่มของ " + lk.bc + ")" : "") });
+    }
+  });
+  if (!items.length) return toast("ไม่มีแถวที่พร้อมใส่คิว", "err");
+  addQ(items); batch = keep.length ? keep : []; while (batch.length < 10) batch.push(newRow()); renderBatch();
+  toast("ใส่คิวแล้ว " + items.length + " รายการ");
+}
+
+/* ------------------------------ 3. นำเข้าไฟล์ Dreamtoy ------------------------------ */
+// พอร์ตจาก dt_parse.py (ตัวอ่านไฟล์ที่ใช้รวม 174 ไฟล์)
+function hdr(v) { return String(v ?? "").replace(/\s+/g, " ").trim().toUpperCase(); }
+function nnum(v) { if (v === null || v === undefined || v === "") return null; if (typeof v === "number") return v; const s = String(v).replace(/[,฿]/g, "").trim(); return /^\d+(\.\d+)?$/.test(s) ? Number(s) : null; }
+function bc13(v) { const s = normBc(typeof v === "number" ? v.toFixed(0) : v); return /^\d{8,14}$/.test(s) ? s : ""; }
+function findHeader(rows) {
+  for (let i = 0; i < Math.min(40, rows.length); i++) {
+    const hs = (rows[i] || []).map(hdr);
+    const hasName = hs.some((h) => h.includes("NAME") || h.includes("DESCRIPTION"));
+    if (hasName && hs.some((h) => ["FULL JAN CODE", "FULL JAN", "BARCODE", "JAN"].includes(h) || h.startsWith("FULL JAN"))) return i;
+    if (hs.includes("FULL JAN CODE") && hs.some((h) => h.startsWith("ESTIMATE") || /PRICE\s*-?\s*1/.test(h))) return i;
+    if (hasName && hs.some((h) => /PRICE\s*-?\s*1/.test(h))) return i;
+  }
+  return -1;
+}
+function parseDtSheet(rows, fileName) {
+  const h = findHeader(rows); if (h < 0) return [];
+  const H = (rows[h] || []).map(hdr);
+  const sub = [1, 2].map((k) => (rows[h + k] || []).map(hdr));
+  const col = (...names) => { for (const n of names) { const j = H.indexOf(n); if (j >= 0) return j; } for (const n of names) { const j = H.findIndex((x) => x.includes(n) && (n.includes("OLD") || !x.includes("OLD"))); if (j >= 0) return j; } return -1; };
+  const cOld = col("OLD FULL JAN CODE", "OLD BARCODE");
+  let cBc = H.findIndex((x) => ["FULL JAN CODE", "BARCODE", "FULL JAN"].includes(x));
+  if (cBc < 0) { const cnt = {}; rows.slice(h + 1, h + 60).forEach((r) => (r || []).forEach((x, j) => { if (bc13(x).length === 13) cnt[j] = (cnt[j] || 0) + 1; })); const ks = Object.keys(cnt); if (ks.length) cBc = +ks.sort((a, b) => cnt[b] - cnt[a])[0]; }
+  let cName = col("ITEM NAME", "DESCRIPTION", "PRODUCT NAME");
+  if (cName < 0) { const cnt = {}; rows.slice(h + 1, h + 60).forEach((r) => (r || []).forEach((x, j) => { if (typeof x === "string" && x.trim().length > 8 && !bc13(x)) cnt[j] = (cnt[j] || 0) + 1; })); const ks = Object.keys(cnt); if (ks.length) cName = +ks.sort((a, b) => cnt[b] - cnt[a])[0]; }
+  const cSeries = col("SERIES"), cCtn = col("QTY/CTN", "PCS. / CARTON", "PCS/CTN", "PCS / CTN"), cYen = col("RETAIL PRICE JPY", "RETAIL PRICE", "YEN");
+  let p1 = -1, p2 = -1;
+  H.forEach((x, j) => { if (/PRICE\s*-?\s*1|NET PRICE 1|\bP1\b/.test(x) && p1 < 0) p1 = j; if (/PRICE\s*-?\s*2|NET PRICE 2|\bP2\b/.test(x) && p2 < 0) p2 = j; });
+  sub.forEach((s) => s.forEach((x, j) => { if (/^PRICE\s*-?\s*1$/.test(x) && p1 < 0) p1 = j; if (/^PRICE\s*-?\s*2$/.test(x) && p2 < 0) p2 = j; }));
+  if (p1 < 0) { const est = H.map((x, j) => x.startsWith("ESTIMATE") ? j : -1).filter((j) => j >= 0); if (est.length >= 2) { p1 = est[0]; p2 = est[1]; } }
+  const title = rows.slice(0, h + 1).flat().filter((x) => typeof x === "string").join(" ") + " " + fileName;
+  const m = title.match(/OFFER[\s_]*NO\.?[\s_]*0*(\d+)/i) || title.match(/OFFER NUMBER\s+0*(\d+)/i);
+  const offer = m ? m[1].padStart(3, "0") : "";
+  const out = [];
+  rows.slice(h + 1).forEach((r) => {
+    r = r || []; const b = bc13(r[cBc]); if (!b) return;
+    let old = cOld >= 0 ? bc13(r[cOld]) : ""; if (old === b) old = "";
+    out.push({ bc: b, old, name: String(r[cName] ?? "").replace(/\s+/g, " ").replace(/^\(TENTATIVE\)\s*/i, "").trim(), series: String(r[cSeries] ?? "").trim(),
+      p1: nnum(r[p1]), p2: nnum(r[p2]), ctn: nnum(r[cCtn]), yen: cYen >= 0 ? nnum(r[cYen]) : null, offer });
+  });
+  return out;
+}
+let imp = { items: [], filter: "todo" };
+async function readFiles(files) {
+  busy(true, "กำลังอ่านไฟล์…");
+  try {
+    let all = [];
+    for (const f of files) {
+      const wb = XLSX.read(await f.arrayBuffer(), { type: "array" });
+      wb.SheetNames.forEach((n) => { all = all.concat(parseDtSheet(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null }), f.name)); });
+    }
+    const seen = new Set(); all = all.filter((x) => { if (seen.has(x.bc)) return false; seen.add(x.bc); return true; });
+    imp.items = all.map(classify); imp.filter = "todo"; imp.title = files.length === 1 ? files[0].name : files.length + " ไฟล์";
+    renderImport();
+  } catch (e) { toast("อ่านไฟล์ไม่ได้: " + e.message, "err"); }
+  finally { busy(false); }
+}
+function classify(x) {
+  const ex = S.byBc.get(x.bc);
+  if (ex) {
+    const diff = x.p1 && (Number(ex["Price 1"]) !== x.p1 || (x.p2 && Number(ex["Price 2"]) !== x.p2));
+    return Object.assign(x, { kind: diff ? "price" : "have", on: false, note: diff ? `ใน Product_ID: ${fmt(ex["Price 1"])} / ${fmt(ex["Price 2"])} → ไฟล์นี้ ${fmt(x.p1)} / ${fmt(x.p2)}` : "" });
+  }
+  if (queued(x.bc)) return Object.assign(x, { kind: "have", on: false, note: "อยู่ในคิวแล้ว" });
+  let lk = null;
+  if (x.old && S.byBc.has(x.old)) lk = x.old; else { const l = findLink(x.bc); if (l) lk = l.bc; }
+  if (lk) {
+    const o = S.byBc.get(lk);
+    if (nameClash(x.name, o["Full Name"])) return Object.assign(x, { kind: "check", on: false, link: "", note: `OLD JAN ${lk} เป็นบาร์โค้ดของ "${o["Full Name"]}" — น่าจะพิมพ์ผิด` });
+    return Object.assign(x, { kind: "link", on: true, link: lk, note: `บาร์โค้ดเดิม ${lk} = "${o["Full Name"]}" ใน Product_ID` });
+  }
+  return Object.assign(x, { kind: "new", on: !!x.p1, note: x.p1 ? "" : "ไฟล์ไม่มีราคา" });
+}
+const KIND = { new: ["เพิ่มสินค้าใหม่", "c-ok"], link: ["เพิ่มเป็นบาร์โค้ดใหม่ของสินค้าเดิม", "c-warn"], price: ["อัปเดตราคา (ทั้งกลุ่ม)", "c-blue"], check: ["ต้องเช็ก — ไม่รวมให้", "c-err"], have: ["มีแล้ว ราคาตรง (ข้าม)", "c-gray"] };
+function renderImport() {
+  const it = imp.items; $("iResult").classList.remove("hidden");
+  const c = (k) => it.filter((x) => x.kind === k).length;
+  $("iTitle").textContent = imp.title + " · " + it.length + " รายการ";
+  $("iSub").innerHTML = `มีแล้ว ${c("have")} (ข้าม) · <b class="text-teal-700">สินค้าใหม่ ${c("new")}</b> · <b style="color:#9A4A0B">บาร์โค้ดใหม่ของสินค้าเดิม ${c("link")}</b> · <b class="text-blue-800">ราคาเปลี่ยน ${c("price")}</b> · <b class="text-red-700">ต้องเช็ก ${c("check")}</b>`;
+  const F = [["todo", "ยังไม่มี (" + (c("new") + c("link") + c("check")) + ")"], ["price", "ราคาเปลี่ยน (" + c("price") + ")"], ["all", "ทั้งหมด (" + it.length + ")"]];
+  $("iFilters").innerHTML = F.map(([k, t]) => `<button class="btn ${imp.filter === k ? "btn-p" : "btn-s"}" style="min-height:36px;border-radius:999px;font-size:13px" data-if="${k}">${t}</button>`).join("");
+  document.querySelectorAll("[data-if]").forEach((b) => b.onclick = () => { imp.filter = b.dataset.if; renderImport(); });
+  const show = it.filter((x) => imp.filter === "all" || (imp.filter === "price" ? x.kind === "price" : ["new", "link", "check"].includes(x.kind)));
+  $("iBody").innerHTML = show.map((x) => `<tr class="border-t border-gray-100 ${x.kind === "check" ? "bg-red-50/60" : ""}">
+    <td class="p-3"><input type="checkbox" data-ion="${x.bc}" ${x.on ? "checked" : ""} ${x.kind === "have" ? "disabled" : ""} class="w-4 h-4" aria-label="เลือก"></td>
+    <td class="p-2 mono">${x.bc}</td><td class="p-2">${esc(x.name)}${x.note ? `<div class="text-xs ${x.kind === "check" ? "text-red-700" : "text-gray-500"}">${esc(x.note)}</div>` : ""}</td>
+    <td class="p-2 text-right">${fmt(x.p1)}</td><td class="p-2 text-right">${fmt(x.p2)}</td><td class="p-2 text-right master-only">${x.yen ? fmt(x.yen) : ""}</td>
+    <td class="p-3"><span class="chip ${KIND[x.kind][1]}">${KIND[x.kind][0]}</span></td></tr>`).join("") || `<tr><td class="p-4 text-gray-500" colspan="7">ไม่มีรายการในกลุ่มนี้</td></tr>`;
+  document.querySelectorAll("[data-ion]").forEach((el) => el.onchange = () => { it.find((x) => x.bc === el.dataset.ion).on = el.checked; updImpBtn(); });
+  updImpBtn();
+}
+function updImpBtn() { $("iQueue").textContent = "ใส่คิว " + imp.items.filter((x) => x.on).length + " รายการ"; }
+function queueImport() {
+  const items = [];
+  imp.items.filter((x) => x.on).forEach((x) => {
+    if (x.kind === "new" || x.kind === "check") {
+      const f = { Barcode: x.bc, "Full Name": x.name, Brand: "Bandai" };
+      if (x.p1) f["Price 1"] = x.p1; if (x.p2) f["Price 2"] = x.p2;
+      if (S.user.master) { if (x.yen) f.Yen = x.yen; }
+      items.push({ op: "add", fields: f, linkTo: "", label: x.name });
+    } else if (x.kind === "link") {
+      const o = S.byBc.get(x.link);
+      const f = { Barcode: x.bc, "Full Name": o["Full Name"] };
+      ["Brand", "SERIES_Product", "Shopee", "Special"].forEach((k) => { if (o[k] !== "" && o[k] !== undefined) f[k] = o[k]; });
+      f["Price 1"] = x.p1 || o["Price 1"]; f["Price 2"] = x.p2 || o["Price 2"]; if (o["P.Extra"] !== "") f["P.Extra"] = o["P.Extra"];
+      if (S.user.master) { if (o.Yen !== "") f.Yen = o.Yen; if (x.yen && Number(o.Yen) !== x.yen) f["New Yen"] = x.yen; }
+      items.push({ op: "add", fields: f, linkTo: x.link, label: f["Full Name"] + " (บาร์โค้ดใหม่ของ " + x.link + ")" });
+      items.push(...groupPriceUpdates(x.link, f));
+    } else if (x.kind === "price") {
+      const f = { "Price 1": x.p1 }; if (x.p2) f["Price 2"] = x.p2;
+      groupOf(x.bc).forEach((g) => { const p = S.byBc.get(g); if (!p) return; const ch = {}; Object.keys(f).forEach((k) => { if (Number(p[k]) !== f[k]) ch[k] = f[k]; }); if (Object.keys(ch).length) items.push({ op: "update", barcode: g, fields: ch, label: p["Full Name"] + " (ราคาจากไฟล์)", note: "Offer " + x.offer }); });
+    }
+  });
+  if (!items.length) return toast("ยังไม่ได้ติ๊กรายการ", "err");
+  addQ(items); imp.items.forEach((x) => { if (x.on) { x.on = false; x.kind = "have"; x.note = "ใส่คิวแล้ว"; } }); renderImport();
+  toast("ใส่คิวแล้ว " + items.length + " รายการ");
+}
+
+/* ------------------------------ 4. ค้นหา / แก้ไข ------------------------------ */
+function searchEdit() {
+  const q = $("eQ").value.trim(); if (q.length < 2) { $("eList").innerHTML = ""; $("eCount").textContent = "พิมพ์อย่างน้อย 2 ตัวอักษร"; return; }
+  const qb = normBc(q), words = q.toUpperCase().split(/\s+/).filter(Boolean);
+  const hits = S.list.filter((p) => (p.Barcode && p.Barcode.includes(qb) && /^\d{4,}$/.test(qb)) || words.every((w) => String(p["Full Name"]).toUpperCase().includes(w)));
+  const seen = new Set(), groups = [];
+  hits.forEach((p) => { const key = S.pdOf.get(p.Barcode) || "b:" + p.Barcode; if (seen.has(key)) return; seen.add(key); groups.push(p); });
+  $("eCount").textContent = "พบ " + groups.length + " สินค้า" + (groups.length > 60 ? " (แสดง 60 แรก)" : "");
+  $("eList").innerHTML = groups.slice(0, 60).map((p) => { const g = groupOf(p.Barcode); return `<button class="block w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-teal-50" data-eopen="${p.Barcode}">
+    <div class="font-semibold text-sm">${esc(p["Full Name"])}</div><div class="text-xs text-gray-500">${g.length} บาร์โค้ด · P1 ${fmt(p["Price 1"])} · P2 ${fmt(p["Price 2"])}${Number(p["P.Extra"]) > 0 ? ` · <b class="text-orange-700">P.Ext ${fmt(p["P.Extra"])}</b>` : ""}</div></button>`; }).join("");
+  document.querySelectorAll("[data-eopen]").forEach((b) => b.onclick = () => openEdit(b.dataset.eopen));
+}
+const EF = [["Full Name", "Full Name", 4], ["P.Extra", "P.Extra", 1], ["Price 1", "Price 1", 1], ["Price 2", "Price 2", 1], ["Shopee", "Shopee", 1], ["Yen", "Yen (เยนเดิม)", 1, 1], ["New Yen", "New Yen", 1, 1], ["Cost", "Cost", 1, 1], ["DATA", "DATA", 1, 1], ["Brand", "Brand", 2], ["SERIES_Product", "SERIES_Product", 2], ["Special", "Special", 2], ["Priority", "Priority", 2]];
+let editing = null;
+function openEdit(bc) {
+  const p = S.byBc.get(bc); if (!p) return;
+  const g = groupOf(bc); editing = { bc, g };
+  $("ePanel").innerHTML = `<div class="text-xs text-gray-500">กำลังแก้ไข</div><div class="font-bold text-lg mb-3">${esc(p["Full Name"])}</div>
+    <div class="text-sm font-semibold mb-2">บาร์โค้ดของสินค้านี้ — ติ๊กตัวที่จะแก้ (ราคา/เยน ใช้กับทุกตัวที่ติ๊ก)</div>
+    <div class="flex flex-col gap-1.5 mb-3">${g.map((b) => { const x = S.byBc.get(b) || {}; return `<label class="flex flex-wrap items-center gap-3 px-3 py-2 border border-gray-200 rounded-lg">
+      <input type="checkbox" data-eg="${b}" checked class="w-4 h-4"><span class="mono font-semibold">${b}</span>${era(b) ? `<span class="chip c-blue">${era(b)}</span>` : ""}<span class="text-xs text-gray-500">แถว ${x._row || "-"} · P1 ${fmt(x["Price 1"])}</span></label>`; }).join("")}
+      <div class="flex gap-2 flex-wrap mt-1"><input id="eNewBc" class="inp mono" style="max-width:240px" placeholder="+ เพิ่มบาร์โค้ดให้สินค้านี้"><button class="btn btn-s" id="eAddBc">เพิ่มบาร์โค้ด</button></div></div>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-dashed border-gray-200 pt-3">${EF.map(([k, t, span, mo]) => `<div class="${span === 4 ? "col-span-2 sm:col-span-4" : span === 2 ? "col-span-2" : ""} ${mo ? "master-only" : ""}"><label class="lbl" ${k === "P.Extra" ? 'style="color:#9A4A0B"' : ""}>${t}</label><input class="inp ${k === "P.Extra" ? "ext" : ""}" data-ef="${k}" value="${esc(p[k])}"></div>`).join("")}</div>
+    <div id="eDiff" class="mt-3"></div>
+    <div class="flex flex-wrap gap-2 justify-end border-t border-gray-200 pt-3 mt-3"><button class="btn btn-s" id="eCancel">ยกเลิก</button><button class="btn btn-p" id="eQueue">ใส่คิวแก้ไข</button></div>`;
+  document.querySelectorAll("[data-ef],[data-eg]").forEach((el) => el.oninput = el.onchange = editDiff);
+  $("eCancel").onclick = () => openEdit(bc); $("eQueue").onclick = queueEdit; $("eAddBc").onclick = addBcToGroup;
+  editDiff();
+}
+function editItems() {
+  const base = S.byBc.get(editing.bc), f = {};
+  document.querySelectorAll("[data-ef]").forEach((el) => { const k = el.dataset.ef; const v = NUM.includes(k) ? numOrText(el.value) : el.value.trim(); if (String(v) !== String(base[k] ?? "")) f[k] = v; });
+  if (!S.user.master) ["Yen", "New Yen", "Cost", "DATA"].forEach((k) => delete f[k]);
+  const out = [];
+  document.querySelectorAll("[data-eg]").forEach((el) => { if (!el.checked) return; const b = el.dataset.eg, p = S.byBc.get(b); if (!p) return;
+    const ch = {}; Object.keys(f).forEach((k) => { if (String(p[k] ?? "") !== String(f[k])) ch[k] = f[k]; });
+    if (Object.keys(ch).length) out.push({ op: "update", barcode: b, fields: ch, label: p["Full Name"], note: "แก้จากหน้าค้นหา/แก้ไข" }); });
+  return out;
+}
+function editDiff() {
+  const it = editItems();
+  $("eDiff").innerHTML = it.length ? `<div class="bg-gray-50 rounded-lg p-3 text-sm"><div class="font-semibold mb-1">จะเปลี่ยนในชีต (${it.length} แถว)</div>${it.map((x) => `<div><span class="mono">${x.barcode}</span>: ${Object.keys(x.fields).map((k) => `${esc(k)} <span class="text-gray-500">${esc(S.byBc.get(x.barcode)[k] === "" ? "ว่าง" : S.byBc.get(x.barcode)[k])}</span> → <b>${esc(x.fields[k] === "" ? "ว่าง" : x.fields[k])}</b>`).join(" · ")}</div>`).join("")}
+    ${it.some((x) => "P.Extra" in x.fields) ? `<div class="text-gray-500 mt-1">POS จะขายราคา P.Extra (ถ้ามี) และขึ้นป้าย ★ P.Ext</div>` : ""}</div>` : `<div class="text-sm text-gray-500">ยังไม่มีอะไรเปลี่ยน</div>`;
+}
+function queueEdit() { const it = editItems(); if (!it.length) return toast("ยังไม่มีอะไรเปลี่ยน", "err"); addQ(it); toast("ใส่คิวแก้ไข " + it.length + " แถว"); }
+function addBcToGroup() {
+  const b = normBc($("eNewBc").value); if (!b) return;
+  if (S.byBc.has(b)) return toast("บาร์โค้ดนี้มีแล้ว", "err");
+  if (checkDigitOk(b) === false && !confirm("หลักตรวจสอบผิด — น่าจะพิมพ์ผิด ยังจะเพิ่มไหม?")) return;
+  const o = S.byBc.get(editing.bc), f = { Barcode: b };
+  COLS.forEach((k) => { if (k !== "Barcode" && o[k] !== "" && o[k] !== undefined) f[k] = o[k]; });
+  if (!S.user.master) ["Yen", "New Yen", "Cost", "DATA"].forEach((k) => delete f[k]);
+  addQ([{ op: "add", fields: f, linkTo: editing.bc, label: o["Full Name"] + " (บาร์โค้ดเพิ่มของ " + editing.bc + ")" }]);
+  $("eNewBc").value = ""; toast("ใส่คิวเพิ่มบาร์โค้ดแล้ว");
+}
+
+/* ------------------------------ 5. ประวัติ ------------------------------ */
+async function loadLog() {
+  busy(true, "กำลังโหลดประวัติ…");
+  try { const r = await api("log", { limit: 200 });
+    $("logBody").innerHTML = r.length ? r.map((x) => `<tr class="border-t border-gray-100">${x.map((v, i) => `<td class="p-2 ${i === 3 ? "mono" : ""}">${esc(v)}</td>`).join("")}</tr>`).join("") : `<tr><td class="p-4 text-gray-500" colspan="8">ยังไม่มีประวัติ</td></tr>`;
+  } catch (e) { toast(e.message, "err"); } finally { busy(false); }
+}
+
+/* ------------------------------ เริ่มต้น ------------------------------ */
+function showTab(t) {
+  document.querySelectorAll("#tabs .tab").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
+  ["single", "batch", "import", "edit", "log"].forEach((k) => $("tab-" + k).classList.toggle("hidden", k !== t));
+  if (t === "single") $("sBc").focus();
+}
+async function login() {
+  S.url = $("cfgUrl").value.trim(); S.pin = $("pinIn").value.trim(); ls.set("pi_url", S.url); $("loginErr").textContent = "";
+  try {
+    busy(true, "กำลังเข้าสู่ระบบ…");
+    const u = await api("login"); S.user = u;
+    try { sessionStorage.setItem("pi_pin", S.pin); } catch (e) {}
+    document.body.classList.toggle("is-master", !!u.master);
+    $("userLabel").textContent = u.name + (u.master ? " (Master)" : "");
+    $("loginBox").classList.add("hidden");
+    busy(false); await loadAll(); showTab("single");
+  } catch (e) { busy(false); $("loginErr").textContent = e.message; }
+}
+function init() {
+  $("cfgUrl").value = S.url;
+  try { const p = sessionStorage.getItem("pi_pin"); if (p && S.url) { $("pinIn").value = p; login(); } } catch (e) {}
+  $("loginBtn").onclick = login; $("pinIn").onkeydown = (e) => { if (e.key === "Enter") login(); };
+  $("logoutBtn").onclick = (e) => { e.preventDefault(); try { sessionStorage.removeItem("pi_pin"); } catch (x) {} location.reload(); };
+  document.querySelectorAll("#tabs .tab").forEach((b) => b.onclick = () => showTab(b.dataset.tab));
+  $("sBc").onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); checkSingle(); } };
+  $("sCheck").onclick = checkSingle; $("sClear").onclick = () => { clearSingle(); $("sBc").focus(); }; $("sQueue").onclick = queueSingle;
+  batch = Array.from({ length: 10 }, newRow); renderBatch();
+  $("bAdd").onclick = () => { for (let i = 0; i < 10; i++) batch.push(newRow()); renderBatch(); };
+  $("bClear").onclick = () => { if (confirm("ล้างตารางทั้งหมด?")) { batch = Array.from({ length: 10 }, newRow); renderBatch(); } };
+  $("bAll").onchange = () => { batch.forEach((r) => r.on = $("bAll").checked); renderBatch(); };
+  $("bApply").onclick = applyBulk; $("bQueue").onclick = queueBatch;
+  $("bPasteBtn").onclick = async () => { try { const t = await navigator.clipboard.readText(); if (t && t.trim()) return pasteRows(t); } catch (e) {} $("pasteTxt").value = ""; $("pasteBox").classList.remove("hidden"); $("pasteTxt").focus(); };
+  $("pasteCancel").onclick = () => $("pasteBox").classList.add("hidden");
+  $("pasteOk").onclick = () => { pasteRows($("pasteTxt").value); $("pasteBox").classList.add("hidden"); };
+  $("bBody").addEventListener("paste", (e) => { const t = (e.clipboardData || window.clipboardData).getData("text"); if (t && (t.includes("\t") || t.includes("\n"))) { e.preventDefault(); pasteRows(t); } });
+  $("iFile").onchange = (e) => { if (e.target.files.length) readFiles([...e.target.files]); e.target.value = ""; };
+  const dz = $("iDrop"); dz.ondragover = (e) => { e.preventDefault(); }; dz.ondrop = (e) => { e.preventDefault(); if (e.dataTransfer.files.length) readFiles([...e.dataTransfer.files]); };
+  $("iAll").onchange = () => { imp.items.forEach((x) => { if (x.kind !== "have") x.on = $("iAll").checked; }); renderImport(); };
+  $("iQueue").onclick = queueImport;
+  $("eQ").oninput = searchEdit; $("logReload").onclick = loadLog;
+  $("qToggle").onclick = () => $("qPanel").classList.toggle("hidden"); $("qCommit").onclick = commitQ;
+  renderQ();
+}
+init();
+</script>
+</body>
+</html>
