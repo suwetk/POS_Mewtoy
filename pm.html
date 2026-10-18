@@ -1405,7 +1405,8 @@ async function renderSupList(v) {
     <div class="flex flex-wrap items-center gap-2 mb-3">
       <div class="mr-auto"><h2 class="font-bold">บิลซัพ (ไม่ใช่ Dreamtoy)</h2><div class="text-xs muted">กรอกบิลเอง · เก็บในไฟล์ PM อย่างเดียว ไม่เขียน Product_ID ไม่ส่งไป POS</div></div>
       <button class="btn btn-w" onclick="spAddSupPage('')"><i class="fa-solid fa-building-circle-check"></i> เพิ่มซัพ</button>
-      <button class="btn btn-p" onclick="newSup()"><i class="fa-solid fa-plus"></i> กรอกบิลใหม่</button>
+      <button class="btn btn-w" onclick="newSup()"><i class="fa-solid fa-plus"></i> กรอกบิลใหม่</button>
+      <button class="btn btn-p" onclick="imOpen()"><i class="fa-solid fa-file-import"></i> นำเข้าไฟล์ซัพ (เลือกสินค้า)</button>
     </div>
     <div class="grid sm:grid-cols-3 gap-3 mb-3">
       <div class="card border border-red-200 bg-red-50"><div class="text-xs font-bold text-red-700">ปิดสั่งภายใน 3 วัน</div><div class="text-2xl font-bold text-red-700">${due3.length} บิล</div>
@@ -1471,7 +1472,8 @@ async function openSup(id) {
         const q = {}; let shop = 0;
         R.lines.filter(l => l.key === i.key).forEach(l => { if (l.code === SHOP_CODE) shop += l.qty; else q[l.code] = (q[l.code] || 0) + l.qty; });
         return { barcode: i.barcode, itemCode: i.itemCode, name: i.name, series: i.series, yen: i.yen, cost: i.cost, price1: i.price1, price2: i.price2,
-          pcsCtn: i.pcsCtn, imageUrl: i.imageUrl, remark: i.remark, shopQty: shop || "", extraQty: i.extraQty || "", qty: q };
+          pcsCtn: i.pcsCtn, imageUrl: i.imageUrl, remark: spStripTier(i.remark), shopQty: shop || "", extraQty: i.extraQty || "", qty: q,
+          tiers: i.tiers && i.tiers.t && i.tiers.t.length ? i.tiers : null };
       }) };
     if (!S.sp.rows.length) S.sp.rows.push(spEmptyRow());
     location.hash = "sup=" + encodeURIComponent(id);
@@ -1481,9 +1483,10 @@ async function openSup(id) {
 }
 
 // ---------- หน้ากรอก ----------
-function spTotal(r) { return n0(r.shopQty) + n0(r.extraQty) + S.sp.cust.reduce((s, c) => s + n0(r.qty[c.code]), 0); }
+function spTotal(r) { return n0(r.shopQty) + n0(r.extraQty) + ((S.sp && S.sp.cust) || []).reduce((s, c) => s + n0((r.qty || {})[c.code]), 0); }
 function renderSup() {
   const m = S.sp, v = document.getElementById("view"); if (!m) return;
+  m.rows.forEach(spTierApply);
   const sups = (S.spList && S.spList.suppliers) || [];
   const cust = S.boot.customers || [];
   const rows = m.rows.filter(r => r.barcode || r.name);
@@ -1558,7 +1561,7 @@ function spCard(r, i) {
         ${inp("itemCode", "Item No.", "font-mono")}
         <div class="col-span-1 sm:col-span-3">${inp("series", "Category · Series · Type")}</div>
         <div class="col-span-2 sm:col-span-6">${inp("name", "ชื่อสินค้า")}</div>
-        ${inp("yen", "Yen")}${inp("cost", "ทุน (ราคาส่งซัพ)")}${inp("price1", "Price 1 (ปลีก)", "font-bold")}${inp("price2", "Price 2 (ส่ง)")}${inp("pcsCtn", "ชิ้น/ลัง")}
+        ${inp("yen", "Yen")}<div>${inp("cost", r.tiers ? "ทุน (ตามขั้นราคา)" : "ทุน (ราคาส่งซัพ)")}${spTierBadge(r, i)}</div>${inp("price1", "Price 1 (ปลีก)", "font-bold")}${inp("price2", "Price 2 (ส่ง)")}${inp("pcsCtn", "ชิ้น/ลัง")}
         <div class="col-span-1">${inp("remark", "หมายเหตุ")}</div>
         <div class="col-span-2 sm:col-span-6">${inp("imageUrl", "ลิงก์รูป (ถ้ามี)")}</div>
       </div>
@@ -1591,6 +1594,7 @@ function spSet(i, k, v) {
     r.barcode = v.replace(/[\s-]/g, ""); spFill(r);
     if (r.barcode && S.sp.rows.filter(x => x.barcode === r.barcode).length > 1) toast("บาร์โค้ดนี้มีในบิลแล้ว", true);
   } else r[k] = SP_NUM.includes(k) ? spNum(v) : v;
+  if (k === "cost" && r.tiers) { r.tiers.m = 1; }
   if (["shopQty", "extraQty"].includes(k) && r[k] !== "") r[k] = Math.max(0, Math.round(n0(r[k]))) || "";
   spDirty(); renderSup();
 }
@@ -1721,6 +1725,45 @@ async function spImportFile(file) {
   });
 }
 
+// ---------- ขั้นราคา (1 ลัง / ครึ่งลัง …) จากไฟล์ซัพ — v3.6 ----------
+// r.tiers = { t:[{min, price, label}] (min น้อย→มาก), m:1 = แก้ทุนเอง (ไม่เลือกขั้นให้), vat }
+function spTier(r) {
+  const T = r.tiers && r.tiers.t ? r.tiers.t.slice().sort((a, b) => a.min - b.min) : [];
+  if (!T.length) return null;
+  const tot = spTotal(r), ok = T.filter(t => tot >= t.min);
+  const cur = ok.length ? ok.reduce((a, b) => (b.price < a.price ? b : a)) : null;
+  const ref = cur || T[0];
+  const next = T.filter(t => t.min > tot && t.price < ref.price).sort((a, b) => a.min - b.min)[0] || null;
+  return { T, tot, cur, below: !cur, ref, next };
+}
+function spTierApply(r) {
+  const x = spTier(r); if (!x || r.tiers.m) return;
+  r.cost = x.ref.price;
+}
+function spTierText(r) {
+  const x = spTier(r); if (!x) return "";
+  const list = x.T.slice().reverse().map(t => `${t.label} ≥${fmt(t.min)} ฿${fmt(t.price)}`).join(" | ");
+  const head = r.tiers.m ? `ราคาตกลงเอง ฿${fmt(n0(r.cost))}` : x.below ? `ต่ำกว่า${x.T[0].label} ใช้ ฿${fmt(x.ref.price)}` : `ใช้ราคา${x.cur.label}`;
+  return `[${head} · ${list}${r.tiers.vat ? " · +VAT" + r.tiers.vat + "%" : ""}]`;
+}
+function spStripTier(s) { return String(s || "").replace(/^\[[^\]]*\]\s*/, ""); }
+function spTierBadge(r, i) {
+  const x = spTier(r); if (!x) return "";
+  if (r.tiers.m) return `<div class="text-[11px] mt-0.5"><span class="chip bg-gray-200 text-gray-800">ราคาตกลงเอง</span>
+    <a href="#" class="text-teal-700 underline" onclick="S.sp.rows[${i}].tiers.m=0; spDirty(); renderSup(); return false">ใช้ขั้นราคา</a></div>`;
+  const badge = x.below ? `<span class="chip bg-red-100 text-red-800">ต่ำกว่า${esc(x.T[0].label)} (≥${fmt(x.T[0].min)}) — ซัพอาจไม่รับ</span>`
+    : `<span class="chip ${x.cur === x.T[x.T.length - 1] ? "bg-teal-100 text-teal-900" : "bg-amber-100 text-amber-900"}">ราคา${esc(x.cur.label)}</span>`;
+  const hint = x.next ? `<div class="text-amber-800">อีก ${fmt(x.next.min - x.tot)} ชิ้น ได้ราคา${esc(x.next.label)} ถูกลง ฿${fmt(r2(x.ref.price - x.next.price))}/ชิ้น</div>` : "";
+  return `<div class="text-[11px] mt-0.5">${badge}${hint}<div class="muted">${x.T.slice().reverse().map(t => esc(t.label) + " ≥" + fmt(t.min) + ": ฿" + fmt(t.price)).join(" · ")}</div></div>`;
+}
+function spPayloadItem(r) {
+  const nz = x => x === "" || x == null ? "" : x, tt = spTierText(r);
+  return { barcode: r.barcode, itemCode: r.itemCode, name: r.name, series: r.series, yen: nz(r.yen), cost: nz(r.cost), price1: nz(r.price1),
+    price2: nz(r.price2), pcsCtn: nz(r.pcsCtn), imageUrl: r.imageUrl, remark: (tt ? tt + (r.remark ? " " : "") : "") + (r.remark || ""),
+    shopQty: n0(r.shopQty), extraQty: n0(r.extraQty), tiers: r.tiers || null,
+    isNew: !!(r.barcode && S.products && !S.products.get(String(r.barcode).replace(/\D/g, ""))) };
+}
+
 // ---------- บันทึก ----------
 async function saveSup(draft) {
   const m = S.sp;
@@ -1740,9 +1783,7 @@ async function saveSup(draft) {
   const payload = {
     roundId: m.roundId || "", supplier: m.supplier, supplierId: m.supplierId, offerNo: m.offerNo, title: m.title, type: m.type, closeAt: m.closeAt, jpLaunch: m.jpLaunch, arrive: m.arrive,
     remindDays: m.remindDays, notes: m.notes, fileName: m.fileName, draft: !!draft,
-    items: rows.map(r => ({ barcode: r.barcode, itemCode: r.itemCode, name: r.name, series: r.series, yen: nz(r.yen), cost: nz(r.cost), price1: nz(r.price1),
-      price2: nz(r.price2), pcsCtn: nz(r.pcsCtn), imageUrl: r.imageUrl, remark: r.remark, shopQty: n0(r.shopQty), extraQty: n0(r.extraQty),
-      isNew: !!(r.barcode && S.products && !S.products.get(String(r.barcode).replace(/\D/g, ""))) })),
+    items: rows.map(r => spPayloadItem(r)),
     ws: m.cust.map(c => ({ code: c.code, name: c.name, lines: rows.filter(r => n0(r.qty[c.code]) > 0).map(r => ({ key: itemKeyOf(r.barcode, r.name), qty: n0(r.qty[c.code]) })) }))
   };
   await run(async () => {
@@ -1847,6 +1888,483 @@ async function spAddSave() {
     if (back === "editor" && S.sp) { S.sp.supplier = x.nick; S.sp.supplierId = x.id; spDirty(); renderSup(); } else go("sup");
   });
 }
+</script>
+<script>
+// ===================================================================
+//  นำเข้าไฟล์ซัพ → ติกเลือกสินค้า → ดึงเข้าบิลซัพ (v3.6)
+//  แม่แบบ (Import Map) = จับคอลัมน์ของไฟล์แต่ละซัพ · ตัวตั้งต้นอยู่ในโค้ด (ID "B:…") บันทึกทับ/เพิ่มได้ด้วย PIN (แท็บ ImportMaps)
+//  อ่านไฟล์ในเบราว์เซอร์ทั้งหมด — ไม่อัปโหลดไฟล์ขึ้น Google
+// ===================================================================
+const IM_FIELDS = [
+  ["barcode", "บาร์โค้ด *"], ["name", "ชื่อสินค้า *"], ["cost", "ทุน (ราคาส่งซัพ)"], ["itemCode", "Item No. / รหัส"],
+  ["group", "กลุ่ม (Series / IP)"], ["ctn", "ชิ้น/ลัง"], ["moq", "MOQ (สั่งขั้นต่ำ)"], ["sell", "ราคาขายแนะนำ / Price 1"],
+  ["yen", "ราคาญี่ปุ่น (Yen)"], ["deadline", "วันปิดสั่ง (รายตัว)"], ["jp", "วางขาย / Release"], ["note", "หมายเหตุ / สถานะ"], ["img", "ลิงก์รูป"]
+];
+const IM_TIER_MAX = 3;
+const F = (c, h, o) => ({ c, h: h || "", o: o || 1 });
+const IM_BUILTIN = [
+  { id: "B:dt-stock", name: "Dreamtoy · Stock Model kit (List of stock)", sup: /dream/, config: {
+    sheet: "MODEL", hr: 4, groupBy: "group", vat: 0, split: false,
+    f: { barcode: F("B"), itemCode: F("C", "itemcode2"), name: F("D", "itemname"), group: F("F", "series"), ctn: F("G", "pcsctn"),
+         sell: F("H", "price1"), cost: F("I", "price2") } } },
+  { id: "B:dt-offer", name: "Dreamtoy · Offer sheet (Model kit)", sup: /dream/, config: {
+    sheet: "", hr: 5, groupBy: "group", vat: 0, split: false,
+    f: { barcode: F("F", "fulljancode"), itemCode: F("J", "itemcode"), name: F("K", "itemname"), group: F("I", "series"), jp: F("L", "month"),
+         yen: F("M", "retailpricejpy"), ctn: F("N", "qtyctn"), sell: F("O", "estimateprice1"), cost: F("P", "estimateprice2"), note: F("D", "remarks") } } },
+  { id: "B:ka-blokees", name: "K.A. · Blokees", sup: /k\.?\s*a\.?\s*brand|^ka$|blokees/, config: {
+    sheet: "Ordersheet", hr: 5, groupBy: "group", vat: 0, split: false,
+    f: { itemCode: F("D", "blokeesitems"), barcode: F("E", "barcodesb"), name: F("F", "fullname"), group: F("G", "ip"), ctn: F("I", "pcscartons"),
+         sell: F("J", "srpsingleboxvthb"), moq: F("L", "moq"), cost: F("M", "proposalprice"), jp: F("P", "launch"), deadline: F("Q", "deadlineorder") } } },
+  { id: "B:ka-ko", name: "K.A. · Kotobukiya (KO Preorder)", sup: /k\.?\s*a\.?\s*brand|^ka$|kotobukiya/, config: {
+    sheet: "", hr: 1, groupBy: "deadline", vat: 0, split: true, hideClosed: true,
+    f: { itemCode: F("C", "id"), barcode: F("D", "barcode"), name: F("E", "name"), yen: F("F", "japanretailprice"), ctn: F("G", "moq1ลัง"),
+         deadline: F("O", "preorderdedline"), jp: F("P", "releasejapan"), note: F("Q", "status"), img: F("S", "pic", 2) },
+    tiers: [{ label: "1 ลัง", q: F("G", "moq1ลัง"), p: F("H", "proposalpriceinclvat", 1) },
+            { label: "ครึ่งลัง", q: F("K", "moqครึ่งลัง"), p: F("L", "proposalpriceinclvat", 2) },
+            { label: "เสี้ยวลัง", q: F("O", "moqเสี้ยวลัง"), p: F("P", "proposalpriceinclvat", 3) }] } },
+  { id: "B:bnt-offer", name: "BNT · Bandai Offer (Gundam Assemble)", sup: /bnt|bandai|namco/, config: {
+    sheet: "", hr: 5, groupBy: "group", vat: 7, split: false,
+    f: { barcode: F("C", "fulljancode"), group: F("D", "series"), itemCode: F("E", "itemno"), name: F("F", "itemname"), jp: F("G", "month"),
+         yen: F("H", "retailpriceyen"), ctn: F("I", "qtyctn"), cost: F("O", "ราคาส่งร้านค้า"), sell: F("P", "ราคาปลีกหน้าร้าน") } } }
+];
+
+// ---------- ตัวช่วย ----------
+function imN(v) { return String(v == null ? "" : v).normalize("NFKC").toLowerCase().replace(/[^0-9a-z฀-๿]/g, ""); }
+function imColIdx(c) { try { return XLSX.utils.decode_col(String(c || "").toUpperCase()); } catch (e) { return -1; } }
+function imNum(v) { if (typeof v === "number") return v; const s = String(v == null ? "" : v).normalize("NFKC").replace(/[,฿\s]|thb|บาท/gi, ""); return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : null; }
+const IM_MON = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+/** ค่าเซลล์/ข้อความ → yyyy-mm-dd ("" ถ้าอ่านไม่ได้) · วันที่แบบ ตัวเลข/ตัวเลข = วัน/เดือน */
+function imDate(v) {
+  if (v === null || v === undefined || v === "") return "";
+  if (v instanceof Date) return isNaN(v) ? "" : v.toISOString().slice(0, 10);
+  if (typeof v === "number") return v > 20000 && v < 80000 ? new Date(Math.round((v - 25569) * 864e5)).toISOString().slice(0, 10) : "";
+  const s = String(v).normalize("NFKC"), y4 = (y) => (String(y).length === 2 ? "20" + y : String(y)), p2 = (x) => String(x).padStart(2, "0");
+  let m = /(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s); if (m) return `${m[1]}-${p2(m[2])}-${p2(m[3])}`;
+  m = /(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})/.exec(s); if (m && +m[2] <= 12 && +m[1] <= 31) return `${y4(m[3])}-${p2(m[2])}-${p2(m[1])}`;
+  m = /([a-z]{3})[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})/i.exec(s); if (m && IM_MON.includes(m[1].toLowerCase())) return `${m[3]}-${p2(IM_MON.indexOf(m[1].toLowerCase()) + 1)}-${p2(m[2])}`;
+  m = /(\d{1,2})\s+([a-z]{3})[a-z]*\.?,?\s+(\d{2,4})/i.exec(s); if (m && IM_MON.includes(m[2].toLowerCase())) return `${y4(m[3])}-${p2(IM_MON.indexOf(m[2].toLowerCase()) + 1)}-${p2(m[1])}`;
+  return "";
+}
+function imYm(v) { const d = imDate(v); return d ? d.slice(0, 7) : spYm(v); }
+function imSups() { return (S.spList && S.spList.suppliers) || []; }
+function imSupName(id) { const s = imSups().find(x => x.id === id); return s ? (s.nick || s.name) : ""; }
+/** แม่แบบทั้งหมด: ที่บันทึกในชีต + ตัวตั้งต้น (ID ซ้ำ = ใช้ของในชีต) */
+function imMaps() {
+  const saved = ((S.spList && S.spList.maps) || []).map(m => Object.assign({ saved: true }, m));
+  const ids = new Set(saved.map(m => m.id));
+  return saved.concat(IM_BUILTIN.filter(b => !ids.has(b.id)).map(b => Object.assign({ builtin: true }, b)));
+}
+function imMapForSup(m, sup) {
+  if (!sup) return false;
+  if (m.supplierId) return m.supplierId === sup.id;
+  return m.sup ? [sup.nick, sup.name, sup.aliases].some(x => x && m.sup.test(String(x).toLowerCase())) : false;
+}
+
+// ---------- อ่านไฟล์ตามแม่แบบ ----------
+/** หาเลขคอลัมน์ของช่อง: หัวตรงที่ตัวอักษรเดิม → ใช้เลย · ไม่ตรง → หาหัวชื่อนี้ (ตัวที่ o) · ไม่มีหัว (h="") → ใช้ตัวอักษร */
+function imResolve(H, f) {
+  if (!f || !f.c) return -1;
+  const i = imColIdx(f.c), at = imN(H[i]);
+  if (!f.h) return i;
+  const hit = (x) => x && (x === f.h || x.startsWith(f.h));
+  if (hit(at)) return i;
+  let n = 0;
+  for (let j = 0; j < H.length; j++) if (hit(imN(H[j])) && ++n === (f.o || 1)) return j;
+  return -1;
+}
+function imHeaderRow(grid, cfg) {
+  const fs = Object.values(cfg.f || {}).concat((cfg.tiers || []).flatMap(t => [t.q, t.p])).filter(f => f && f.h);
+  let best = (cfg.hr || 1) - 1, bs = -1;
+  for (let r = 0; r < Math.min(grid.length, 40); r++) {
+    const H = (grid[r] || []).map(imN);
+    const sc = fs.filter(f => H.some(x => x && (x === f.h || x.startsWith(f.h)))).length * 10 - Math.abs(r - ((cfg.hr || 1) - 1)) * 0.01;
+    if (sc > bs) { bs = sc; best = r; }
+  }
+  return fs.length && bs < 10 ? -1 : best;
+}
+function imApply(grid, cfg, fileName) {
+  const out = { ok: false, rows: [], cols: {}, missing: [], hr: -1, skipped: 0, dup: 0, closeAt: "", offerNo: "", title: "" };
+  const hr = imHeaderRow(grid, cfg); out.hr = hr;
+  if (hr < 0) { out.missing = ["หัวตาราง"]; return out; }
+  const H = grid[hr] || [];
+  IM_FIELDS.forEach(([k]) => { out.cols[k] = imResolve(H, (cfg.f || {})[k]); });
+  const tiers = (cfg.tiers || []).map(t => ({ label: t.label, q: imResolve(H, t.q), p: imResolve(H, t.p) })).filter(t => t.q >= 0 && t.p >= 0);
+  out.tiers = tiers;
+  ["barcode", "name"].forEach(k => { if (out.cols[k] < 0) out.missing.push(k === "barcode" ? "บาร์โค้ด" : "ชื่อสินค้า"); });
+  if (out.cols.cost < 0 && !tiers.length) out.missing.push("ทุน");
+  if (out.missing.length) return out;
+  const g = (row, k) => out.cols[k] >= 0 ? row[out.cols[k]] : null, vat = 1 + n0(cfg.vat) / 100, money = (x) => x == null ? null : Math.round(x * vat * 100) / 100;
+  const seen = new Set();
+  for (let r = hr + 1; r < grid.length; r++) {
+    const row = grid[r] || [];
+    const bc = normBarcode(g(row, "barcode")), name = hdr(g(row, "name"));
+    if (!/^\d{8,14}$/.test(bc)) { if (row.some(x => hdr(x))) out.skipped++; continue; }
+    if (seen.has(bc)) { out.dup++; continue; } seen.add(bc);
+    const it = { bc, name: name || bc, code: hdr(g(row, "itemCode")), group: hdr(g(row, "group")), ctn: imNum(g(row, "ctn")), moq: imNum(g(row, "moq")),
+      cost: money(imNum(g(row, "cost"))), sell: imNum(g(row, "sell")), yen: imNum(g(row, "yen")), deadline: imDate(g(row, "deadline")),
+      jp: imYm(g(row, "jp")), note: hdr(g(row, "note")), img: /^https?:\/\//.test(hdr(g(row, "img"))) ? hdr(g(row, "img")) : "", tiers: [] };
+    tiers.forEach(t => { const q = imNum(row[t.q]), p = money(imNum(row[t.p])); if (q > 0 && p > 0) it.tiers.push({ min: q, price: p, label: t.label }); });
+    it.tiers.sort((a, b) => a.min - b.min);
+    if (it.tiers.length) { if (!it.moq) it.moq = it.tiers[0].min; if (it.cost == null) it.cost = it.tiers[it.tiers.length - 1].price; }
+    if (!it.moq && it.ctn && cfg.moqIsCtn) it.moq = it.ctn;
+    out.rows.push(it);
+  }
+  // วันปิดทั้งไฟล์ / เลข Offer จากแถวบน ๆ + ชื่อไฟล์
+  const top = grid.slice(0, hr).map(row => (row || []).map(hdr).filter(Boolean).join(" ")).concat([fileName || ""]);
+  for (const t of top) { if (!out.closeAt && /clos|ปิด|deadline/i.test(t)) { const seg = t.split(/clos(?:ing)?\s*date|ปิดรับ|ปิด|deadline/i).slice(1).join(" "); out.closeAt = imDate(seg) || imDate(t); } }
+  for (const t of top) { const m = /offer[\s_]*(?:no\.?|number)?[\s_]*[:#.]?[\s_]*(\d{2,6})/i.exec(t); if (m) { out.offerNo = m[1]; break; } }
+  out.title = String(fileName || "").replace(/\.[a-z]+$/i, "").replace(/^[0-9a-f]{8}-/, "").replace(/_/g, " ").slice(0, 60);
+  out.ok = true;
+  return out;
+}
+
+// ---------- หน้า ----------
+async function imOpen() {
+  if (hasDraft() && !confirm("มีข้อมูลที่ยังไม่บันทึก — ออกจากหน้านี้?")) return;
+  const t = navStart();
+  S.page = "sup"; renderNav(); S.draft = {}; location.hash = "";
+  document.getElementById("view").innerHTML = `<div class="card text-center muted py-6"><i class="fa-solid fa-spinner fa-spin"></i></div>`;
+  if (!S.spList || !S.spList.maps) { const L = await run(() => api("supList")); if (stale(t)) return; S.spList = L || { suppliers: [], maps: [] }; }
+  imRemoveTry();
+  S.im = { supplierId: (S.im && S.im.supplierId) || "", file: null, wb: null, sheet: "", mapId: "", res: null, sel: new Set(), group: "*", q: "", newOnly: false, showClosed: false };
+  imRender();
+  run(loadProducts).then(() => { if (S.im && !stale(t)) imRenderList(); });
+}
+function imSup() { return imSups().find(x => x.id === S.im.supplierId) || null; }
+function imCfg() { const m = imMaps().find(x => x.id === S.im.mapId); return m ? m.config : null; }
+function imRender() {
+  const I = S.im, v = document.getElementById("view"); if (!I) return;
+  const sup = imSup(), maps = imMaps(), mine = maps.filter(m => imMapForSup(m, sup)), other = maps.filter(m => !imMapForSup(m, sup));
+  const R = I.res, cfg = imCfg();
+  v.innerHTML = `
+  <div class="pb-28">
+  <div class="card mb-3">
+    <div class="flex flex-wrap items-center gap-2 mb-3">
+      <button class="btn btn-w btn-s" onclick="go('sup')"><i class="fa-solid fa-arrow-left"></i></button>
+      <h3 class="font-bold mr-auto">นำเข้าไฟล์ซัพ → เลือกสินค้า → บิลซัพ</h3>
+      <span class="text-xs muted">${S.products ? "Product_ID " + fmt(S.products.size) + " รายการ" : '<i class="fa-solid fa-spinner fa-spin"></i> โหลด Product_ID'}</span>
+    </div>
+    <div class="grid sm:grid-cols-3 gap-3 text-sm">
+      <label class="block">1. ซัพพลายเออร์ *<select class="sel w-full mt-1" onchange="imPickSup(this.value)"><option value="">— เลือกซัพ —</option>
+        ${imSups().map(s => `<option value="${esc(s.id)}" ${s.id === I.supplierId ? "selected" : ""}>${esc(s.nick || s.name)}${s.nick && s.name ? " · " + esc(s.name) : ""}</option>`).join("")}</select></label>
+      <div class="block">2. ไฟล์ซัพ (.xlsx)
+        <button class="btn btn-w w-full mt-1 justify-center" onclick="pickFiles('.xlsx,.xlsm,.xls', false, f => imLoadFile(f[0]))"><i class="fa-solid fa-file-excel"></i> ${I.file ? esc(I.file.name) : "เลือกไฟล์…"}</button></div>
+      <label class="block">3. แม่แบบ<select class="sel w-full mt-1" onchange="imPickMap(this.value)" ${I.wb ? "" : "disabled"}><option value="">— เลือกแม่แบบ —</option>
+        ${mine.length ? `<optgroup label="ของ ${esc(sup ? sup.nick || sup.name : "")}">${mine.map(m => `<option value="${esc(m.id)}" ${m.id === I.mapId ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</optgroup>` : ""}
+        <optgroup label="${mine.length ? "แม่แบบอื่น" : "แม่แบบทั้งหมด"}">${other.map(m => `<option value="${esc(m.id)}" ${m.id === I.mapId ? "selected" : ""}>${esc(m.name)}${m.supplier ? " (" + esc(m.supplier) + ")" : ""}</option>`).join("")}</optgroup></select></label>
+    </div>
+    ${I.wb ? `<div class="flex flex-wrap items-center gap-2 mt-3 text-sm">
+      <label class="flex items-center gap-1">แท็บ <select class="sel" onchange="imPickSheet(this.value)">${I.wb.SheetNames.map(n => `<option ${n === I.sheet ? "selected" : ""}>${esc(n)}</option>`).join("")}</select></label>
+      <button class="btn btn-w btn-s" onclick="imEditMap(${I.mapId ? jsq(I.mapId) : "''"})"><i class="fa-solid fa-sliders"></i> ${I.mapId ? "แก้แม่แบบนี้" : "สร้างแม่แบบใหม่"}</button>
+      ${I.mapId ? `<button class="btn btn-w btn-s" onclick="imEditMap('')"><i class="fa-solid fa-plus"></i> แม่แบบใหม่</button>` : ""}
+    </div>` : ""}
+    ${R ? (R.ok ? `<div class="mt-3 text-sm rounded-lg bg-teal-50 text-teal-900 p-2">
+        อ่านได้ <b>${fmt(R.rows.length)}</b> รายการ · หัวตารางแถว ${R.hr + 1}${R.skipped ? ` · ข้าม ${fmt(R.skipped)} แถวที่ไม่มีบาร์โค้ด` : ""}${R.dup ? ` · บาร์โค้ดซ้ำในไฟล์ ${R.dup} แถว (ใช้แถวแรก)` : ""}
+        ${R.closeAt ? ` · วันปิดในไฟล์ <b>${fmtDate(R.closeAt)}</b>` : ""}${cfg && cfg.vat ? ` · <b>ทุนบวก VAT ${cfg.vat}% แล้ว</b>` : ""}
+        <div class="flex flex-wrap gap-1 mt-1">${IM_FIELDS.filter(([k]) => R.cols[k] >= 0).map(([k, l]) => `<span class="chip bg-white text-teal-900 font-mono">${colName(R.cols[k])} = ${esc(l.replace(" *", ""))}</span>`).join("")}
+          ${(R.tiers || []).map(t => `<span class="chip bg-white text-teal-900 font-mono">${colName(t.q)}/${colName(t.p)} = ${esc(t.label)}</span>`).join("")}</div></div>`
+      : `<div class="mt-3 text-sm rounded-lg bg-red-50 text-red-800 p-2">แม่แบบนี้ใช้กับไฟล์/แท็บนี้ไม่ได้ — หาคอลัมน์ <b>${esc(R.missing.join(", "))}</b> ไม่เจอ · ลองเปลี่ยนแท็บ/แม่แบบ หรือกด "${I.mapId ? "แก้แม่แบบนี้" : "สร้างแม่แบบใหม่"}"</div>`) : ""}
+  </div>
+  <div id="imList"></div>
+  </div>
+  <div id="imFoot" class="bg-gray-900 text-white px-4 sm:px-6 py-3 flex flex-wrap gap-3 items-center justify-between" style="position:fixed;left:0;right:0;bottom:0;z-index:40"></div>`;
+  imRenderList();
+}
+function imPickSup(id) { S.im.supplierId = id; if (S.im.wb) imAuto(); imRender(); }
+function imPickMap(id) { S.im.mapId = id; imParse(true); imRender(); }
+function imPickSheet(n) { S.im.sheet = n; imParse(false); imRender(); }
+async function imLoadFile(file) {
+  if (!file) return;
+  await run(async () => {
+    const { wb } = await readBook(file);
+    Object.assign(S.im, { file: { name: file.name }, wb, sheet: "", mapId: "", res: null, sel: new Set(), group: "*", q: "", grids: {} });
+    imAuto();
+    S.draft = { im: { x: 1 } };
+    imRender();
+    if (!S.im.res || !S.im.res.ok) toast("ยังหาแม่แบบที่ตรงกับไฟล์นี้ไม่ได้ — เลือกแม่แบบ/แท็บเอง หรือสร้างแม่แบบใหม่", true);
+  });
+}
+function imGrid(n) { const I = S.im; I.grids = I.grids || {}; if (!I.grids[n]) I.grids[n] = gridOf(I.wb.Sheets[n], 20000); return I.grids[n]; }
+/** ลองทุกแม่แบบ × ทุกแท็บ เลือกอันที่อ่านได้มากที่สุด (แม่แบบของซัพที่เลือก + แท็บตามชื่อในแม่แบบ ได้คะแนนเพิ่ม) */
+function imAuto() {
+  const I = S.im, sup = imSup(); let best = null;
+  imMaps().forEach(m => {
+    I.wb.SheetNames.forEach((n, si) => {
+      const r = imApply(imGrid(n), m.config, I.file.name); if (!r.ok || !r.rows.length) return;
+      const hint = m.config.sheet && n.toLowerCase().includes(String(m.config.sheet).toLowerCase());
+      const sc = r.rows.length + (imMapForSup(m, sup) ? 5000 : 0) + (hint ? 2000 : 0) - si * 50 + Object.values(r.cols).filter(x => x >= 0).length * 20;
+      if (!best || sc > best.sc) best = { sc, id: m.id, n };
+    });
+  });
+  if (best) { I.mapId = best.id; I.sheet = best.n; } else { I.sheet = I.sheet || I.wb.SheetNames[0]; }
+  imParse(false);
+}
+/** อ่านแท็บที่เลือกด้วยแม่แบบที่เลือก · useHint = ย้ายไปแท็บตามชื่อในแม่แบบ (ถ้ามี) */
+function imParse(useHint) {
+  const I = S.im, m = imMaps().find(x => x.id === I.mapId);
+  if (!I.wb) return;
+  if (!m) { I.res = null; return; }
+  if (useHint && m.config.sheet) { const h = I.wb.SheetNames.find(n => n.toLowerCase().includes(String(m.config.sheet).toLowerCase())); if (h) I.sheet = h; }
+  if (!I.sheet) I.sheet = I.wb.SheetNames[0];
+  I.res = imApply(imGrid(I.sheet), m.config, I.file.name);
+  const keep = new Set((I.res.rows || []).map(r => r.bc)); I.sel = new Set([...I.sel].filter(b => keep.has(b)));
+  I.group = "*"; I.showClosed = !m.config.hideClosed;
+}
+function imGroupOf(r, cfg) { return cfg && cfg.groupBy === "deadline" ? (r.deadline || "ไม่มีวันปิด") : (r.group || "—"); }
+function imView() {
+  const I = S.im, R = I.res, cfg = imCfg(); if (!R || !R.ok) return { all: [], view: [], closed: 0 };
+  const today = todayStr(), q = imN(I.q);
+  let all = R.rows, closed = 0;
+  if (!I.showClosed) { all = all.filter(r => { const c = r.deadline && r.deadline < today; if (c) closed++; return !c; }); }
+  const view = all.filter(r => (I.group === "*" || imGroupOf(r, cfg) === I.group)
+    && (!I.newOnly || !(S.products && S.products.get(r.bc)))
+    && (!q || imN(r.name + " " + r.bc + " " + r.code + " " + r.group).includes(q)));
+  return { all, view, closed };
+}
+function imRenderList() {
+  const I = S.im, box = document.getElementById("imList"), foot = document.getElementById("imFoot"); if (!I || !box) return;
+  const R = I.res, cfg = imCfg();
+  if (!R || !R.ok) { box.innerHTML = I.wb ? "" : `<div class="card text-center muted py-8 text-sm">เลือกซัพ แล้วเลือกไฟล์ Excel ของซัพ — ระบบจะหาแม่แบบที่ตรงให้เอง</div>`; foot.innerHTML = ""; foot.classList.add("hidden"); return; }
+  foot.classList.remove("hidden");
+  const { all, view, closed } = imView(), today = todayStr();
+  const groups = [...new Set(all.map(r => imGroupOf(r, cfg)))].sort((a, b) => cfg.groupBy === "deadline" ? a.localeCompare(b) : 0);
+  const gLabel = (g) => cfg.groupBy === "deadline" && /^\d{4}-/.test(g) ? "ปิด " + fmtDate(g) : g;
+  const cnt = (g) => all.filter(r => imGroupOf(r, cfg) === g), allOn = view.length > 0 && view.every(r => I.sel.has(r.bc));
+  const groupUi = groups.length <= 24
+    ? `<div class="flex flex-wrap gap-1">${[["*", "ทั้งหมด (" + all.length + ")"]].concat(groups.map(g => { const c = cnt(g), k = c.filter(r => I.sel.has(r.bc)).length; return [g, gLabel(g) + " (" + c.length + ")" + (k ? " · เลือก " + k : "")]; }))
+        .map(([g, l]) => `<button class="btn btn-s ${I.group === g ? "btn-p" : "btn-w"}" onclick="imSet('group', ${jsq(g)})">${esc(l)}</button>`).join("")}</div>`
+    : `<label class="text-sm flex items-center gap-1">กลุ่ม <select class="sel" onchange="imSet('group', this.value)"><option value="*">ทั้งหมด (${all.length})</option>
+        ${groups.map(g => { const c = cnt(g), k = c.filter(r => I.sel.has(r.bc)).length; return `<option value="${esc(g)}" ${I.group === g ? "selected" : ""}>${esc(gLabel(g))} (${c.length})${k ? " · เลือก " + k : ""}</option>`; }).join("")}</select></label>`;
+  const show = view.slice(0, 1500);
+  const hasDl = R.cols.deadline >= 0, hasT = (R.tiers || []).length;
+  box.innerHTML = `<div class="card">
+    <div class="flex flex-wrap items-center gap-2 mb-2"><h3 class="font-bold mr-auto">เลือกสินค้าที่จะสั่ง</h3>
+      <input class="inp" style="min-width:240px" placeholder="ค้นหา ชื่อ / บาร์โค้ด / รหัส" value="${esc(I.q)}" oninput="imSearch(this.value)" id="imQ"></div>
+    <div class="mb-2">${groupUi}</div>
+    <div class="flex flex-wrap items-center gap-2 bg-gray-50 rounded-lg p-2 mb-2 text-sm">
+      <button class="btn btn-s ${allOn ? "btn-p" : "btn-w"}" onclick="imAll(${allOn ? "false" : "true"})"><i class="fa-${allOn ? "solid fa-square-check" : "regular fa-square"}"></i>
+        ${allOn ? "เอาออกทั้งหมด" : "เลือกทั้งหมด"}${I.group !== "*" || I.q || I.newOnly ? " ที่แสดง" : ""} (${fmt(view.length)})</button>
+      <button class="btn btn-w btn-s" onclick="imClear()">ล้างที่เลือก</button>
+      <button class="btn btn-s ${I.newOnly ? "btn-p" : "btn-w"}" onclick="imSet('newOnly', ${!I.newOnly})">เฉพาะที่ยังไม่มีใน Product_ID</button>
+      ${hasDl ? `<button class="btn btn-s ${I.showClosed ? "btn-p" : "btn-w"}" onclick="imSet('showClosed', ${!I.showClosed})">แสดงที่ปิดสั่งไปแล้ว${!I.showClosed && closed ? " (" + closed + ")" : ""}</button>` : ""}
+      <span class="ml-auto muted">แสดง ${fmt(view.length)} · เลือกแล้ว <b class="text-gray-900">${fmt(I.sel.size)}</b> / ${fmt(R.rows.length)}</span>
+    </div>
+    <div class="overflow-auto" style="max-height:62vh"><table class="g" style="min-width:${hasT ? 1100 : 980}px"><thead style="position:sticky;top:0;z-index:2"><tr>
+      <th style="width:44px"><span class="sr-only">เลือก</span></th><th>บาร์โค้ด</th><th>ชื่อสินค้า</th><th>${cfg.groupBy === "deadline" ? "ปิดสั่ง" : "กลุ่ม"}</th>
+      <th class="num">ชิ้น/ลัง</th><th class="num">MOQ</th><th class="num">ทุน${hasT ? " (ขั้นราคา)" : ""}</th><th class="num">ราคาขาย</th>${hasDl && cfg.groupBy !== "deadline" ? "<th>ปิดสั่ง</th>" : ""}<th>Product_ID</th></tr></thead>
+      <tbody>${show.map(r => {
+        const on = I.sel.has(r.bc), p = S.products ? S.products.get(r.bc) : undefined, past = r.deadline && r.deadline < today;
+        return `<tr class="${on ? "bg-teal-50" : ""} cursor-pointer" onclick="if(event.target.closest('a'))return; imToggle(${jsq(r.bc)})">
+          <td><button class="w-9 h-9 flex items-center justify-center text-lg ${on ? "text-teal-700" : "text-gray-400"}" aria-pressed="${on}" aria-label="${on ? "เอาออก" : "เลือก"} ${esc(r.name)}"
+            onclick="event.stopPropagation(); imToggle(${jsq(r.bc)})"><i class="fa-${on ? "solid fa-square-check" : "regular fa-square"}"></i></button></td>
+          <td class="font-mono text-xs whitespace-nowrap">${esc(r.bc)}${eanOk(r.bc) === false ? ' <span class="text-red-600" title="เลขตรวจไม่ถูก">!</span>' : ""}</td>
+          <td><div>${esc(r.name)}</div><div class="text-[11px] muted">${[r.code, r.jp ? "วางขาย " + spMonth(r.jp) : "", r.yen ? "¥" + fmt(r.yen) : ""].filter(Boolean).map(esc).join(" · ")}
+            ${r.note ? ` <span class="font-semibold ${/web\s*order|หมด|sold|cancel|ยกเลิก/i.test(r.note) ? "text-red-700" : "text-amber-800"}">${esc(r.note)}</span>` : ""}</div></td>
+          <td class="whitespace-nowrap text-xs">${esc(gLabel(imGroupOf(r, cfg)))}${past ? ' <span class="text-red-600">(ปิดแล้ว)</span>' : ""}</td>
+          <td class="num">${r.ctn != null ? fmt(r.ctn) : ""}</td><td class="num">${r.moq ? fmt(r.moq) : ""}</td>
+          <td class="num whitespace-nowrap"><b>${r.cost != null ? fmt(r.cost) : "—"}</b>${r.tiers.length > 1 ? `<div class="text-[11px] muted">${r.tiers.map(t => esc(t.label) + " " + fmt(t.min) + ": " + fmt(t.price)).join("<br>")}</div>` : ""}</td>
+          <td class="num muted">${r.sell != null ? fmt(r.sell) : ""}</td>
+          ${hasDl && cfg.groupBy !== "deadline" ? `<td class="text-xs whitespace-nowrap">${r.deadline ? fmtDate(r.deadline) : ""}</td>` : ""}
+          <td>${S.products === undefined || !S.products ? '<span class="muted text-xs">…</span>' : p ? '<span class="chip bg-gray-100 text-gray-700">มีแล้ว</span>' : '<span class="chip bg-amber-100 text-amber-900">ใหม่</span>'}</td></tr>`;
+      }).join("")}</tbody></table>
+      ${view.length > show.length ? `<div class="text-center text-sm muted py-2">แสดง ${fmt(show.length)} แถวแรก — ค้นหา/กรองกลุ่มเพื่อดูที่เหลือ (เลือกทั้งหมด ยังเลือกครบ ${fmt(view.length)})</div>` : ""}
+      ${!view.length ? `<div class="text-center text-sm muted py-6">ไม่มีสินค้าในตัวกรองนี้</div>` : ""}</div></div>`;
+  imRenderFoot();
+}
+function imRenderFoot() {
+  const I = S.im, foot = document.getElementById("imFoot"); if (!foot || !I.res || !I.res.ok) return;
+  const sel = I.res.rows.filter(r => I.sel.has(r.bc)), bills = imBills(sel);
+  const cost = sel.reduce((a, r) => a + n0(r.cost) * Math.max(1, n0(r.moq)), 0);
+  foot.innerHTML = `<div class="text-sm"><b>เลือก ${fmt(sel.length)} รายการ</b><span class="text-gray-300"> · ทุนรวมถ้าสั่งตาม MOQ ฿${fmt(Math.round(cost))}${bills.length > 1 ? ` · จะแยก <b class="text-white">${bills.length} บิล</b> ตามวันปิด` : ""}</span></div>
+    <button class="btn btn-p" style="background:${sel.length ? "#14b8a6" : "#4b5563"};color:${sel.length ? "#06201d" : "#d1d5db"}" ${sel.length ? "" : "disabled"} onclick="imConfirm()">ยืนยัน ดึงเข้าบิล (${fmt(sel.length)}) <i class="fa-solid fa-arrow-right"></i></button>`;
+}
+let _imQT = null;
+function imSearch(v) { S.im.q = v; clearTimeout(_imQT); _imQT = setTimeout(() => { imRenderList(); const q = document.getElementById("imQ"); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }, 200); }
+function imSet(k, v) { S.im[k] = v; imRenderList(); }
+function imToggle(bc) { const s = S.im.sel; if (s.has(bc)) s.delete(bc); else s.add(bc); imRenderList(); }
+function imAll(on) { const { view } = imView(); view.forEach(r => on ? S.im.sel.add(r.bc) : S.im.sel.delete(r.bc)); imRenderList(); }
+function imClear() { if (S.im.sel.size > 20 && !confirm("ล้างที่เลือกไว้ " + S.im.sel.size + " รายการ?")) return; S.im.sel.clear(); imRenderList(); }
+
+// ---------- ยืนยัน → บิล ----------
+/** แยกบิลตามวันปิด (แม่แบบ split) · ไม่งั้น 1 บิล */
+function imBills(sel) {
+  const cfg = imCfg(), R = S.im.res;
+  if (!sel.length) return [];
+  if (!cfg || !cfg.split) return [{ closeAt: (R && R.closeAt) || sel.map(r => r.deadline).filter(Boolean).sort()[0] || "", rows: sel }];
+  const m = new Map(); sel.forEach(r => { const k = r.deadline || (R && R.closeAt) || ""; if (!m.has(k)) m.set(k, []); m.get(k).push(r); });
+  return [...m.entries()].sort((a, b) => (a[0] || "9").localeCompare(b[0] || "9")).map(([closeAt, rows]) => ({ closeAt, rows }));
+}
+function imRow(r, cfg) {
+  const x = spEmptyRow(), p = S.products && S.products.get(r.bc);
+  x.barcode = r.bc; x.name = r.name; x.itemCode = r.code; x.series = cfg.groupBy === "deadline" ? "" : r.group;
+  x.yen = r.yen == null ? "" : r.yen; x.cost = r.cost == null ? "" : r.cost; x.pcsCtn = r.ctn == null ? "" : r.ctn;
+  x.price1 = r.sell != null ? r.sell : (p ? p.p1 : ""); x.price2 = p ? p.p2 : ""; x.imageUrl = r.img; x.remark = r.note;
+  x.shopQty = r.moq ? r.moq : ""; x._jp = r.jp;
+  if (r.tiers.length) x.tiers = { t: r.tiers.map(t => ({ min: t.min, price: t.price, label: t.label })), vat: n0(cfg.vat) || 0 };
+  return x;
+}
+function imConfirm() {
+  const I = S.im, cfg = imCfg(), sup = imSup();
+  if (!sup) return toast("เลือกซัพก่อน (ข้อ 1)", true);
+  const sel = I.res.rows.filter(r => I.sel.has(r.bc)); if (!sel.length) return;
+  const bills = imBills(sel), R = I.res;
+  if (bills.length === 1) {
+    const b = bills[0], rows = b.rows.map(r => imRow(r, cfg));
+    const jp = rows.map(r => r._jp).filter(Boolean).sort()[0] || ""; rows.forEach(r => delete r._jp);
+    S.sp = { roundId: "", isEdit: false, status: "ร่าง", supplier: sup.nick || sup.name, supplierId: sup.id, offerNo: R.offerNo || "", title: R.title || "",
+      type: SP_TYPES[0], closeAt: b.closeAt || "", jpLaunch: jp, arrive: "", remindDays: "3,1",
+      notes: cfg.vat ? `ทุนจากไฟล์บวก VAT ${cfg.vat}% แล้ว` : "", fileName: I.file.name, cust: [], rows };
+    S.im = null; S.draft = { sp: { x: 1 } }; renderSup();
+    toast(`ดึง ${rows.length} รายการเข้าบิลแล้ว — ใส่เลขบิล/วันปิด/จำนวน แล้วกดบันทึก`);
+    window.scrollTo(0, 0);
+    return;
+  }
+  openModal(`<h3 class="font-bold mb-1">จะสร้าง ${bills.length} บิล (แยกตามวันปิดสั่ง)</h3>
+    <p class="text-xs muted mb-3">บันทึกเป็น "ร่าง" ทุกบิลก่อน (ร่างไม่ส่ง LINE) แล้วค่อยเปิดแต่ละบิลใส่จำนวน/ลูกค้า WS แล้วกดบันทึก</p>
+    <label class="block text-sm mb-2">เลขบิลหลัก (ระบบต่อท้ายด้วยวันปิด)<input id="imBase" class="inp w-full mt-1 font-mono" value="${esc(R.offerNo || (sup.nick || "SUP").replace(/\W+/g, "").slice(0, 6).toUpperCase() + "-" + todayStr().slice(2, 7).replace("-", ""))}"></label>
+    <label class="block text-sm mb-3">ชื่อบิล<input id="imTitle" class="inp w-full mt-1" value="${esc(R.title || "")}"></label>
+    <table class="g text-sm mb-3"><thead><tr><th>บิล</th><th>ปิดสั่ง</th><th class="num">รายการ</th></tr></thead><tbody>
+      ${bills.map((b, i) => `<tr><td>${i + 1}</td><td>${b.closeAt ? fmtDate(b.closeAt) : "ไม่มีวันปิด"}</td><td class="num">${b.rows.length}</td></tr>`).join("")}</tbody></table>
+    <div class="flex justify-end gap-2"><button class="btn btn-w" onclick="closeModal()">กลับไปเลือก</button><button class="btn btn-p" onclick="imSaveMany()">สร้างร่าง ${bills.length} บิล</button></div>`);
+}
+async function imSaveMany() {
+  const I = S.im, cfg = imCfg(), sup = imSup(), base = hdr(document.getElementById("imBase").value), title = hdr(document.getElementById("imTitle").value);
+  if (!base) return toast("ใส่เลขบิลหลักก่อน", true);
+  const bills = imBills(I.res.rows.filter(r => I.sel.has(r.bc)));
+  closeModal();
+  await run(async () => {
+    const made = [];
+    for (const b of bills) {
+      const rows = b.rows.map(r => imRow(r, cfg)), jp = rows.map(r => r._jp).filter(Boolean).sort()[0] || "";
+      const offerNo = base + (b.closeAt ? "-" + b.closeAt.slice(8, 10) + b.closeAt.slice(5, 7) : "");
+      const res = await api("saveSup", { roundId: "", supplier: sup.nick || sup.name, supplierId: sup.id, offerNo, title, type: SP_TYPES[0], closeAt: b.closeAt, jpLaunch: jp, arrive: "",
+        remindDays: "3,1", notes: cfg.vat ? `ทุนจากไฟล์บวก VAT ${cfg.vat}% แล้ว` : "", fileName: I.file.name, draft: true,
+        items: rows.map(r => { spTierApply(r); return spPayloadItem(r); }), ws: [] });
+      made.push(offerNo + " (" + res.items + ")");
+    }
+    S.im = null; S.draft = {}; S.spList = null; ss("pm_spf", "draft");
+    toast("สร้างร่างแล้ว " + made.length + " บิล: " + made.join(", "));
+    go("sup");
+  });
+}
+
+// ---------- แก้ / สร้างแม่แบบ ----------
+function imGuess(H) {
+  const n = H.map(imN), pick = (res, not) => { for (const re of res) { const i = H.findIndex((h, j) => n[j] && re.test(hdr(h)) && !(not && not.test(hdr(h)))); if (i >= 0) return i; } return -1; };
+  return { barcode: pick(RX.barcode, /old/i), name: pick(RX.name.concat([/full\s*name/i, /name/i]), /nick|^ชื่อ\s*wholesaler/i), itemCode: pick([/^item\s*(no\.?|code)/i, /^id$/i, /รหัส/]),
+    group: pick([/^series/i, /^ip$/i, /categ|cetegory|หมวด|ประเภท/i]), ctn: pick([/pcs\.?\s*\/?\s*c(ar)?t(o)?n|qty\s*\/\s*ctn|ชิ้น\s*\/\s*ลัง|pcs\/cartons/i, /ลัง/]),
+    moq: pick([/^moq/i, /ขั้นต่ำ/]), cost: pick([/proposal|ราคาส่งร้าน|ต้นทุน|^cost|wholesale|dealer|price\s*2|ราคาส่ง/i]),
+    sell: pick([/srp|ราคาปลีก|ราคาขายแนะนำ|retail\s*price(?!.*(jpy|yen))|price\s*1/i]), yen: pick([/jpy|yen|เยน/i]),
+    deadline: pick([/deadline|closing|ปิดสั่ง|ปิดรับ/i]), jp: pick([/release|launch|^month$|วางขาย/i]), note: pick([/^remarks?$|status|หมายเหตุ/i]), img: pick([/^pic$|image|photo|รูป/i], /^photo$/i) };
+}
+function imFieldSpec(H, i) {
+  if (i < 0) return null;
+  const h = imN(H[i]).slice(0, 24); let o = 0;
+  if (h) for (let j = 0; j <= i; j++) { const x = imN(H[j]); if (x && (x === h || x.startsWith(h))) o++; }
+  return { c: colName(i), h, o: o || 1 };
+}
+function imEditMap(id) {
+  const I = S.im; if (!I || !I.wb) return;
+  const m = id ? imMaps().find(x => x.id === id) : null, grid = imGrid(I.sheet);
+  let hr = I.res && I.res.hr >= 0 ? I.res.hr : -1;
+  if (hr < 0) { if (typeof findHeaderRow === "function") { try { hr = findHeaderRow(grid); } catch (e) { hr = -1; } } if (!(hr >= 0)) hr = 0; }
+  const H = grid[hr] || [], cols = {};
+  if (m && I.res && I.res.ok) IM_FIELDS.forEach(([k]) => { cols[k] = I.res.cols[k]; });
+  else { const g = imGuess(H); IM_FIELDS.forEach(([k]) => { cols[k] = g[k]; }); }
+  const tiers = m && I.res && I.res.ok ? (I.res.tiers || []).map(t => ({ label: t.label, q: t.q, p: t.p })) : [];
+  const c = (m && m.config) || {};
+  I.ed = { id: m && m.id !== "TRY" ? m.id : "", builtin: !!(m && m.id !== "TRY" && IM_BUILTIN.some(b => b.id === m.id)), name: m ? m.name : (imSupName(I.supplierId) + " · " + I.file.name.replace(/\.[a-z]+$/i, "").slice(0, 30)),
+    supplierId: m ? (m.supplierId || I.supplierId) : I.supplierId, hr, cols, tiers, vat: n0(c.vat), groupBy: c.groupBy || "group", split: !!c.split, hideClosed: !!c.hideClosed,
+    sheet: c.sheet != null ? c.sheet : I.sheet };
+  imRenderEd();
+}
+function imRenderEd() {
+  const I = S.im, E = I.ed, grid = imGrid(I.sheet), v = document.getElementById("view");
+  const H = grid[E.hr] || [], width = Math.min(40, Math.max(H.length, ...grid.slice(E.hr, E.hr + 12).map(r => (r || []).length)));
+  const opts = (sel) => `<option value="-1">— ไม่ใช้ —</option>` + Array.from({ length: width }, (_, i) => `<option value="${i}" ${i === sel ? "selected" : ""}>${colName(i)} · ${esc(hdr(H[i]).slice(0, 34) || "(ไม่มีหัว)")}</option>`).join("");
+  const prev = grid.slice(E.hr, E.hr + 9);
+  const used = {}; IM_FIELDS.forEach(([k, l]) => { if (E.cols[k] >= 0) used[E.cols[k]] = (used[E.cols[k]] ? used[E.cols[k]] + ", " : "") + l.replace(" *", ""); });
+  E.tiers.forEach(t => { if (t.q >= 0) used[t.q] = (used[t.q] ? used[t.q] + ", " : "") + "จำนวน " + t.label; if (t.p >= 0) used[t.p] = (used[t.p] ? used[t.p] + ", " : "") + "ราคา " + t.label; });
+  v.innerHTML = `<div class="pb-10">
+  <div class="card mb-3">
+    <div class="flex flex-wrap items-center gap-2 mb-3"><button class="btn btn-w btn-s" onclick="imRender()"><i class="fa-solid fa-arrow-left"></i></button>
+      <h3 class="font-bold mr-auto">${E.id ? "แก้แม่แบบ" : "สร้างแม่แบบใหม่"} <span class="font-normal muted text-sm">· ไฟล์ ${esc(I.file.name)} · แท็บ ${esc(I.sheet)}</span></h3></div>
+    ${E.builtin ? `<div class="text-xs bg-amber-50 text-amber-900 rounded p-2 mb-2">นี่คือแม่แบบตั้งต้นของระบบ — บันทึกแล้วจะใช้ฉบับที่แก้แทน (ลบฉบับที่แก้ = กลับเป็นตั้งต้น)</div>` : ""}
+    <div class="grid sm:grid-cols-4 gap-3 text-sm">
+      <label class="block sm:col-span-2">ชื่อแม่แบบ *<input class="inp w-full mt-1" value="${esc(E.name)}" onchange="S.im.ed.name=this.value"></label>
+      <label class="block">ซัพ<select class="sel w-full mt-1" onchange="S.im.ed.supplierId=this.value"><option value="">(ทุกซัพ)</option>${imSups().map(s => `<option value="${esc(s.id)}" ${s.id === E.supplierId ? "selected" : ""}>${esc(s.nick || s.name)}</option>`).join("")}</select></label>
+      <label class="block">แถวหัวตาราง<input type="number" min="1" class="inp w-full mt-1" value="${E.hr + 1}" onchange="imEdHr(this.value)"></label>
+    </div>
+  </div>
+  <div class="card mb-3">
+    <h4 class="font-bold mb-2">จับคอลัมน์</h4>
+    <div class="grid sm:grid-cols-3 gap-3 text-sm">${IM_FIELDS.map(([k, l]) => `<label class="block">${esc(l)}<select class="sel w-full mt-1 ${E.cols[k] >= 0 ? "" : "text-gray-400"}" onchange="imEdCol('${k}', this.value)">${opts(E.cols[k])}</select></label>`).join("")}</div>
+    <h4 class="font-bold mt-4 mb-1">ขั้นราคา (ถ้าไฟล์มีราคาตามจำนวน เช่น 1 ลัง / ครึ่งลัง)</h4>
+    <p class="text-xs muted mb-2">ระบบเลือกทุนตามยอดรวมสั่งเอง · มีขั้นราคาแล้วไม่ต้องจับคอลัมน์ "ทุน" ก็ได้</p>
+    ${E.tiers.map((t, i) => `<div class="flex flex-wrap gap-2 items-end mb-2 text-sm">
+      <label class="block">ชื่อขั้น<input class="inp mt-1" style="width:110px" value="${esc(t.label)}" onchange="S.im.ed.tiers[${i}].label=this.value"></label>
+      <label class="block">คอลัมน์จำนวน (ชิ้น)<select class="sel mt-1" onchange="S.im.ed.tiers[${i}].q=+this.value">${opts(t.q)}</select></label>
+      <label class="block">คอลัมน์ราคา/ชิ้น<select class="sel mt-1" onchange="S.im.ed.tiers[${i}].p=+this.value">${opts(t.p)}</select></label>
+      <button class="btn btn-w btn-s text-red-600" onclick="S.im.ed.tiers.splice(${i},1); imRenderEd()">ลบขั้น</button></div>`).join("")}
+    ${E.tiers.length < IM_TIER_MAX ? `<button class="btn btn-w btn-s" onclick="S.im.ed.tiers.push({label:['1 ลัง','ครึ่งลัง','เสี้ยวลัง'][S.im.ed.tiers.length]||'ขั้น',q:-1,p:-1}); imRenderEd()"><i class="fa-solid fa-plus"></i> เพิ่มขั้นราคา</button>` : ""}
+    <div class="grid sm:grid-cols-4 gap-3 text-sm mt-4">
+      <label class="flex items-center gap-2"><input type="checkbox" ${E.vat ? "checked" : ""} onchange="S.im.ed.vat=this.checked?7:0"> ราคาในไฟล์ยังไม่รวม VAT → บวก 7%</label>
+      <label class="block">จัดกลุ่มตาม<select class="sel w-full mt-1" onchange="S.im.ed.groupBy=this.value"><option value="group" ${E.groupBy === "group" ? "selected" : ""}>คอลัมน์กลุ่ม (Series/IP)</option><option value="deadline" ${E.groupBy === "deadline" ? "selected" : ""}>วันปิดสั่ง</option></select></label>
+      <label class="flex items-center gap-2"><input type="checkbox" ${E.split ? "checked" : ""} onchange="S.im.ed.split=this.checked"> แยกบิลตามวันปิดสั่งรายตัว</label>
+      <label class="flex items-center gap-2"><input type="checkbox" ${E.hideClosed ? "checked" : ""} onchange="S.im.ed.hideClosed=this.checked"> ซ่อนตัวที่ปิดสั่งไปแล้ว</label>
+      <label class="block sm:col-span-2">แท็บที่ใช้ (ชื่อบางส่วน · ว่าง = ใช้ที่เลือก)<input class="inp w-full mt-1" value="${esc(E.sheet)}" onchange="S.im.ed.sheet=this.value"></label>
+    </div>
+  </div>
+  <div class="card mb-3"><h4 class="font-bold mb-2">ตัวอย่างไฟล์ (หัวตาราง + 8 แถว)</h4>
+    <div class="overflow-auto"><table class="g text-xs"><thead><tr>${Array.from({ length: width }, (_, i) => `<th class="${used[i] ? "bg-teal-100 text-teal-900" : ""}">${colName(i)}${used[i] ? `<div class="font-normal">${esc(used[i])}</div>` : ""}</th>`).join("")}</tr></thead>
+      <tbody>${prev.map((row, ri) => `<tr class="${ri === 0 ? "font-bold bg-gray-50" : ""}">${Array.from({ length: width }, (_, i) => `<td class="${used[i] ? "bg-teal-50" : ""}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(hdr(row && row[i]).slice(0, 40))}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>
+  <div class="card">
+    <div class="flex flex-wrap items-end gap-2">
+      <label class="block text-sm">PIN (Admin/Office)<input id="imPin" type="password" inputmode="numeric" class="inp mt-1" style="width:140px" autocomplete="off"></label>
+      <button class="btn btn-p" onclick="imSaveMap()"><i class="fa-solid fa-floppy-disk"></i> บันทึกแม่แบบ</button>
+      ${E.id && !E.builtin ? `<button class="btn btn-d btn-s" onclick="imDelMap()">ลบแม่แบบ</button>` : ""}
+      ${E.id && E.builtin && ((S.spList && S.spList.maps) || []).some(x => x.id === E.id) ? `<button class="btn btn-w btn-s" onclick="imDelMap()">กลับเป็นแม่แบบตั้งต้น</button>` : ""}
+      <button class="btn btn-w ml-auto" onclick="imTryEd()"><i class="fa-solid fa-eye"></i> ลองใช้โดยไม่บันทึก</button>
+    </div>
+  </div></div>`;
+}
+function imEdHr(v) { const E = S.im.ed, n = Math.max(1, Math.round(n0(v))); E.hr = n - 1; imRenderEd(); }
+function imEdCol(k, v) { S.im.ed.cols[k] = +v; imRenderEd(); }
+function imEdConfig() {
+  const I = S.im, E = I.ed, H = imGrid(I.sheet)[E.hr] || [], f = {};
+  IM_FIELDS.forEach(([k]) => { const s = imFieldSpec(H, E.cols[k]); if (s) f[k] = s; });
+  const tiers = E.tiers.filter(t => t.q >= 0 && t.p >= 0).map(t => ({ label: hdr(t.label) || "ขั้น", q: imFieldSpec(H, t.q), p: imFieldSpec(H, t.p) }));
+  return { sheet: hdr(E.sheet), hr: E.hr + 1, groupBy: E.groupBy, vat: E.vat, split: E.split, hideClosed: E.hideClosed, f, tiers };
+}
+function imTryEd() {
+  const I = S.im, cfg = imEdConfig(), r = imApply(imGrid(I.sheet), cfg, I.file.name);
+  if (!r.ok) return toast("ยังขาดคอลัมน์: " + r.missing.join(", "), true);
+  I._try = { id: "TRY", name: "(ลองใช้) " + I.ed.name, config: cfg };
+  imRemoveTry(); IM_BUILTIN.push(I._try); I.mapId = "TRY"; I.res = r; I.sel = new Set(); I.group = "*"; I.showClosed = !cfg.hideClosed;
+  imRender(); toast("ลองใช้แม่แบบแล้ว (ยังไม่บันทึก) อ่านได้ " + r.rows.length + " รายการ");
+}
+async function imSaveMap() {
+  const I = S.im, E = I.ed, pin = document.getElementById("imPin").value, cfg = imEdConfig();
+  if (!hdr(E.name)) return toast("ตั้งชื่อแม่แบบก่อน", true);
+  const r = imApply(imGrid(I.sheet), cfg, I.file.name);
+  if (!r.ok) return toast("ยังขาดคอลัมน์: " + r.missing.join(", "), true);
+  if (!pin) return toast("ใส่ PIN ก่อนบันทึกแม่แบบ", true);
+  await run(async () => {
+    const res = await api("mapSave", { pin, map: { id: E.id, supplierId: E.supplierId, supplier: imSupName(E.supplierId), name: hdr(E.name), config: cfg } });
+    S.spList.maps = res.maps; I.mapId = res.id; I.ed = null; I.res = r; I.sel = new Set(); I.group = "*"; I.showClosed = !cfg.hideClosed;
+    imRemoveTry(); imRender(); toast("บันทึกแม่แบบแล้ว · อ่านได้ " + r.rows.length + " รายการ");
+  });
+}
+async function imDelMap() {
+  const I = S.im, E = I.ed, pin = document.getElementById("imPin").value;
+  if (!pin) return toast("ใส่ PIN ก่อน", true);
+  if (!confirm(E.builtin ? "ลบฉบับที่แก้ แล้วกลับไปใช้แม่แบบตั้งต้น?" : "ลบแม่แบบ " + E.name + "?")) return;
+  await run(async () => {
+    const res = await api("mapDelete", { pin, id: E.id });
+    S.spList.maps = res.maps; I.ed = null; if (!E.builtin) I.mapId = ""; imParse(true); imRender(); toast("ลบแล้ว");
+  });
+}
+function imRemoveTry() { const i = IM_BUILTIN.findIndex(x => x.id === "TRY"); if (i >= 0) IM_BUILTIN.splice(i, 1); }
 </script>
 <script>
 // ===================================================================
