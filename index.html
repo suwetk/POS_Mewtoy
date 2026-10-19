@@ -199,6 +199,7 @@
   .navB-top-in { display: flex; align-items: center; gap: 10px; height: 48px; }
   .navB-logo { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .navB-logo .ttl { font-size: 17px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+  .navB-ver { font-size: 10px; font-weight: 600; color: #6ee7b7; background: rgba(255,255,255,.08); border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
   .navB-pill { align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; font-size: 13px; white-space: nowrap; }
   .navB-branch { background: #fbbf24; color: #451a03; font-weight: 700; }
   .navB-branch:hover { background: #fcd34d; }
@@ -232,6 +233,9 @@
       <div class="navB-logo">
         <i class="fa-solid fa-cash-register text-xl text-emerald-300"></i>
         <span class="ttl">Retail POS System</span>
+        <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
+             (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.19-d</span>
       </div>
       <div class="flex-1"></div>
 
@@ -5206,6 +5210,7 @@ function typeFieldsHtml(item) {
     return `<div class="mt-1.5 p-2 rounded-lg bg-white/70 border border-dashed border-amber-300 flex flex-wrap gap-3">
       ${field("Pre-Order Price", "agreed", item.agreed, 'data-rerender')}
       ${field("ค่ามัดจำ (วันนี้)", "deposit", item.deposit, 'data-rerender')}
+      ${Number(item.price) > 0 && Number(item.price) !== Number(item.agreed) ? readout("ราคาหน้าร้าน (อ้างอิง)", item.price) : ""}
     </div>`;
   }
   if (item.type === "rec" && item.lineId) {
@@ -5359,6 +5364,16 @@ function setRowType(id, type) {
   const item = cart.find((i) => i.id === id);
   if (!item) return;
   item.type = type;
+  // เปลี่ยนเป็น "Pre" (2026-10, per Wing) — ราคาจองตั้งต้นใช้ Price 2 ของสินค้า
+  // (คอลัมน์ E ใน Product_ID — ราคาเดียวกับที่ WS ใช้) แทน Price 1 หน้าร้าน.
+  // ทำเฉพาะตอนช่อง Pre-Order Price ยังเป็นค่าตั้งต้น (= ราคาหน้าร้านของแถว)
+  // อยู่ ถ้าพนักงานพิมพ์ราคาเองไปแล้วจะไม่ทับ. สินค้าที่ไม่มี Price 2 (0/ว่าง)
+  // ใช้ Price 1 เหมือนเดิม
+  if (type === "pre") {
+    const product = item.barcode ? findByBarcodeExact(item.barcode) : null;
+    const price2 = product ? Number(product.price2) || 0 : 0;
+    if (price2 > 0 && Number(item.agreed) === Number(item.price)) item.agreed = price2;
+  }
   // ตอนแก้บิลเก่า (startEditingBill) แต่ละแถวจำประเภทเดิมไว้ใน savedType ซึ่ง
   // cartItemsForSale() ให้ความสำคัญก่อน — พอผู้ใช้เลือกประเภทใหม่เองจาก dropdown
   // ต้องล้างทิ้ง ไม่งั้นเปลี่ยน Rec → WS แล้วกดบันทึก ระบบยังเซฟเป็น Rec เหมือน
