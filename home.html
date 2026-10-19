@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mewtoy System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fffdf8; --ink:#1d1b18; --muted:#6f685d; --line:#e3ddd0;
+  --pos:#e2483d; --stock:#2f8f5b; --prod:#2f6fd6; --order:#c98a12; --sheet:#7a5bc7;
+  --shadow:0 1px 0 rgba(0,0,0,.04),0 6px 18px -10px rgba(40,30,10,.25);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#15140f; --surface:#1f1d18; --ink:#f1ede4; --muted:#a39b8c; --line:#34302a;
+    --pos:#ff6b5f; --stock:#4fc283; --prod:#6b9cff; --order:#f0b33a; --sheet:#a68cf0;
+    --shadow:0 1px 0 rgba(255,255,255,.03),0 8px 20px -12px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15140f; --surface:#1f1d18; --ink:#f1ede4; --muted:#a39b8c; --line:#34302a;
+  --pos:#ff6b5f; --stock:#4fc283; --prod:#6b9cff; --order:#f0b33a; --sheet:#a68cf0;
+  --shadow:0 1px 0 rgba(255,255,255,.03),0 8px 20px -12px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Anuphan",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;min-height:100vh}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 16px 64px}
+
+/* header */
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{width:46px;height:46px;border-radius:14px;background:var(--ink);color:var(--bg);
+  display:grid;place-items:center;font-weight:700;font-size:22px;flex:none}
+.brand h1{margin:0;font-size:24px;font-weight:700;letter-spacing:-.01em}
+.brand p{margin:2px 0 0;color:var(--muted);font-size:14px}
+.clock{margin-left:auto;text-align:right}
+.clock .t{font-family:"JetBrains Mono",monospace;font-size:22px;font-weight:500}
+.clock .d{color:var(--muted);font-size:13px}
+.theme{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;
+  width:38px;height:38px;cursor:pointer;display:grid;place-items:center}
+
+/* search */
+.search{margin:22px 0 8px;position:relative}
+.search input{width:100%;font:inherit;font-size:17px;padding:14px 16px 14px 46px;border-radius:14px;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink);outline:none;box-shadow:var(--shadow)}
+.search input:focus{border-color:var(--ink)}
+.search svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.hint{color:var(--muted);font-size:13px;margin:0 2px 18px}
+kbd{font-family:"JetBrains Mono",monospace;font-size:11px;border:1px solid var(--line);border-bottom-width:2px;
+  border-radius:5px;padding:1px 5px;background:var(--surface)}
+
+/* recent */
+.recent{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+.recent:empty{display:none}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;
+  background:var(--surface);border:1px solid var(--line);font-size:14px}
+.chip i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.chip:hover{border-color:var(--c)}
+
+/* groups */
+#groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:26px 16px;align-items:start;margin-top:10px}
+section{margin:0}
+section h2{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+  margin:0 0 10px;display:flex;align-items:center;gap:8px}
+section h2 i{width:10px;height:10px;border-radius:3px;background:var(--c)}
+.grid{display:grid;grid-template-columns:1fr;gap:12px}
+
+.card{position:relative;display:flex;flex-direction:column;gap:10px;padding:18px;border-radius:16px;
+  background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);
+  transition:transform .12s ease,border-color .12s ease;overflow:hidden}
+.card::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--c)}
+.card:hover,.card:focus-visible{transform:translateY(-2px);border-color:var(--c);outline:none}
+.card.sel{border-color:var(--c);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 25%,transparent)}
+.top{display:flex;align-items:center;gap:12px;padding-right:26px}
+.ico{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;flex:none;
+  background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c)}
+.name{font-weight:700;font-size:18px;line-height:1.2}
+.file{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--muted)}
+.desc{color:var(--muted);font-size:14px;line-height:1.5;margin:0}
+.key{position:absolute;top:14px;right:14px}
+.ext{position:absolute;bottom:14px;right:14px;color:var(--muted);opacity:0;transition:opacity .12s}
+.card:hover .ext{opacity:1}
+.tag{display:inline-block;font-size:11px;padding:2px 7px;border-radius:6px;margin-right:4px;
+  background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);font-weight:600}
+.empty{display:none;color:var(--muted);text-align:center;padding:40px 0}
+footer{margin-top:44px;color:var(--muted);font-size:13px;text-align:center}
+@media (max-width:560px){
+  .clock{display:none}
+  .hint{display:none}
+  #groups{grid-template-columns:1fr}
+  .top{padding-right:0}
+  .key{display:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">M</div>
+    <div class="brand">
+      <h1>Mewtoy System</h1>
+      <p>หน้ารวมระบบทั้งหมด — กดเข้าได้เลย</p>
+    </div>
+    <div class="clock"><div class="t" id="t">--:--</div><div class="d" id="d"></div></div>
+    <button class="theme" id="theme" title="สลับโหมดสว่าง/มืด" aria-label="สลับธีม">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+  </header>
+
+  <div class="search">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="q" type="search" placeholder="ค้นหาระบบ เช่น ขาย, เบิก, สินค้า, pm…" autocomplete="off">
+  </div>
+  <p class="hint">กด <kbd>/</kbd> เพื่อค้นหา · <kbd>Enter</kbd> เปิดตัวแรก · <kbd>1</kbd>–<kbd>9</kbd> เปิดตามเลข</p>
+
+  <div class="recent" id="recent"></div>
+  <div id="groups"></div>
+  <div class="empty" id="empty">ไม่พบระบบที่ค้นหา</div>
+
+  <footer>Mewtoy · แก้รายการลิงก์ได้ที่ตัวแปร <code>GROUPS</code> ในไฟล์ home.html</footer>
+</div>
+
+<script>
+/* ===== แก้ไข/เพิ่มระบบตรงนี้ =====
+   url: ชื่อไฟล์ใน GitHub (อยู่โฟลเดอร์เดียวกับ home.html) หรือลิงก์เต็ม https://...
+   newTab: true = เปิดแท็บใหม่ (ใช้กับ Google Sheets) */
+const GROUPS = [
+  { title:"หน้าร้าน / ขาย", color:"--pos", items:[
+    { name:"POS หน้าร้าน", url:"index.html", icon:"cart",
+      desc:"ขายหน้าร้าน, WS ขายส่ง, Pre/Rec พรีออเดอร์, รายงานยอดขาย", tags:["ขาย","ws","pre","rec","รายงาน"] },
+    { name:"POS มือถือ", url:"mobile.html", icon:"phone",
+      desc:"หน้าจอ POS สำหรับใช้บนมือถือ", tags:["mobile","มือถือ","ขาย"] },
+  ]},
+  { title:"สต็อก / Store", color:"--stock", items:[
+    { name:"ยิงบาร์โค้ดเบิกของ", url:"wd_scan.html", icon:"scan",
+      desc:"Store หยิบของตามรายการเบิก ยิงบาร์โค้ดตรวจของ", tags:["เบิก","store","withdrawal","scan","บาร์โค้ด"] },
+  ]},
+  { title:"สินค้า", color:"--prod", items:[
+    { name:"PI — เพิ่ม/แก้สินค้า", url:"pi_Editor.html", icon:"edit",
+      desc:"เพิ่มและแก้ไขข้อมูลใน Product_ID (เข้าด้วย PIN, บันทึกประวัติการแก้)", tags:["product_id","สินค้า","ราคา","pin","pi"] },
+    { name:"PD — ฐานข้อมูลสินค้า", url:"pd.html", icon:"db",
+      desc:"ฐานข้อมูลสินค้าหลัก รวมข้อมูลจากไฟล์ซัพ (Dreamtoy ฯลฯ)", tags:["pd","database","สินค้า","dreamtoy"] },
+  ]},
+  { title:"สั่งซื้อ / ซัพพลายเออร์", color:"--order", items:[
+    { name:"PM — Product Manager", url:"pm.html", icon:"box",
+      desc:"รอบสั่ง Quarter, ยอด WS, บิลของเข้า, แบ่งของ WS, ใบแจ้งหนี้", tags:["pm","สั่งของ","supplier","quarter","ws","บิล"] },
+  ]},
+  { title:"Google Sheets (ข้อมูล)", color:"--sheet", items:[
+    { name:"Sales_History (M1)", url:"https://docs.google.com/spreadsheets/d/1gufnFwdTYUEFfE21jN5moudJ21mezNAbVVwBXhYfq6c/edit", icon:"sheet", newTab:true,
+      desc:"ประวัติการขาย, WS Invoices, PreOrders, Staff/PIN", tags:["sheet","ชีต","sales","ยอดขาย"] },
+    { name:"Store_Withdrawal", url:"https://docs.google.com/spreadsheets/d/1PqRbtlKepXiBnQL9Wqms4Y_lpGTO4_ul2I2AJEzj1bw/edit", icon:"sheet", newTab:true,
+      desc:"รายการเบิกของ, สรุปเมื่อวาน, ปฏิทินย้อนหลัง", tags:["sheet","ชีต","เบิก","store"] },
+  ]},
+];
+
+const ICONS = {
+  cart:'<path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20.5" r="1.3"/><circle cx="17" cy="20.5" r="1.3"/>',
+  phone:'<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
+  scan:'<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 8v8M11 8v8M14 8v8M17 8v8"/>',
+  edit:'<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="m13.5 6.5 4 4"/>',
+  db:'<ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v13c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8v-13"/><path d="M4.5 12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8"/>',
+  box:'<path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="m3 8 9 5 9-5M12 13v8"/>',
+  sheet:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 3v18"/>',
+};
+const svg = k => `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[k]||ICONS.box}</svg>`;
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fileOf = it => it.url.startsWith("http") ? "Google Sheets ↗" : it.url;
+
+const store = {
+  get(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+};
+
+let all = [];
+GROUPS.forEach(g => g.items.forEach(it => all.push(Object.assign({color:g.color, group:g.title}, it))));
+all.forEach((it,i)=> it.n = i+1);
+
+function render(){
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const box = document.getElementById("groups");
+  let html = "", shown = 0;
+  GROUPS.forEach(g => {
+    const items = all.filter(it => it.group===g.title && (!q ||
+      [it.name,it.url,it.desc,g.title,...(it.tags||[])].join(" ").toLowerCase().includes(q)));
+    if(!items.length) return;
+    html += `<section style="--c:var(${g.color})"><h2><i></i>${esc(g.title)}</h2><div class="grid">` +
+      items.map(it => { shown++; return `
+        <a class="card${shown===1&&q?' sel':''}" style="--c:var(${it.color})" href="${esc(it.url)}" data-url="${esc(it.url)}"
+           ${it.newTab?'target="_blank" rel="noopener"':''}>
+          <span class="key">${it.n<=9?`<kbd>${it.n}</kbd>`:""}</span>
+          <div class="top"><div class="ico">${svg(it.icon)}</div>
+            <div><div class="name">${esc(it.name)}</div><div class="file">${esc(fileOf(it))}</div></div></div>
+          <p class="desc">${esc(it.desc)}</p>
+          <svg class="ext" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M8 7h9v9"/></svg>
+        </a>`; }).join("") + `</div></section>`;
+  });
+  box.innerHTML = html;
+  document.getElementById("empty").style.display = shown ? "none" : "block";
+  renderRecent();
+}
+
+function renderRecent(){
+  const rec = store.get("mt_recent",[]).map(u => all.find(it=>it.url===u)).filter(Boolean).slice(0,5);
+  document.getElementById("recent").innerHTML = rec.length ? `<span class="chip" style="border:none;background:none;padding-left:0">ล่าสุด</span>` +
+    rec.map(it=>`<a class="chip" style="--c:var(${it.color})" href="${esc(it.url)}" data-url="${esc(it.url)}" ${it.newTab?'target="_blank" rel="noopener"':''}><i></i>${esc(it.name)}</a>`).join("") : "";
+}
+
+function remember(url){
+  const r = store.get("mt_recent",[]).filter(u=>u!==url); r.unshift(url); store.set("mt_recent", r.slice(0,5));
+}
+function open(it){
+  remember(it.url);
+  if(it.newTab) window.open(it.url,"_blank","noopener"); else location.href = it.url;
+}
+
+document.addEventListener("click", e => { const a = e.target.closest("[data-url]"); if(a) remember(a.dataset.url); });
+document.getElementById("q").addEventListener("input", render);
+document.getElementById("q").addEventListener("keydown", e => {
+  if(e.key==="Enter"){ const a=document.querySelector("#groups .card"); if(a){ const it=all.find(x=>x.url===a.dataset.url); open(it); } }
+  if(e.key==="Escape"){ e.target.value=""; render(); e.target.blur(); }
+});
+document.addEventListener("keydown", e => {
+  if(e.target.tagName==="INPUT" || e.ctrlKey || e.metaKey || e.altKey) return;
+  if(e.key==="/"){ e.preventDefault(); document.getElementById("q").focus(); return; }
+  const n = parseInt(e.key,10); if(n>=1 && n<=9){ const it=all.find(x=>x.n===n); if(it) open(it); }
+});
+
+/* theme */
+const root = document.documentElement;
+const savedTheme = store.get("mt_theme", null); if(savedTheme) root.dataset.theme = savedTheme;
+document.getElementById("theme").onclick = () => {
+  const dark = root.dataset.theme ? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  root.dataset.theme = dark ? "light" : "dark"; store.set("mt_theme", root.dataset.theme);
+};
+
+/* clock */
+function tick(){
+  const now = new Date();
+  document.getElementById("t").textContent = now.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"});
+  document.getElementById("d").textContent = now.toLocaleDateString("th-TH",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+}
+tick(); setInterval(tick, 15000);
+render();
+</script>
+</body>
+</html>
