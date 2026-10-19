@@ -90,6 +90,7 @@ const STATUS_COLOR = {
   "ของทยอยเข้า": "bg-violet-100 text-violet-700", "จบ": "bg-gray-200 text-gray-600",
   "นำเข้าแล้ว": "bg-amber-100 text-amber-700", "แบ่งของแล้ว": "bg-blue-100 text-blue-700", "จัดของเสร็จ": "bg-cyan-100 text-cyan-700", "ออกบิลครบ": "bg-green-100 text-green-700",
   "รอจัด": "bg-gray-100 text-gray-600", "กำลังจัด": "bg-amber-100 text-amber-700", "จัดครบ": "bg-green-100 text-green-700",
+  "รอของ": "bg-gray-100 text-gray-700", "ทยอยเข้า": "bg-amber-100 text-amber-800", "ครบ": "bg-teal-100 text-teal-800", "เลยกำหนด": "bg-red-100 text-red-700", "ยังไม่มียอด": "bg-gray-100 text-gray-500",
   "ค้างชำระ": "bg-red-100 text-red-700", "ชำระบางส่วน": "bg-amber-100 text-amber-700", "ชำระแล้ว": "bg-green-100 text-green-700", "ยกเลิก": "bg-gray-200 text-gray-500"
 };
 const ALLOC_METHODS = { fg: "ตามสัดส่วน · F (สั่งแรก) ก่อน แล้วค่อย G (สั่งเพิ่ม)", prop: "ตามสัดส่วน · รวม F+G", prio: "ตามลำดับร้าน (สั่งก่อนได้ก่อน)", rr: "วนแจกทีละชิ้น" };
@@ -141,7 +142,7 @@ async function copyText(text) {
   try { await navigator.clipboard.writeText(text); toast("คัดลอกแล้ว — วางใน LINE ได้เลย"); }
   catch (e) { openModal(`<h3 class="font-bold mb-2">คัดลอกข้อความ</h3><textarea class="w-full h-72 border rounded-lg p-2 text-sm" readonly>${esc(text)}</textarea><div class="text-right mt-2"><button class="btn btn-w" onclick="closeModal()">ปิด</button></div>`); }
 }
-function openModal(html) { document.getElementById("modalBody").innerHTML = html; document.getElementById("modal").classList.remove("hidden"); }
+function openModal(html, wide) { const mb = document.getElementById("modalBody"); mb.style.maxWidth = wide ? "min(1200px, 100%)" : ""; mb.innerHTML = html; document.getElementById("modal").classList.remove("hidden"); }
 function closeModal() { document.getElementById("modal").classList.add("hidden"); }
 document.getElementById("modal").addEventListener("click", e => { if (e.target.id === "modal") closeModal(); });
 function openUrlSetting() {
@@ -189,20 +190,20 @@ function isStore() { return S.user && S.user.role === "Store"; }
 function isAdmin() { return S.user && S.user.role === "Admin"; }
 async function loadBoot() { S.boot = await api("bootstrap"); }
 const PAGES = [
-  { id: "home", icon: "fa-house", label: "หน้าแรก" }, { id: "rounds", icon: "fa-file-signature", label: "รอบสั่ง" },
-  { id: "sup", icon: "fa-boxes-packing", label: "บิลซัพ" },
+  { id: "home", icon: "fa-house", label: "หน้าแรก" }, { id: "orders", icon: "fa-file-signature", label: "สั่งซื้อ" },
   { id: "bills", icon: "fa-truck-ramp-box", label: "บิลสินค้าเข้า" }, { id: "invoices", icon: "fa-file-invoice-dollar", label: "ใบแจ้งหนี้" },
   { id: "settings", icon: "fa-sliders", label: "ตั้งค่า" }
 ];
 function renderNav() {
   const pages = isStore() ? [{ id: "bills", icon: "fa-dolly", label: "จัดของ" }] : PAGES;
-  document.getElementById("nav").innerHTML = pages.map(p => `<div class="nav ${S.page === p.id ? "on" : ""}" onclick="go('${p.id}')"><i class="fa-solid ${p.icon}"></i><span class="hidden sm:inline">${p.label}</span></div>`).join("");
+  document.getElementById("nav").innerHTML = pages.map(p => `<div class="nav ${S.page === p.id || (p.id === "orders" && ["rounds", "sup"].includes(S.page)) ? "on" : ""}" onclick="go('${p.id}')"><i class="fa-solid ${p.icon}"></i><span class="hidden sm:inline">${p.label}</span></div>`).join("");
 }
 function hasDraft() { return Object.keys(S.draft || {}).some(k => Object.keys(S.draft[k] || {}).length) || Object.keys(S.alloc || {}).length || Object.keys(S.dd || {}).length; }
 // กันหน้าเก่าที่โหลดช้าวาดทับหน้าใหม่: ทุกครั้งที่เปลี่ยนหน้าได้เลขใหม่ — งานที่โหลดเสร็จทีหลังเช็กว่าเลขยังตรงก่อนวาด
 function navStart() { S.nav = (S.nav || 0) + 1; return S.nav; }
 function stale(t) { return t !== S.nav; }
 async function go(page) {
+  if (page === "rounds" || page === "sup") page = "orders";   // v3.8: รอบสั่ง + บิลซัพ รวมเป็นเมนู "สั่งซื้อ"
   if (hasDraft() && !confirm("มีตัวเลขที่ยังไม่ได้บันทึก — ออกจากหน้านี้เลยไหม?")) return;
   const t = navStart();
   S.page = page; S.round = null; S.bill = null; S.draft = {}; S.alloc = {}; S.pending = [];
@@ -210,9 +211,9 @@ async function go(page) {
   const v = document.getElementById("view");
   v.innerHTML = `<div class="card text-center text-gray-400 py-8"><i class="fa-solid fa-spinner fa-spin"></i></div>`;
   await run(async () => {
-    if (!(page === "sup" && S.boot)) await loadBoot();   // หน้าบิลซัพโหลดข้อมูลของตัวเอง ไม่ต้องรอ bootstrap ซ้ำ
+    if (page !== "orders") await loadBoot();   // หน้าสั่งซื้อโหลด bootstrap + supList พร้อมกันเอง
     if (stale(t)) return;
-    await ({ home: renderHome, rounds: renderRounds, sup: renderSupList, bills: renderBills, invoices: renderInvoices, settings: renderSettings })[page](v);
+    await ({ home: renderHome, orders: renderOrders, bills: renderBills, invoices: renderInvoices, settings: renderSettings })[page](v);
   });
 }
 window.addEventListener("beforeunload", e => { if (hasDraft()) { e.preventDefault(); e.returnValue = ""; } });
@@ -537,8 +538,6 @@ async function renderHome(v) {
   const t0 = get(cur), t1 = get(ymAdd(cur, 1)), t3 = sumRange(cur, 3);
   const future = months.filter(m => m.month >= cur || m.month === "ไม่ระบุ");
   const allB = future.reduce((s, m) => s + m.before, 0), allA = future.reduce((s, m) => s + m.after, 0), allU = future.reduce((s, m) => s + m.afterUnconfirmed, 0);
-  const open = (B.rounds || []).filter(r => r.status !== "จบ");
-  const dl = open.map(r => ({ r, d: daysTo(r.closeAt) })).filter(x => x.d !== null && x.r.status === "เปิดรับ").sort((a, b) => a.d - b.d);
   const billTodo = (B.bills || []).filter(b => b.status !== "จบ" && b.status !== "ออกบิลครบ");
   const todoText = b => b.status === "นำเข้าแล้ว" ? "ต้องแบ่งของ" : b.status === "แบ่งของแล้ว" ? `รอ Store จัด (${b.pickDone}/${b.pickTotal})` : b.status === "จัดของเสร็จ" ? "รอออกบิล WS" : b.status;
   const tile = (label, m, sub) => `<div class="card"><div class="kpi">${label}</div>
@@ -546,6 +545,7 @@ async function renderHome(v) {
     <div><div class="text-[11px] muted">หลังคอนเฟิร์ม/ตัด</div><b class="text-lg" style="color:#c2410c">${money(m.after ?? m.a)}</b></div></div>
     ${sub ? `<div class="text-xs muted mt-1">${sub}</div>` : ""}</div>`;
   v.innerHTML = `
+    ${homeAlertsHtml()}
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
       ${tile("เดือนนี้ · " + monLabel(cur), t0, t0.afterUnconfirmed ? `ยังไม่คอนเฟิร์ม ${money(t0.afterUnconfirmed)}` : "")}
       ${tile("เดือนหน้า · " + monLabel(ymAdd(cur, 1)), t1, t1.afterUnconfirmed ? `ยังไม่คอนเฟิร์ม ${money(t1.afterUnconfirmed)}` : "")}
@@ -577,13 +577,7 @@ async function renderHome(v) {
         <td class="num ${m.afterUnconfirmed ? "text-amber-700" : ""}">${m.afterUnconfirmed ? fmt2(m.afterUnconfirmed) : ""}</td><td class="num">${m.bills ? fmt2(m.bills) : ""}</td>
         <td>${m.rounds.length ? `<details><summary class="text-xs text-teal-700 cursor-pointer">${m.rounds.length} รอบ</summary><table class="g mt-1">${m.rounds.map(r => `<tr class="cursor-pointer" onclick="openRound(${jsq(r.roundId)})"><td class="text-xs">${esc(r.name)} <span class="muted">${esc(r.supplier)}</span></td><td class="num text-xs">${fmt(r.before)}</td><td class="num text-xs" style="color:#c2410c">${fmt(r.after)}</td></tr>`).join("")}</table></details>` : ""}</td></tr>`).join("")}
       </tbody></table></div></div>` : ""}
-    <div class="grid lg:grid-cols-2 gap-3">
-      <div class="card"><h3 class="font-bold mb-2"><i class="fa-regular fa-bell text-amber-500"></i> กำหนดส่งยอดให้ซัพ</h3>
-        ${dl.length ? dl.map(({ r, d }) => `<div class="flex items-center gap-2 py-2 border-b last:border-0 cursor-pointer" onclick="openRound(${jsq(r.roundId)})">
-          <div class="mr-auto"><div class="font-semibold">${esc(r.name)} <span class="text-xs muted">${esc(r.supplier)} · ${esc(r.line)}</span></div>
-            <div class="text-xs muted">${(r.offers || []).map(o => "Offer " + esc(o.offerNo)).join(", ") || "ยังไม่มีไฟล์ Offer"} · WS ${r.customers} ร้าน ${fmt(r.wsPcs)} ชิ้น</div></div>
-          <div class="text-right"><div class="text-sm font-bold ${d < 0 ? "text-gray-400" : d <= 3 ? "text-red-600" : d <= 7 ? "text-amber-600" : "text-gray-700"}">${d < 0 ? "เลยกำหนด " + (-d) + " วัน" : d === 0 ? "วันนี้!" : "อีก " + d + " วัน"}</div><div class="text-xs muted">ปิด ${fmtDate(r.closeAt)}</div></div></div>`).join("")
-          : `<div class="text-sm muted py-4 text-center">ไม่มีรอบที่รอส่งยอด</div>`}</div>
+    <div class="grid gap-3">
       <div class="card"><h3 class="font-bold mb-2"><i class="fa-solid fa-list-check text-teal-600"></i> งานบิลสินค้าเข้า</h3>
         ${billTodo.length ? billTodo.map(b => `<div class="flex items-center gap-2 py-2 border-b last:border-0 cursor-pointer" onclick="openBill(${jsq(b.billId)})">
           <div class="mr-auto font-semibold">${esc(b.name)} <span class="text-xs muted">${esc(b.supplier)} · ${fmtDate(b.billDate)}</span></div>
@@ -625,29 +619,7 @@ function exportDash() {
 // ===================================================================
 //  รอบสั่ง
 // ===================================================================
-function renderRounds(v) {
-  const rounds = (S.boot.rounds || []).filter(r => !r.isSup);   // บิลซัพ (SUP-) อยู่เมนู "บิลซัพ"
-  const showDone = ss("pm_showdone") === "1";
-  const list = rounds.filter(r => showDone || r.status !== "จบ");
-  v.innerHTML = `
-    <div class="flex flex-wrap items-center gap-2 mb-3">
-      <h2 class="font-bold mr-auto">รอบสั่งซัพ</h2>
-      <label class="text-sm text-gray-600 flex items-center gap-1"><input type="checkbox" ${showDone ? "checked" : ""} onchange="ss('pm_showdone', this.checked?'1':null); renderRounds(document.getElementById('view'))"> แสดงรอบที่จบ</label>
-      <button class="btn btn-p" onclick="roundForm()"><i class="fa-solid fa-plus"></i> สร้างรอบ</button>
-    </div>
-    <p class="text-xs muted mb-3">บิลซัพที่ไม่ใช่ Dreamtoy (Bigone ฯลฯ) อยู่ที่เมนู <a href="#" onclick="go('sup'); return false">บิลซัพ</a></p>
-    ${list.length ? `<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">${list.map(r => {
-      const d = daysTo(r.closeAt);
-      return `<div class="card cursor-pointer hover:ring-2 hover:ring-teal-200" onclick="openRound(${jsq(r.roundId)})">
-        <div class="flex items-start gap-2"><div class="mr-auto"><div class="font-bold">${esc(r.name)}</div><div class="text-xs muted">${esc(r.supplier)} · ${esc(r.line)} · ${esc(r.type)}</div></div>${chip(r.status)}</div>
-        <div class="flex gap-4 mt-3 text-sm">
-          <div><div class="kpi">Offer</div><b>${(r.offers || []).length}</b></div>
-          <div><div class="kpi">WS</div><b>${r.customers}</b> ร้าน</div>
-          <div><div class="kpi">ยอด WS</div><b>${fmt(r.wsPcs)}</b></div>
-          <div><div class="kpi">ปิดรับ</div><b class="${d !== null && d <= 3 && d >= 0 && r.status === "เปิดรับ" ? "text-red-600" : ""}">${fmtDate(r.closeAt) || "—"}</b></div>
-        </div></div>`;
-    }).join("")}</div>` : `<div class="card text-center muted py-10">ยังไม่มีรอบ — กด "สร้างรอบ" (เช่น Q1-2027)</div>`}`;
-}
+// รายการรอบ → รวมในเมนู "สั่งซื้อ" (renderOrders ใน 2e_orders, v3.8)
 function roundForm(r) {
   const R = r || { supplier: "Dreamtoy", line: "Model Kit", type: "Quarter" };
   const sups = [...new Set(["Dreamtoy", "Bigone", "K.A. Band", ...(S.boot.rounds || []).map(x => x.supplier)].filter(Boolean))];
@@ -675,10 +647,12 @@ async function saveRoundForm(isEdit) {
 async function openRound(id) {
   const t = navStart();
   S.page = "rounds"; renderNav(); S.manual = null; S.draft = { shop: {}, order: {}, cut: {}, prelim: {} }; S.pending = []; S.offerPending = [];
-  S.roundTab = ss("pm_rtab_" + id) || "offers";
+  S.roundTab = ss("pm_rtab_" + id) || "";
   location.hash = "round=" + encodeURIComponent(id);
   document.getElementById("view").innerHTML = `<div class="card text-center muted py-8"><i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดรอบ</div>`;
-  await run(async () => { const R = await api("getRound", { roundId: id }); if (stale(t)) return; S.round = R; renderRound(); });
+  await run(async () => { const R = await api("getRound", { roundId: id }); if (stale(t)) return; S.round = R;
+    if (!S.roundTab) S.roundTab = ["ส่งซัพแล้ว", "คอนเฟิร์มแล้ว", "ของทยอยเข้า", "จบ"].includes(R.round.status) && R.progress ? "track" : "offers";
+    renderRound(); });
 }
 async function reloadRound() { S.round = await api("getRound", { roundId: S.round.round.roundId }); S.boot.customers = S.round.customers; renderRound(); }
 function setRoundTab(t) { S.roundTab = t; ss("pm_rtab_" + S.round.round.roundId, t); renderRound(); }
@@ -710,22 +684,23 @@ function supPrice(it, q) { return supUnit(it, q, S.round && S.round.round && S.r
 
 function renderRound() {
   const R = S.round, r = R.round, d = daysTo(r.closeAt);
-  const tabs = [["offers", "1. ไฟล์ Offer"], ["orders", "2. ยอด WS"], ["summary", "3. สรุป + ส่งซัพ"], ["prelim", "4. คอนเฟิร์มขั้นต้น"], ["track", "5. ติดตามยอด"]];
+  const tabs = [["offers", "1. ไฟล์ Offer"], ["orders", "2. ยอด WS"], ["summary", "3. สรุป + ส่งซัพ"], ["prelim", "4. คอนเฟิร์มขั้นต้น"], ["track", "5. ความคืบหน้า"]];
   document.getElementById("view").innerHTML = `
     <div class="card mb-3"><div class="flex flex-wrap items-center gap-2">
       <button class="btn btn-w btn-s" onclick="go('rounds')"><i class="fa-solid fa-arrow-left"></i></button>
       <div class="mr-auto"><div class="font-bold text-lg leading-tight">${esc(r.name)}</div>
         <div class="text-xs muted">${esc(r.supplier)} · ${esc(r.line)} · ${esc(r.type)} · ${esc(r.roundId)}${r.notes ? " · " + esc(r.notes) : ""}</div></div>
       ${r.closeAt ? `<div class="text-sm ${d !== null && d <= 3 && r.status === "เปิดรับ" ? "text-red-600 font-bold" : "muted"}">ปิดรับ ${fmtDate(r.closeAt)}${d !== null && r.status === "เปิดรับ" ? ` (${d < 0 ? "เลยมา " + (-d) : "อีก " + d} วัน)` : ""}</div>` : ""}
-      <select class="sel" onchange="run(async()=>{await api('updateRound',{roundId:S.round.round.roundId,status:this.value}); S.round.round.status=this.value; toast('สถานะ: '+this.value)})">${ROUND_STATUS.map(s => `<option ${s === r.status ? "selected" : ""}>${s}</option>`).join("")}</select>
+      <select class="sel" title="สถานะรอบ" onchange="run(async()=>{const x=await api('updateRound',{roundId:S.round.round.roundId,status:this.value}); S.round.round.status=this.value; if(x.prog) S.round.progress=x.prog; toast('สถานะ: '+this.value); renderRound()})">${ROUND_STATUS.map(s => `<option ${s === r.status ? "selected" : ""}>${s}</option>`).join("")}</select>
       <button class="btn btn-w btn-s" onclick="roundForm(S.round.round)"><i class="fa-solid fa-pen"></i></button>
       ${isAdmin() ? `<button class="btn btn-d btn-s" onclick="delRound()"><i class="fa-solid fa-trash"></i></button>` : ""}
     </div></div>
+    ${roundProgStrip()}
     <div class="flex gap-2 overflow-x-auto pb-2 mb-2">${tabs.map(([id, l]) => `<div class="tab ${S.roundTab === id ? "on" : ""}" onclick="setRoundTab('${id}')">${l}</div>`).join("")}</div>
     <div id="rbody"></div>`;
   const D = deriveRound(), body = document.getElementById("rbody");
   if (S.manual && S.roundTab === "offers") return renderManual();
-  ({ offers: rtOffers, orders: rtOrders, summary: rtSummary, prelim: rtPrelim, track: rtTrack })[S.roundTab](body, D);
+  ({ offers: rtOffers, orders: rtOrders, summary: rtSummary, prelim: rtPrelim, track: rtProgress })[S.roundTab](body, D);
 }
 async function delRound() {
   if (!confirm(`ลบรอบ "${S.round.round.name}" และข้อมูลทั้งหมดในรอบ?`)) return;
@@ -1178,20 +1153,7 @@ function copyPrelim(code) {
   copyText(lines.join("\n"));
 }
 
-// ---------- 5. ติดตามยอด ----------
-function rtTrack(body) {
-  const R = S.round, by = {};
-  R.lines.forEach(l => { const c = by[l.code] = by[l.code] || { code: l.code, name: l.customer, qty: 0, rec: 0, cut: 0, open: 0, lines: [] };
-    c.qty += l.qty; c.rec += l.received; const rest = Math.max(0, l.qty - l.received); if (l.closed) c.cut += rest; else c.open += rest; c.lines.push(l); });
-  const items = {}; R.items.forEach(i => items[i.offerNo + "|" + i.key] = i);
-  body.innerHTML = `<div class="card"><p class="text-sm muted mb-2">ยอดสั่ง → ได้รับแล้ว (สะสมจากบิลสินค้าเข้า) → ถูกตัด → ยังค้าง</p>
-    <div class="overflow-auto"><table class="g"><thead><tr><th>ลูกค้า</th><th class="num">สั่ง</th><th class="num">ได้แล้ว</th><th class="num">ถูกตัด</th><th class="num">ยังค้าง</th><th></th></tr></thead><tbody>
-    ${Object.values(by).sort((a, b) => a.code === SHOP_CODE ? -1 : b.qty - a.qty).map(c => `<tr><td><b>${esc(c.name)}</b> <span class="text-xs muted">${esc(c.code)}</span></td>
-      <td class="num">${fmt(c.qty)}</td><td class="num text-green-700">${fmt(c.rec)}</td><td class="num text-red-600">${fmt(c.cut)}</td><td class="num font-bold">${fmt(c.open)}</td>
-      <td><details><summary class="text-xs text-teal-700 cursor-pointer">รายการ</summary><table class="g mt-1"><tbody>${c.lines.map(l => `<tr><td class="text-xs">${esc((items[l.offerNo + "|" + l.key] || {}).name || l.name)}</td><td class="num text-xs">${l.received}/${l.qty}${l.closed && l.received < l.qty ? " ✂" : ""}</td></tr>`).join("")}</tbody></table></details></td></tr>`).join("")
-      || `<tr><td colspan="6" class="text-center muted py-6">ยังไม่มียอด</td></tr>`}
-    </tbody></table></div></div>`;
-}
+// ---------- 5. ความคืบหน้า → rtProgress (2e_orders, v3.8) ----------
 
 // ---------- กรอกบิลสั่งเอง (Manual) ----------
 const MANUAL_FILE = "(กรอกเอง)";
@@ -1373,75 +1335,9 @@ function eanOk(b) {
 }
 function spDirty() { S.draft = S.draft || {}; S.draft.sp = { x: 1 }; }
 
-// ---------- แถบเตือนบนหน้าแรก ----------
-const _renderHomeBase = renderHome;
-renderHome = async function (v) {
-  const t = S.nav;
-  await _renderHomeBase(v);
-  if (stale(t)) return;
-  const due = (S.boot.rounds || []).filter(r => r.isSup).map(r => Object.assign({ d: spDue(r) }, r)).filter(r => r.d !== null).sort((a, b) => a.d - b.d);
-  if (!due.length) return;
-  const box = document.createElement("div");
-  box.className = "card mb-3 border border-red-200 bg-red-50";
-  box.innerHTML = `<div class="font-bold text-red-700 mb-1"><i class="fa-solid fa-bell"></i> บิลซัพใกล้ปิดสั่ง (${due.length})</div>
-    ${due.map(r => `<div class="text-sm flex flex-wrap gap-2 items-center py-0.5"><a href="#" class="font-semibold text-red-800 underline" onclick="openSup(${jsq(r.roundId)}); return false">${esc(r.name)}</a>
-      <span class="text-red-700">ปิด ${fmtDate(r.closeAt)} · ${spDueText(r.d)}</span>${r.status === "ร่าง" ? chip("ร่าง") : ""}</div>`).join("")}`;
-  v.prepend(box);
-};
+// แถบเตือนบนหน้าแรก → ย้ายไปรวมใน "แจ้งเตือนการสั่งซื้อ" (2e_orders, v3.8)
 
-// ---------- รายการบิลซัพ ----------
-async function renderSupList(v) {
-  v.innerHTML = `<div class="card text-center muted py-6"><i class="fa-solid fa-spinner fa-spin"></i></div>`;
-  const t = S.nav, L = await api("supList"); if (stale(t)) return; S.spList = L;
-  const f = ss("pm_spf") || "all", fs = ss("pm_sps") || "";
-  const bills = L.bills.map(b => Object.assign({ d: daysTo(b.closeAt), due: spDue(b) }, b));
-  const openB = bills.filter(b => SP_OPEN.includes(b.status));
-  const due3 = openB.filter(b => b.d !== null && b.d <= 3), due7 = openB.filter(b => b.d !== null && b.d > 3 && b.d <= 7);
-  const sent = bills.filter(b => SP_SENT.includes(b.status));
-  const groups = { all: ["ทั้งหมด", () => true], open: ["เปิดรับ", b => b.status === "เปิดรับ"], draft: ["ร่าง", b => b.status === "ร่าง"],
-    sent: ["ส่งซัพแล้ว/รอของ", b => SP_SENT.includes(b.status)], done: ["จบ", b => b.status === "จบ"] };
-  const list = bills.filter(groups[f] ? groups[f][1] : () => true).filter(b => !fs || b.supplier === fs);
-  v.innerHTML = `
-    <div class="flex flex-wrap items-center gap-2 mb-3">
-      <div class="mr-auto"><h2 class="font-bold">บิลซัพ (ไม่ใช่ Dreamtoy)</h2><div class="text-xs muted">กรอกบิลเอง · เก็บในไฟล์ PM อย่างเดียว ไม่เขียน Product_ID ไม่ส่งไป POS</div></div>
-      <button class="btn btn-w" onclick="spAddSupPage('')"><i class="fa-solid fa-building-circle-check"></i> เพิ่มซัพ</button>
-      <button class="btn btn-w" onclick="newSup()"><i class="fa-solid fa-plus"></i> กรอกบิลใหม่</button>
-      <button class="btn btn-p" onclick="imOpen()"><i class="fa-solid fa-file-import"></i> นำเข้าไฟล์ซัพ (เลือกสินค้า)</button>
-    </div>
-    <div class="grid sm:grid-cols-3 gap-3 mb-3">
-      <div class="card border border-red-200 bg-red-50"><div class="text-xs font-bold text-red-700">ปิดสั่งภายใน 3 วัน</div><div class="text-2xl font-bold text-red-700">${due3.length} บิล</div>
-        <div class="text-xs text-red-800">${due3.filter(b => b.status === "ร่าง").length} บิลยังเป็นร่าง</div></div>
-      <div class="card border border-amber-200 bg-amber-50"><div class="text-xs font-bold text-amber-800">ปิดสั่งภายใน 7 วัน</div><div class="text-2xl font-bold text-amber-800">${due7.length} บิล</div>
-        <div class="text-xs text-amber-900">เปิดรับอยู่ทั้งหมด ${openB.length} บิล</div></div>
-      <div class="card"><div class="text-xs font-bold text-gray-600">ส่งซัพแล้ว รอของเข้า</div><div class="text-2xl font-bold">${sent.length} บิล</div>
-        <div class="text-xs muted">ของเข้าเดือนนี้ ${sent.filter(b => String(b.arrive).slice(0, 7) === todayStr().slice(0, 7)).length} บิล</div></div>
-    </div>
-    <div class="card">
-      <div class="flex flex-wrap items-center gap-2 mb-2">
-        ${Object.entries(groups).map(([k, [l, fn]]) => `<button class="btn btn-s ${f === k ? "btn-p" : "btn-w"}" onclick="ss('pm_spf','${k}'); renderSupList(document.getElementById('view'))">${l} ${bills.filter(fn).length}</button>`).join("")}
-        <label class="ml-auto text-sm flex items-center gap-1">ซัพ <select class="sel" onchange="ss('pm_sps', this.value || null); renderSupList(document.getElementById('view'))">
-          <option value="">ทุกซัพ</option>${[...new Set(bills.map(b => b.supplier).filter(Boolean))].map(n => `<option ${n === fs ? "selected" : ""}>${esc(n)}</option>`).join("")}</select></label>
-      </div>
-      ${list.length ? `<div class="overflow-auto"><table class="g" style="min-width:900px"><thead><tr><th>ปิดสั่ง</th><th>ซัพ · เลขบิล</th><th>สินค้า</th><th>ประเภท</th>
-        <th class="num">ร้าน / WS / เผื่อขาย</th><th class="num">รวมสั่ง</th><th class="num">ทุนรวม</th><th>สถานะ</th><th></th></tr></thead><tbody>
-        ${list.map(b => {
-          const hot = b.due !== null && b.d <= 3, warm = b.due !== null && !hot;
-          return `<tr class="${hot ? "bg-red-50" : ""}">
-          <td class="whitespace-nowrap"><div class="font-semibold ${hot ? "text-red-700" : warm ? "text-amber-700" : ""}">${fmtDate(b.closeAt) || "—"}</div>
-            ${SP_OPEN.includes(b.status) && b.d !== null ? `<div class="text-xs ${hot ? "text-red-700" : "muted"}">${spDueText(b.d)}</div>` : ""}</td>
-          <td><div class="font-semibold">${esc(b.supplier)}</div><div class="text-xs font-mono muted">${esc(b.offerNo)}</div></td>
-          <td><div class="font-semibold">${esc(b.firstItem || "—")}${b.items > 1 ? ` <span class="muted font-normal">+${b.items - 1}</span>` : ""}</div>
-            <div class="text-xs muted">${b.items} รายการ${b.arrive ? " · ของเข้า " + spMonth(b.arrive) : ""}${b.title ? " · " + esc(b.title) : ""}</div></td>
-          <td><span class="chip ${b.type === "พรีออเดอร์" ? "bg-violet-100 text-violet-800" : "bg-gray-100 text-gray-700"}">${esc(b.type)}</span></td>
-          <td class="num font-mono">${fmt(b.shop)} / ${fmt(b.ws)} / ${fmt(b.extra)}</td>
-          <td class="num font-bold">${fmt(b.total)}</td><td class="num">${b.cost ? "฿" + fmt(b.cost) : "—"}</td>
-          <td>${chip(b.status)}</td>
-          <td class="whitespace-nowrap"><button class="btn btn-w btn-s" onclick="openSup(${jsq(b.roundId)})"><i class="fa-solid fa-pen"></i> เปิด</button>
-            <button class="btn btn-w btn-s" title="สรุป / ส่งซัพ / ติดตาม" onclick="openRound(${jsq(b.roundId)})"><i class="fa-solid fa-list-check"></i></button></td></tr>`;
-        }).join("")}</tbody></table></div>`
-        : `<div class="text-center muted py-8 text-sm">${bills.length ? "ไม่มีบิลในตัวกรองนี้" : 'ยังไม่มีบิลซัพ — กด "กรอกบิลใหม่"'}</div>`}
-    </div>`;
-}
+// ---------- รายการบิลซัพ → รวมในเมนู "สั่งซื้อ" (renderOrders ใน 2e_orders, v3.8) ----------
 
 // ---------- เปิด / สร้าง ----------
 function spEmptyRow() { return { barcode: "", itemCode: "", name: "", series: "", yen: "", cost: "", price1: "", price2: "", pcsCtn: "", imageUrl: "", remark: "", shopQty: "", extraQty: "", qty: {} }; }
@@ -2623,6 +2519,288 @@ async function imgZoom(src, title, sub, actions) {
 </script>
 <script>
 // ===================================================================
+//  v3.8 — เมนู "สั่งซื้อ" (รวมรอบสั่ง + บิลซัพ) · ความคืบหน้าราย Offer · แจ้งเตือนหน้าแรก
+//  ตัวเลข สั่ง/ได้/ตัด/ค้าง คิดที่ backend (progress_) จาก Orders เดิม
+// ===================================================================
+const PROG_C = { got: "#0f766e", cut: "#9ca3af", open: "#f2b33d" };
+const ORD_SENT = ["ส่งซัพแล้ว", "คอนเฟิร์มแล้ว", "ของทยอยเข้า"];
+
+function progBar(p, h) {
+  if (!p || !p.qty) return `<div class="text-xs muted">ยังไม่มียอดสั่ง</div>`;
+  const w = n => (n / p.qty * 100).toFixed(2) + "%";
+  return `<div class="flex overflow-hidden rounded-full bg-gray-100" style="height:${h || 10}px" role="img" aria-label="ได้ ${p.got} ตัด ${p.cut} ค้าง ${p.open} จาก ${p.qty}">
+    <div style="width:${w(p.got)};background:${PROG_C.got}"></div><div style="width:${w(p.cut)};background:${PROG_C.cut}"></div><div style="width:${w(p.open)};background:${PROG_C.open}"></div></div>`;
+}
+function progText(p) {
+  if (!p || !p.qty) return "";
+  return p.got || p.cut ? `ได้ ${fmt(p.got)} · ตัด ${fmt(p.cut)} · ค้าง ${fmt(p.open)}` : `ยังไม่มีของเข้า · ค้าง ${fmt(p.open)}`;
+}
+function progLegend() {
+  const k = (c, l) => `<span class="inline-flex items-center gap-1"><i style="background:${c};display:inline-block;width:11px;height:11px;border-radius:3px"></i>${l}</span>`;
+  return `<div class="flex flex-wrap gap-3 text-xs text-gray-600">${k(PROG_C.got, "ได้แล้ว")}${k(PROG_C.cut, "ซัพตัด / ตัดยอดค้าง")}${k(PROG_C.open, "ค้างรอของ")}</div>`;
+}
+function etaText(o) {
+  if (!o || !o.from) return "ไม่ระบุ";
+  return o.to && o.to !== o.from ? monLabel(o.from) + " – " + monLabel(o.to) : monLabel(o.from);
+}
+function offerTitle(o) { return !o || !o.title || /^offer$/i.test(String(o.title).trim()) ? String((o && o.fileName) || "").replace(/\.[^.]+$/, "") : o.title; }
+
+// ===================================================================
+//  แจ้งเตือน (หน้าแรก) — ไม่ส่ง LINE
+// ===================================================================
+const AL_KIND = { inbox: ["บิลรอตรวจ", "bg-violet-100 text-violet-800"], late: ["เลยกำหนด", "bg-red-100 text-red-700"], close: ["ใกล้ปิดสั่ง", "bg-amber-100 text-amber-800"],
+  done: ["ของเข้าครบ รอกดจบ", "bg-teal-100 text-teal-800"], draft: ["ร่างยังไม่ใส่วันปิด", "bg-gray-100 text-gray-700"] };
+function orderAlerts(rounds) {
+  const out = [];
+  (rounds || []).forEach(r => {
+    if (r.status === "จบ") return;
+    const p = r.prog, id = jsq(r.roundId), edit = r.isSup && ["ร่าง", "เปิดรับ"].includes(r.status) ? `openSup(${id})` : `openRound(${id})`;
+    ((p && p.offers) || []).filter(o => o.late).forEach(o => out.push({ k: "late", hot: true, sort: -o.late, act: `openRound(${id})`, btn: "เปิดรอบ",
+      title: `${r.name} · ${r.isSup ? "บิล" : "Offer"} ${o.offerNo}`,
+      detail: `คาดว่าของเข้า ${etaText(o)} · ได้ ${fmt(o.got)} / สั่ง ${fmt(o.qty)} · ค้าง ${fmt(o.open)} ชิ้น` }));
+    if (["ร่าง", "เปิดรับ"].includes(r.status) && r.closeAt) {
+      const d = daysTo(r.closeAt);
+      if (d !== null && d <= 7) out.push({ k: "close", hot: d <= 3, sort: d, act: edit, btn: r.isSup ? "เปิดบิล" : "เปิดรอบ",
+        title: `${r.name} · ปิดสั่ง ${fmtDate(r.closeAt)}`,
+        detail: (d < 0 ? `เลยวันปิดมา ${-d} วัน — ยังไม่ได้ส่งซัพ` : d === 0 ? "ปิดวันนี้" : `อีก ${d} วัน`) + (r.status === "ร่าง" ? " · ยังเป็นร่าง" : "") +
+          ` · ร้าน ${fmt(r.shopPcs)} / WS ${fmt(r.wsPcs)} ชิ้น` });
+    }
+    if (p && p.done && ORD_SENT.includes(r.status)) out.push({ k: "done", sort: 0, act: `openRound(${id})`, btn: "ไปกดจบ",
+      title: r.name, detail: `ของเข้าครบแล้ว — ได้ ${fmt(p.got)} · ตัด ${fmt(p.cut)} จากที่สั่ง ${fmt(p.qty)} ชิ้น · กด "ปิดรอบเป็นจบ" ในหน้ารอบ` });
+    if (r.status === "ร่าง" && !r.closeAt) out.push({ k: "draft", sort: 0, act: edit, btn: r.isSup ? "เปิดบิล" : "เปิดรอบ",
+      title: `${r.name} (ร่าง)`, detail: `ยังไม่ใส่วันปิดสั่ง · ${fmt(r.items)} รายการ` });
+  });
+  const ord = { late: 0, close: 1, done: 2, draft: 3 };
+  return out.sort((a, b) => ord[a.k] - ord[b.k] || a.sort - b.sort);
+}
+function homeAlertsHtml() {
+  const B = S.boot, rounds = (B.rounds || []), all = orderAlerts(rounds);
+  const ibx = (B.billInbox || []).filter(r => r.status !== "รออ่าน");   // บิลจาก LINE ที่เครื่องอ่านแล้ว รอคนตรวจ
+  if (ibx.length) all.unshift({ k: "inbox", hot: ibx.some(r => r.status === "มีปัญหา"), sort: 0, act: "go('bills')", btn: "ไปตรวจ",
+    title: `บิลรอตรวจจาก LINE ${ibx.length} ใบ`, detail: ibx.map(r => (r.docNo || r.fileName) + (r.status === "มีปัญหา" ? " (มีปัญหา)" : "")).join(" · ") });
+  const active = rounds.filter(r => r.status !== "จบ");
+  const waiting = active.filter(r => r.status !== "ร่าง" && r.prog).reduce((s, r) => s + r.prog.open, 0);
+  const waitOffers = active.filter(r => r.status !== "ร่าง" && r.prog).reduce((s, r) => s + r.prog.offers.filter(o => o.open).length, 0);
+  const late = all.filter(a => a.k === "late"), lateQty = active.reduce((s, r) => s + ((r.prog && r.prog.late) || 0), 0);
+  const byStatus = ROUND_STATUS.filter(s => s !== "จบ").map(s => [s, active.filter(r => r.status === s).length]).filter(x => x[1]);
+  const f = S.alertF && (S.alertF === "*" || all.some(a => a.k === S.alertF)) ? S.alertF : "*";
+  const list = all.filter(a => f === "*" || a.k === f);
+  const chipBtn = (k, l, n) => `<button class="btn btn-s ${f === k ? "btn-p" : "btn-w"}" onclick="S.alertF='${k}'; document.getElementById('homeAlerts').outerHTML = homeAlertsHtml()">${l} ${n}</button>`;
+  const stat = (label, val, note, cls) => `<div class="rounded-xl border px-3 py-2 ${cls}"><div class="text-xs font-bold">${label}</div><div class="text-xl font-bold">${val}</div><div class="text-xs opacity-80">${note}</div></div>`;
+  return `<div class="card mb-3" id="homeAlerts">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+      ${stat("ของค้างรอเข้า", fmt(waiting) + " ชิ้น", `จาก ${waitOffers} Offer / บิลที่ยังไม่ครบ`, "border-amber-200 bg-amber-50 text-amber-900")}
+      ${stat("Offer เลยกำหนด", late.length, late.length ? `ค้าง ${fmt(lateQty)} ชิ้น` : "ไม่มี", late.length ? "border-red-200 bg-red-50 text-red-700" : "border-gray-200 bg-white text-gray-700")}
+      ${stat("รอบที่ยังไม่จบ", active.length + " รอบ", byStatus.map(x => x[0] + " " + x[1]).join(" · ") || "—", "border-gray-200 bg-white text-gray-800")}
+    </div>
+    <div class="flex flex-wrap items-center gap-2 mb-2">
+      <h3 class="font-bold mr-auto"><i class="fa-regular fa-bell text-amber-500"></i> แจ้งเตือนการสั่งซื้อ (${all.length})</h3>
+      ${chipBtn("*", "ทั้งหมด", all.length)}${Object.keys(AL_KIND).map(k => all.some(a => a.k === k) ? chipBtn(k, AL_KIND[k][0], all.filter(a => a.k === k).length) : "").join("")}
+    </div>
+    ${list.length ? list.map(a => `<div class="flex flex-wrap items-center gap-3 py-2 px-2 rounded-lg border mb-1.5 ${a.hot ? "border-red-200 bg-red-50/60" : "border-gray-100"}">
+        <span class="chip ${AL_KIND[a.k][1]}">${AL_KIND[a.k][0]}</span>
+        <div class="flex-1 min-w-[220px]"><div class="font-semibold">${esc(a.title)}</div><div class="text-xs text-gray-600">${esc(a.detail)}</div></div>
+        <button class="btn btn-w btn-s" onclick="${a.act}">${a.btn}</button></div>`).join("")
+      : `<div class="text-sm muted py-3 text-center">ไม่มีเรื่องต้องตาม</div>`}
+    <div class="text-[11px] muted mt-2">เลยกำหนด = ส่งซัพแล้วแต่ยังค้าง และพ้นเดือนที่คาดว่าของเข้า · ใกล้ปิดสั่ง = เหลือ ≤ 7 วัน (≤ 3 วันขึ้นสีแดง) · แจ้งเตือนอยู่หน้านี้เท่านั้น ไม่ส่ง LINE</div>
+  </div>`;
+}
+
+// ===================================================================
+//  เมนู "สั่งซื้อ" — รอบ Offer + บิลซัพ ในรายการเดียว
+// ===================================================================
+async function renderOrders(v) {
+  v.innerHTML = `<div class="card text-center muted py-6"><i class="fa-solid fa-spinner fa-spin"></i></div>`;
+  const t = S.nav;
+  const [B, L] = await Promise.all([api("bootstrap"), api("supList")]);
+  if (stale(t)) return;
+  S.boot = B; S.spList = L;
+  renderOrdersList();
+}
+function ordFilter() {
+  return S.ordF || (S.ordF = { sup: ss("pm_os") || "", st: ss("pm_ost") || "active", q: "" });
+}
+function ordRows() {
+  const B = S.boot, L = S.spList || { bills: [] }, sb = {};
+  L.bills.forEach(b => sb[b.roundId] = b);
+  return (B.rounds || []).map(r => Object.assign({}, r, { sb: sb[r.roundId] || null }));
+}
+function renderOrdersList() {
+  const v = document.getElementById("view"), F = ordFilter(), all = ordRows();
+  const alerts = orderAlerts(S.boot.rounds);
+  const STS = [["active", "ยังไม่จบ", r => r.status !== "จบ"]].concat(ROUND_STATUS.map(s => [s, s, r => r.status === s])).concat([["*", "ทั้งหมด", () => true]]);
+  const stF = (STS.find(x => x[0] === F.st) || STS[0])[2];
+  const sups = [...new Set(all.map(r => r.supplier).filter(Boolean))].sort();
+  const q = F.q.trim().toLowerCase();
+  const list = all.filter(stF).filter(r => !F.sup || r.supplier === F.sup).filter(r => !q ||
+    [r.name, r.supplier, r.firstItem, r.roundId, ...(r.offers || []).map(o => o.offerNo + " " + (o.title || ""))].some(x => String(x || "").toLowerCase().includes(q)));
+  const pill = (on, onclick, label) => `<button class="btn btn-s ${on ? "btn-p" : "btn-w"}" style="border-radius:999px" onclick="${onclick}">${label}</button>`;
+  const cnt = fn => all.filter(r => (!F.sup || r.supplier === F.sup) && fn(r)).length;
+  v.innerHTML = `
+    <div class="flex flex-wrap items-center gap-2 mb-3">
+      <div class="mr-auto"><h2 class="font-bold">สั่งซื้อ</h2><div class="text-xs muted">รอบ Offer (Dreamtoy) และบิลซัพทุกเจ้าในที่เดียว · 1 แถว = 1 รอบสั่ง</div></div>
+      <button class="btn btn-w" onclick="spAddSupPage('')"><i class="fa-solid fa-building-circle-check"></i> เพิ่มซัพ</button>
+      <button class="btn btn-w" onclick="roundForm()"><i class="fa-solid fa-layer-group"></i> สร้างรอบ Offer</button>
+      <button class="btn btn-w" onclick="newSup()"><i class="fa-solid fa-plus"></i> กรอกบิลใหม่</button>
+      <button class="btn btn-p" onclick="imOpen()"><i class="fa-solid fa-file-import"></i> นำเข้าไฟล์ซัพ (เลือกสินค้า)</button>
+    </div>
+    ${alerts.length ? `<a href="#" onclick="go('home'); return false" class="flex flex-wrap items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 mb-3 text-sm text-red-800 no-underline">
+      <b class="text-red-700"><i class="fa-regular fa-bell"></i> แจ้งเตือน ${alerts.length} เรื่อง</b>
+      ${Object.keys(AL_KIND).map(k => { const n = alerts.filter(a => a.k === k).length; return n ? `<span>${AL_KIND[k][0]} ${n}</span>` : ""; }).filter(Boolean).join(" · ")}
+      <span class="ml-auto underline">ดูที่หน้าแรก →</span></a>` : ""}
+    <div class="card">
+      <div class="flex flex-wrap items-center gap-1.5 mb-2"><span class="text-xs font-semibold muted mr-1">ซัพ</span>
+        ${pill(!F.sup, "ordSet('sup','')", `ทุกซัพ (${all.length})`)}${sups.map(s => pill(F.sup === s, `ordSet('sup',${jsq(s)})`, `${esc(s)} (${all.filter(r => r.supplier === s).length})`)).join("")}</div>
+      <div class="flex flex-wrap items-center gap-1.5 mb-3"><span class="text-xs font-semibold muted mr-1">สถานะ</span>
+        ${STS.map(([k, l, fn]) => { const n = cnt(fn); return n || k === "active" || k === "*" || F.st === k ? pill(F.st === k, `ordSet('st','${k}')`, `${l} ${n}`) : ""; }).join("")}
+        <input id="ordQ" class="inp ml-auto" style="min-width:240px" placeholder="ค้นหา ชื่อรอบ / เลข Offer / สินค้า" value="${esc(F.q)}"
+          oninput="S.ordF.q=this.value; clearTimeout(window._oq2); window._oq2=setTimeout(()=>{renderOrdersList(); const i=document.getElementById('ordQ'); i.focus(); i.setSelectionRange(i.value.length,i.value.length);},250)"></div>
+      ${list.length ? `<div class="overflow-auto"><table class="g" style="min-width:1040px"><thead><tr><th>รอบสั่ง · ซัพ</th><th>Offer / บิล</th><th>ปิดสั่ง</th>
+        <th class="num">สั่ง ร้าน / WS</th><th style="width:240px">ของเข้า (ได้ · ตัด · ค้าง)</th><th>สถานะ</th><th></th></tr></thead><tbody>
+        ${list.map(ordRow).join("")}</tbody></table></div>
+        <div class="mt-2">${progLegend()}</div>`
+        : `<div class="text-center muted py-8 text-sm">${all.length ? "ไม่มีรอบในตัวกรองนี้" : 'ยังไม่มีรอบสั่ง — กด "นำเข้าไฟล์ซัพ", "กรอกบิลใหม่" หรือ "สร้างรอบ Offer"'}</div>`}
+    </div>`;
+}
+function ordSet(k, val) {
+  const F = ordFilter(); F[k] = val;
+  if (k === "sup") ss("pm_os", val || null); else ss("pm_ost", val === "active" ? null : val);
+  renderOrdersList();
+}
+function ordRow(r) {
+  const p = r.prog, id = jsq(r.roundId), d = daysTo(r.closeAt), openSt = ["ร่าง", "เปิดรับ"].includes(r.status);
+  const hot = openSt && d !== null && d <= 3, late = p && p.lateOffers;
+  const kind = r.isSup ? `บิลซัพ${r.sb && r.sb.type ? " · " + esc(r.sb.type) : ""}` : `รอบ Offer · ${esc(r.line || "")}`;
+  const offers = r.offers || [];
+  const offTxt = r.isSup ? esc((r.sb && r.sb.offerNo) || (offers[0] && offers[0].offerNo) || "—") : offers.map(o => esc(o.offerNo)).join(" · ") || "ยังไม่มี Offer";
+  const offNote = r.isSup ? `${fmt(r.items)} รายการ${r.sb && r.sb.arrive ? " · ของเข้า " + spMonth(r.sb.arrive) : ""}${r.firstItem ? " · " + esc(String(r.firstItem).slice(0, 40)) : ""}`
+    : `${offers.length} Offer · ${fmt(r.items)} รายการ`;
+  const closeNote = openSt ? (d === null ? (r.status === "ร่าง" ? "ยังไม่ใส่วันปิด" : "") : d < 0 ? `เลยวันปิด ${-d} วัน` : d === 0 ? "ปิดวันนี้" : `อีก ${d} วัน`) : (r.status === "จบ" ? "" : "ส่งซัพแล้ว");
+  const btns = r.isSup
+    ? `<button class="btn btn-w btn-s" onclick="openSup(${id})" title="แก้สินค้า / ราคา / ยอด"><i class="fa-solid fa-pen"></i> แก้บิล</button>
+       <button class="btn btn-w btn-s" onclick="openRound(${id})" title="สรุป ส่งซัพ ความคืบหน้า"><i class="fa-solid fa-list-check"></i> ติดตาม</button>`
+    : `<button class="btn btn-w btn-s" onclick="openRound(${id})"><i class="fa-solid fa-folder-open"></i> เปิด</button>`;
+  return `<tr class="${hot ? "bg-red-50" : ""}">
+    <td><div class="font-semibold">${esc(r.name)}</div><div class="text-xs muted">${esc(r.supplier)} · ${kind}</div></td>
+    <td><div class="font-mono text-xs">${offTxt}</div><div class="text-xs muted">${offNote}</div></td>
+    <td class="whitespace-nowrap"><div class="font-semibold ${hot ? "text-red-700" : ""}">${fmtDate(r.closeAt) || "—"}</div><div class="text-xs ${hot ? "text-red-700" : "muted"}">${closeNote}</div></td>
+    <td class="num font-mono">${fmt(r.shopPcs)} / ${fmt(r.wsPcs)}</td>
+    <td>${progBar(p)}<div class="text-xs text-gray-600 mt-1">${progText(p)}${late ? ` <span class="chip bg-red-100 text-red-700">เลยกำหนด ${late} ${r.isSup ? "บิล" : "Offer"}</span>` : ""}${p && p.done && r.status !== "จบ" ? ` <span class="chip bg-teal-100 text-teal-800">ครบ รอกดจบ</span>` : ""}</div></td>
+    <td>${chip(r.status)}</td>
+    <td class="whitespace-nowrap">${btns}</td></tr>`;
+}
+
+// ===================================================================
+//  หน้ารอบ — แถบความคืบหน้า + ปุ่มจบ + แท็บ "5. ความคืบหน้า"
+// ===================================================================
+function roundProgStrip() {
+  const R = S.round, r = R.round, p = R.progress;
+  if (!p || !p.qty || r.status === "ร่าง") return "";
+  const pct = Math.floor(p.got / p.qty * 100), canEnd = p.done && r.status !== "จบ";
+  return `<div class="card mb-3" id="roundProg">
+    <div class="flex flex-wrap items-baseline gap-2 mb-2"><b class="mr-auto">ทั้งรอบ: ได้แล้ว ${fmt(p.got)} จาก ${fmt(p.qty)} ชิ้น (${pct}%)</b>
+      <span class="text-sm">${progText(p)}${p.lateOffers ? ` · <span class="text-red-600 font-semibold">เลยกำหนด ${p.lateOffers} ${r.isSup ? "บิล" : "Offer"}</span>` : ""}</span></div>
+    ${progBar(p, 12)}
+    <div class="flex flex-wrap items-center gap-2 mt-3 pt-2 border-t border-dashed">
+      ${r.status === "จบ" ? `<span class="chip bg-gray-200 text-gray-700"><i class="fa-solid fa-flag-checkered"></i> รอบนี้จบแล้ว</span>`
+        : `<button class="btn ${canEnd ? "btn-p" : "btn-w"} btn-s" ${canEnd ? "" : "disabled"} onclick="endRound()"><i class="fa-solid fa-flag-checkered"></i> ปิดรอบเป็น "จบ"</button>`}
+      <span class="text-xs muted mr-auto">"จบ" = ของเข้าครบแล้ว (ทุก Offer ได้ + ตัด = สั่ง)${r.status === "จบ" || canEnd ? "" : ` · ปุ่มกดได้เมื่อครบ — ตอนนี้ยังค้าง ${fmt(p.open)} ชิ้น`}</span>
+      <label class="text-sm flex items-center gap-2 cursor-pointer select-none" title="เปิดไว้ = ตอนบันทึกการแบ่งของแล้วรอบนี้ครบ ระบบเปลี่ยนเป็น จบ ให้เอง">
+        <input type="checkbox" ${r.autoEnd ? "checked" : ""} onchange="setAutoEnd(this.checked)"> จบอัตโนมัติเมื่อของเข้าครบ</label>
+    </div></div>`;
+}
+async function endRound() {
+  const r = S.round.round;
+  if (!confirm(`ปิดรอบ "${r.name}" เป็น "จบ"?\nรอบที่จบแล้วจะไม่ถูกนำไปเติมของจากบิลใหม่`)) return;
+  await run(async () => { await api("updateRound", { roundId: r.roundId, status: "จบ" }); r.status = "จบ"; toast("ปิดรอบเป็น จบ แล้ว"); renderRound(); });
+}
+async function setAutoEnd(on) {
+  await run(async () => {
+    const x = await api("updateRound", { roundId: S.round.round.roundId, autoEnd: on });
+    S.round.round.autoEnd = !!x.autoEnd;
+    toast(on ? (S.round.progress && S.round.progress.done ? "เปิดจบอัตโนมัติแล้ว — รอบนี้ครบแล้ว กดปุ่ม \"ปิดรอบเป็นจบ\" ได้เลย" : "เปิดจบอัตโนมัติแล้ว — ระบบเปลี่ยนเป็น จบ ให้ตอนบันทึกการแบ่งของที่ทำให้ครบ") : "ปิดจบอัตโนมัติ — กดจบเอง");
+  });
+}
+/** สรุปรายสินค้าใน Offer จาก Orders (ใช้กฎเดียวกับ backend) */
+function progItems(offerNo) {
+  const R = S.round, it = {}, m = {};
+  R.items.forEach(i => { if (i.offerNo === offerNo) it[i.key] = i; });
+  R.lines.filter(l => l.offerNo === offerNo && l.qty > 0).forEach(l => {
+    const info = it[l.key] || {};
+    const x = m[l.key] || (m[l.key] = { name: info.name || l.name, barcode: l.barcode, q: 0, g: 0, c: 0, o: 0, who: [] });
+    const g = Math.min(l.qty, l.received), rest = l.qty - g, cut = l.closed || info.cut;
+    x.q += l.qty; x.g += g;
+    if (cut) x.c += rest; else { x.o += rest; if (rest) x.who.push((l.code === SHOP_CODE ? "ร้าน" : (l.customer || l.code)) + " " + rest); }
+  });
+  return Object.values(m).sort((a, b) => b.o - a.o || String(a.name).localeCompare(String(b.name)));
+}
+function rtProgress(body) {
+  const R = S.round, r = R.round, p = R.progress, v = S.progView || "offer";
+  const tabs = [["offer", r.isSup ? "ราย Offer / บิล" : "ราย Offer"], ["cust", "รายลูกค้า"], ["bill", `บิลของเข้า (${(R.feeds || []).length})`]];
+  const head = `<div class="flex flex-wrap items-center gap-2 mb-3">${tabs.map(([k, l]) => `<button class="tab ${v === k ? "on" : ""}" onclick="S.progView='${k}'; renderRound()">${l}</button>`).join("")}
+    <span class="ml-auto">${progLegend()}</span></div>`;
+  if (!p || !p.qty) { body.innerHTML = head + `<div class="card text-center muted py-8 text-sm">ยังไม่มียอดสั่งในรอบนี้ — ใส่ยอดร้าน / WS ก่อน</div>`; return; }
+  body.innerHTML = head + ({ offer: progOffers, cust: progCusts, bill: progBills })[v]();
+}
+function progOffers() {
+  const R = S.round, p = R.progress, map = {};
+  p.offers.forEach(o => map[o.offerNo] = o);
+  const nos = [...new Set(R.offers.map(o => String(o.offerNo)).concat(p.offers.map(o => o.offerNo)))];
+  const feeds = R.feeds || [];
+  return nos.map(no => {
+    const o = map[no] || { offerNo: no, qty: 0, got: 0, cut: 0, open: 0, late: 0, status: "ยังไม่มียอด" }, meta = R.offers.find(x => String(x.offerNo) === no) || {};
+    const fb = feeds.filter(b => b.offers.some(x => x.offerNo === no)).map(b => `${esc(b.name)} (${fmt(b.offers.find(x => x.offerNo === no).got)})`);
+    const items = progItems(no), late = o.status === "เลยกำหนด";
+    return `<div class="card mb-3 ${late ? "border border-red-200" : ""}">
+      <div class="flex flex-wrap items-center gap-2 mb-2"><b class="font-mono">${R.round.isSup ? "บิล" : "Offer"} ${esc(no)}</b>
+        <span class="text-sm text-gray-600">${esc(offerTitle(meta))}</span>${chip(o.status)}${late ? `<span class="text-xs text-red-700 font-semibold">ค้างเลยกำหนด ${fmt(o.late)} ชิ้น</span>` : ""}</div>
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-sm mb-2">
+        <div><div class="kpi">ปิดสั่ง</div>${fmtDate(meta.closeAt || R.round.closeAt) || "—"}</div>
+        <div><div class="kpi">คาดว่าของเข้า</div><span class="${late ? "text-red-700 font-semibold" : ""}">${etaText(o)}</span></div>
+        <div><div class="kpi">สั่ง</div><b>${fmt(o.qty)}</b> ชิ้น</div>
+        <div><div class="kpi">ได้ · ตัด · ค้าง</div>${fmt(o.got)} · ${fmt(o.cut)} · <b class="${o.open ? "text-amber-700" : ""}">${fmt(o.open)}</b></div>
+        <div><div class="kpi">บิลที่เติม</div><span class="text-xs">${fb.join(" · ") || "—"}</span></div>
+      </div>
+      ${progBar(o)}
+      ${items.length ? `<details class="mt-2" ${late && items.length <= 30 ? "open" : ""}><summary class="text-sm text-teal-700 cursor-pointer">รายการสินค้า ${items.length} รายการ${o.open ? ` · ยังค้าง ${items.filter(i => i.o).length} รายการ` : ""}</summary>
+        <div class="overflow-auto mt-2" style="max-height:60vh"><table class="g"><thead><tr><th>สินค้า</th><th class="num">สั่ง</th><th class="num">ได้</th><th class="num">ตัด</th><th class="num">ค้าง</th><th>ยังรอของ</th></tr></thead><tbody>
+        ${items.map(i => `<tr><td><div class="leading-tight">${esc(i.name)}</div><div class="text-xs muted">${esc(i.barcode || "")}</div></td><td class="num">${fmt(i.q)}</td>
+          <td class="num text-teal-700 font-semibold">${i.g ? fmt(i.g) : ""}</td><td class="num muted">${i.c ? fmt(i.c) : ""}</td><td class="num font-semibold ${i.o ? "text-amber-700" : "muted"}">${fmt(i.o)}</td>
+          <td class="text-xs">${esc(i.who.join(" · "))}</td></tr>`).join("")}</tbody></table></div></details>` : ""}
+    </div>`;
+  }).join("") + `<div class="text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2"><b>สถานะคิดเอง:</b> รอของ = ยังไม่ได้สักชิ้น · ทยอยเข้า = ได้บางส่วน · ครบ = ได้ + ตัด = สั่ง ·
+    <span class="text-red-700 font-semibold">เลยกำหนด</span> = ส่งซัพแล้ว ยังค้าง และพ้นเดือนที่คาดว่าของเข้า · ซัพแจ้งไม่ส่ง → ติ๊ก "ตัดยอดค้างที่ไม่ได้ของ" ตอนแบ่งของในบิลสินค้าเข้า</div>`;
+}
+function progCusts() {
+  const R = S.round, it = {}, by = {};
+  R.items.forEach(i => it[i.offerNo + "|" + i.key] = i);
+  R.lines.filter(l => l.qty > 0).forEach(l => {
+    const c = by[l.code] || (by[l.code] = { code: l.code, name: l.code === SHOP_CODE ? SHOP_NAME : l.customer, qty: 0, got: 0, cut: 0, open: 0, lines: [] });
+    const g = Math.min(l.qty, l.received), rest = l.qty - g, cut = l.closed || (it[l.offerNo + "|" + l.key] || {}).cut;
+    c.qty += l.qty; c.got += g; if (cut) c.cut += rest; else c.open += rest; c.lines.push(Object.assign({ cutLine: cut }, l));
+  });
+  const rows = Object.values(by).sort((a, b) => a.code === SHOP_CODE ? -1 : b.code === SHOP_CODE ? 1 : b.qty - a.qty);
+  return `<div class="card"><p class="text-sm muted mb-2">รวมทุก Offer ในรอบนี้ — ใครได้ของไปแล้วเท่าไหร่ ยังค้างเท่าไหร่ (ใช้ตอบลูกค้า WS)</p>
+    <div class="overflow-auto"><table class="g" style="min-width:760px"><thead><tr><th>ลูกค้า</th><th class="num">สั่ง</th><th class="num">ได้</th><th class="num">ตัด</th><th class="num">ค้าง</th><th style="width:220px">ความคืบหน้า</th><th></th></tr></thead><tbody>
+    ${rows.map(c => `<tr><td><b>${esc(c.name)}</b> <span class="text-xs muted">${esc(c.code)}</span></td><td class="num">${fmt(c.qty)}</td>
+      <td class="num text-teal-700 font-semibold">${fmt(c.got)}</td><td class="num muted">${fmt(c.cut)}</td><td class="num font-bold ${c.open ? "text-amber-700" : ""}">${fmt(c.open)}</td>
+      <td>${progBar(c)}</td>
+      <td><details><summary class="text-xs text-teal-700 cursor-pointer">รายการ</summary><table class="g mt-1"><tbody>${c.lines.map(l => `<tr><td class="text-xs font-mono muted">${esc(l.offerNo)}</td><td class="text-xs">${esc((it[l.offerNo + "|" + l.key] || {}).name || l.name)}</td>
+        <td class="num text-xs">${l.received}/${l.qty}${l.cutLine && l.received < l.qty ? " ✂" : ""}</td></tr>`).join("")}</tbody></table></details></td></tr>`).join("")}
+    </tbody></table></div></div>`;
+}
+function progBills() {
+  const F = S.round.feeds || [];
+  return `<div class="card"><p class="text-sm muted mb-2">บิลของเข้าไม่ได้ผูกกับ Offer — ระบบเอาของในบิลไปเติมยอดค้างตามบาร์โค้ด (สั่งก่อนได้ก่อน) ตารางนี้บอกว่าแต่ละบิลไปเติม Offer ไหนของรอบนี้กี่ชิ้น</p>
+    ${F.length ? `<div class="overflow-auto"><table class="g" style="min-width:760px"><thead><tr><th>บิลสินค้าเข้า</th><th>วันที่</th><th class="num">เข้ารอบนี้</th><th>เติม Offer</th><th>สถานะบิล</th><th></th></tr></thead><tbody>
+      ${F.map(b => `<tr><td class="font-semibold">${esc(b.name)}</td><td>${fmtDate(b.billDate)}</td><td class="num font-semibold">${fmt(b.got)}</td>
+        <td class="text-sm">${b.offers.map(o => `${esc(o.offerNo)} × ${fmt(o.got)}${o.cutLines ? ` <span class="text-xs muted">(ตัดยอดค้าง ${o.cutLines} บรรทัด)</span>` : ""}`).join(" · ")}</td>
+        <td>${b.status ? chip(b.status) : ""}</td><td><button class="btn btn-w btn-s" onclick="openBill(${jsq(b.billId)})">เปิดบิล</button></td></tr>`).join("")}
+      </tbody></table></div>` : `<div class="text-center muted py-6 text-sm">ยังไม่มีบิลของเข้าที่แบ่งให้รอบนี้</div>`}</div>`;
+}
+</script>
+<script>
+// ===================================================================
 //  บิลสินค้าเข้า
 // ===================================================================
 function renderBills(v) {
@@ -2636,6 +2814,8 @@ function renderBills(v) {
       <label class="text-sm muted flex items-center gap-1"><input type="checkbox" ${showDone ? "checked" : ""} onchange="ss('pm_billdone', this.checked?'1':null); renderBills(document.getElementById('view'))"> แสดงที่จบแล้ว</label>
       <button class="btn btn-p" onclick="pickFiles('.xlsx,.xlsm,.xls', false, fs => run(() => billFile(fs[0])))"><i class="fa-solid fa-file-import"></i> นำเข้าบิลสินค้าเข้า</button>`}
     </div>
+    ${isStore() ? "" : `<p class="text-xs muted -mt-1 mb-3">รับไฟล์บิล Dreamtoy (Jan 1, …) และไฟล์บิล E-bill (PEAK เช่น K.A.) ที่ได้จากโปรแกรม <b>ebill</b> ในโฟลเดอร์ POS_Mewtoy — ระบบรู้เองว่าเป็นไฟล์แบบไหน</p>`}
+    ${billInboxHtml()}
     ${list.length ? `<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">${list.map(b => `
       <div class="card cursor-pointer hover:ring-2 hover:ring-teal-200" onclick="openBill(${jsq(b.billId)})">
         <div class="flex items-start gap-2"><div class="mr-auto"><div class="font-bold">${esc(b.name)}</div><div class="text-xs muted">${esc(b.supplier)} · ${fmtDate(b.billDate)} · ${esc(b.billId)}</div></div>${chip(b.status)}</div>
@@ -2644,7 +2824,9 @@ function renderBills(v) {
 }
 // ---------- นำเข้าไฟล์บิล ----------
 async function billFile(file) {
-  const { buf, wb } = await readBook(file), sheet = pickSheet(wb), grid = gridOf(wb.Sheets[sheet]), map = detectMap(grid);
+  const { buf, wb } = await readBook(file);
+  if (wb.Sheets["บิล"] && isEbillBook(wb)) return ebillOpen(file, wb);   // ไฟล์จากโปรแกรม ebill (บิล PEAK เช่น K.A.) — v3.9
+  const sheet = pickSheet(wb), grid = gridOf(wb.Sheets[sheet]), map = detectMap(grid);
   const nm = /\(\s*([A-Z]{3})\s*(\d)\s*\)/i.exec(file.name) || /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*(\d)\b/i.exec(file.name);
   S.billPend = { file, buf, wb, sheet, grid, map, name: nm ? nm[1][0].toUpperCase() + nm[1].slice(1, 3).toLowerCase() + " " + nm[2] : "", billDate: todayStr(), supplier: "Dreamtoy" };
   pendGroups();
@@ -2733,7 +2915,7 @@ function renderBill() {
   document.getElementById("view").innerHTML = `
     <div class="card mb-3"><div class="flex flex-wrap items-center gap-2">
       <button class="btn btn-w btn-s" onclick="go('bills')"><i class="fa-solid fa-arrow-left"></i></button>
-      <div class="mr-auto"><div class="font-bold text-lg leading-tight">${esc(b.name)}</div><div class="text-xs muted">${esc(b.supplier)} · ${fmtDate(b.billDate)} · ${esc(b.fileName || "")} · ${esc(b.billId)}</div></div>
+      <div class="mr-auto"><div class="font-bold text-lg leading-tight">${esc(b.name)}</div><div class="text-xs muted">${esc(b.supplier)} · ${fmtDate(b.billDate)} · ${esc(b.fileName || "")} · ${esc(b.billId)}${b.ebill ? ` · <a href="${esc(b.ebill)}" target="_blank" rel="noopener"><i class="fa-solid fa-qrcode"></i> E-bill ${esc(b.docNo || "")}</a>` : ""}</div>${b.notes ? `<div class="text-xs text-gray-600">${esc(b.notes)}</div>` : ""}</div>
       ${chip(b.status)}
       ${!isStore() ? `<select class="sel" onchange="run(async()=>{await api('updateBill',{billId:S.bill.bill.billId,status:this.value}); toast('สถานะ: '+this.value)})">${BILL_STATUS.map(s => `<option ${s === b.status ? "selected" : ""}>${s}</option>`).join("")}</select>` : ""}
       ${isAdmin() ? `<button class="btn btn-d btn-s" onclick="delBill()"><i class="fa-solid fa-trash"></i></button>` : ""}
@@ -3498,3 +3680,179 @@ async function runDiag() {
 </script>
 </body>
 </html>
+<script>
+// ===================================================================
+//  v3.9 — นำเข้าบิล E-bill (PEAK) เป็นบิลสินค้าเข้า
+//  ไฟล์มาจากโปรแกรม ebill ในเครื่องร้าน (POS_Mewtoy/ebill → output/*.xlsx · ชีต "บิล")
+//  ราคาในบิลซัพ = ทุน (รวม VAT) → เก็บที่ BillItems.Cost · Price 1/2 สำหรับออกบิล WS เอาจากบิลซัพที่สั่งไว้ / Product_ID
+// ===================================================================
+function isEbillBook(wb) {
+  const g = gridOf(wb.Sheets["บิล"], 40);
+  return g.some(r => hdr(r[0]) === "ลิงก์ E-bill") || g.some(r => hdr(r[0]) === "#" && hdr(r[1]) === "รหัสซัพ");
+}
+function ebillDate(v) {
+  if (typeof v === "number") { const d = XLSX.SSF.parse_date_code(v); return d ? `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}` : todayStr(); }
+  const m = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(String(v || ""));
+  if (!m) return todayStr();
+  let y = +m[3]; if (y > 2400) y -= 543;
+  return `${y}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+}
+function parseEbill(wb) {
+  const g = gridOf(wb.Sheets["บิล"]), H = {}, T = {};
+  let hr = -1;
+  for (let i = 0; i < g.length; i++) {
+    const a = hdr(g[i][0]);
+    if (a === "#" && hdr(g[i][1]) === "รหัสซัพ") { hr = i; break; }
+    if (a) H[a] = g[i][1];
+  }
+  if (hr < 0) throw new Error("ไฟล์นี้ไม่มีตารางรายการ (หัว # / รหัสซัพ / Barcode) — ใช้ไฟล์จากโปรแกรม ebill");
+  const cols = g[hr].map(hdr), ci = n => cols.findIndex(c => c.startsWith(n));
+  const C = { code: ci("รหัสซัพ"), bc: ci("Barcode"), qty: ci("จำนวน"), unit: ci("หน่วย"), price: ci("ราคา/ชิ้น"), disc: ci("ส่วนลด"),
+    costEx: ci("ทุน/ชิ้น ก่อน VAT"), name: ci("ชื่อสินค้า"), note: ci("หมายเหตุ") };
+  const items = [];
+  for (let i = hr + 1; i < g.length; i++) {
+    const r = g[i];
+    if (typeof r[0] !== "number" && !/^\d+$/.test(hdr(r[0]))) { if (!hdr(r[0]) && !hdr(r[C.code]) && !hdr(r[C.name])) { if (items.length) break; else continue; } else break; }
+    const qty = toQty(r[C.qty]), price = n0(r[C.price]), disc = n0(r[C.disc]);
+    items.push({ no: +r[0], code: hdr(r[C.code]), barcode: normBarcode(r[C.bc]), qty, unit: hdr(r[C.unit]), price, disc,
+      cost: qty ? r2(price - disc / qty) : price, costEx: n0(r[C.costEx]), name: hdr(r[C.name]), note: hdr(r[C.note]) });
+  }
+  g.forEach(r => { for (let c = 0; c < r.length - 1; c++) { const l = hdr(r[c]); if (/\(ตามบิล\)|ผลตรวจ|ราคาในบิลเป็นราคา|หักมัดจำ/.test(l)) T[l] = r[c + 1]; } });
+  const tv = k => { const key = Object.keys(T).find(x => x.startsWith(k)); return key ? T[key] : null; };
+  return {
+    head: { seller: hdr(H["ผู้ขาย"]), taxId: String(H["เลขผู้เสียภาษี"] || "").replace(/\D/g, ""), docNo: hdr(H["เลขที่เอกสาร"]), date: ebillDate(H["วันที่"]),
+      ref: hdr(H["อ้างอิง"]), note: hdr(H["หมายเหตุบิล"]), link: hdr(H["ลิงก์ E-bill"]) },
+    items,
+    totals: { grand: n0(tv("ยอดรวมทั้งสิ้น")), deposit: n0(tv("หักมัดจำ")), check: hdr(tv("ผลตรวจ")), vatMode: hdr(tv("ราคาในบิลเป็นราคา")) }
+  };
+}
+async function ebillOpen(file, wb) {
+  const E = parseEbill(wb);
+  if (!E.items.length) throw new Error("ไม่พบรายการสินค้าในชีต \"บิล\"");
+  return ebillReview(E, file, {});
+}
+/** เปิดหน้าตรวจจากข้อมูลบิล (ไฟล์ Excel หรือบิลรอตรวจจาก LINE) */
+async function ebillReview(E, file, extra) {
+  const M = await api("ebillMatch", { seller: E.head.seller, sellerTaxId: E.head.taxId, docNo: E.head.docNo,
+    items: E.items.map(i => ({ barcode: i.barcode, code: i.code, name: i.name })) });
+  E.items.forEach((it, k) => { it.m = M.items[k] || {}; it.take = it.qty > 0; it.bcIn = it.m.barcode || it.barcode; });
+  S.eb = { file, E, dup: M.dup || [], name: E.head.docNo, billDate: E.head.date, inboxMsgId: (extra && extra.inboxMsgId) || "",
+    supplier: M.supplier ? M.supplier.nick || M.supplier.name : E.head.seller.replace(/^บริษัท\s*|\s*จำกัด.*$/g, ""), supFound: !!M.supplier };
+  renderEbillPend();
+}
+function ebPrice(v) { return v === "" || v == null ? "—" : typeof v === "number" ? fmt(v) : esc(v); }
+function ebMatchText(it) {
+  const m = it.m || {};
+  if (it.qty <= 0) return `<span class="muted">จำนวน 0</span>`;
+  if (m.open > 0) return `<span class="text-teal-700 font-semibold">รอของ ${fmt(m.open)}</span><div class="text-[11px] muted">${esc((m.rounds || []).join(", "))}${m.how === "code" ? " · จับคู่จากรหัสซัพ" : ""}</div>`;
+  if (m.how === "barcode" || m.how === "code") return `<span class="text-gray-600">อยู่ในรอบสั่ง · ไม่มียอดค้าง</span>`;
+  if (m.inProduct) return `<span class="text-gray-600">มีใน Product_ID · ไม่มีคนสั่งค้าง</span>`;
+  return `<span class="text-amber-700">ไม่พบในรอบสั่ง / Product_ID</span>`;
+}
+function renderEbillPend() {
+  const P = S.eb, E = P.E, take = E.items.filter(i => i.take && i.qty > 0);
+  const sum = E.items.reduce((s, i) => s + i.qty * i.price - i.disc, 0), pcs = take.reduce((s, i) => s + i.qty, 0);
+  const noBc = take.filter(i => !i.bcIn && !(i.m && i.m.key && !String(i.m.key).startsWith("N:")));
+  const waiting = take.filter(i => i.m && i.m.open > 0).length;
+  openModal(`<h3 class="font-bold mb-1"><i class="fa-solid fa-qrcode text-teal-700"></i> นำเข้าบิล E-bill (PEAK)</h3>
+    <div class="text-xs muted mb-3">${esc(P.file.name)}${E.head.link ? ` · <a href="${esc(E.head.link)}" target="_blank" rel="noopener">เปิดบิลออนไลน์</a>` : ""}</div>
+    ${P.dup.length ? `<div class="rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm px-3 py-2 mb-2"><i class="fa-solid fa-triangle-exclamation"></i> เลขบิล ${esc(E.head.docNo)} นำเข้าแล้ว: ${P.dup.map(b => `${esc(b.name)} (${fmtDate(b.billDate)} · ${esc(b.status)})`).join(", ")} — ตรวจก่อนว่าไม่ซ้ำ</div>` : ""}
+    <div class="grid sm:grid-cols-3 gap-2 text-sm mb-2">
+      <label>ชื่อบิล *<input class="inp w-full mt-1" value="${esc(P.name)}" oninput="S.eb.name=this.value"></label>
+      <label>วันที่บิล<input type="date" class="inp w-full mt-1" value="${esc(P.billDate)}" oninput="S.eb.billDate=this.value"></label>
+      <label>ซัพ${P.supFound ? "" : ` <span class="text-amber-700 text-xs">(ไม่พบในแท็บ Supplier)</span>`}<input class="inp w-full mt-1" value="${esc(P.supplier)}" oninput="S.eb.supplier=this.value"></label></div>
+    <div class="text-xs text-gray-600 mb-2">${esc(E.head.seller)} · เลขภาษี ${esc(E.head.taxId)} · อ้างอิง ${esc(E.head.ref || "—")}${E.head.note ? " · " + esc(E.head.note) : ""}</div>
+    <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm mb-2">
+      <span>นำเข้า <b>${take.length}</b> รายการ · <b>${fmt(pcs)}</b> ชิ้น</span>
+      <span>ยอดรายการ ${money(sum)}${E.totals.vatMode ? ` (${esc(E.totals.vatMode)})` : ""}</span>
+      ${E.totals.deposit ? `<span class="text-amber-800">หักมัดจำ ${money(E.totals.deposit)} (ก่อน VAT)</span>` : ""}
+      <span>ยอดท้ายบิล <b>${money(E.totals.grand)}</b></span>
+      ${E.totals.check ? `<span class="${/✓/.test(E.totals.check) ? "text-teal-700" : "text-red-600 font-semibold"}">${esc(E.totals.check)}</span>` : ""}
+      <span class="text-teal-700">มีคนสั่งรอของ ${waiting} รายการ</span></div>
+    ${noBc.length ? `<div class="text-xs text-amber-800 bg-amber-50 rounded-lg px-2 py-1 mb-2">${noBc.length} รายการไม่มีบาร์โค้ดในบิลและจับคู่ไม่ได้ — ใส่บาร์โค้ดในช่องสีเหลือง หรือนำเข้าแบบไม่มีบาร์โค้ด (จับคู่ตามชื่อ)</div>` : ""}
+    <div class="overflow-auto border rounded-lg" style="max-height:52vh"><table class="g" style="min-width:980px"><thead><tr>
+      <th><input type="checkbox" ${E.items.every(i => i.take || i.qty <= 0) ? "checked" : ""} onchange="S.eb.E.items.forEach(i=>i.take=this.checked); renderEbillPend()" aria-label="เลือกทั้งหมด"></th>
+      <th>#</th><th>รหัสซัพ</th><th>บาร์โค้ด</th><th>สินค้า</th><th class="num">จำนวน</th><th class="num">ทุน/ชิ้น</th><th class="num">P1</th><th class="num">P2</th><th>ยอดสั่งในระบบ</th></tr></thead><tbody>
+      ${E.items.map((i, k) => `<tr class="${i.take ? "" : "text-gray-400"}">
+        <td><input type="checkbox" ${i.take ? "checked" : ""} ${i.qty > 0 ? "" : "disabled"} onchange="S.eb.E.items[${k}].take=this.checked; renderEbillPend()" aria-label="นำเข้ารายการ ${i.no}"></td>
+        <td class="muted">${i.no}</td><td class="font-mono text-xs whitespace-nowrap">${esc(i.code)}</td>
+        <td>${i.barcode ? `<span class="font-mono text-xs">${esc(i.barcode)}</span>` : i.m && i.m.how === "code" && i.m.barcode ? `<span class="font-mono text-xs text-teal-700" title="บิลไม่มีบาร์โค้ด — จับคู่จากรหัสซัพ">${esc(i.m.barcode)}</span>`
+          : `<input class="inp font-mono text-xs bg-amber-50" style="width:130px" placeholder="ไม่มีในบิล" value="${esc(i.bcIn)}" onchange="S.eb.E.items[${k}].bcIn=normBarcode(this.value); renderEbillPend()" aria-label="บาร์โค้ดรายการ ${i.no}">`}</td>
+        <td><div class="leading-tight">${esc(i.name)}</div>${i.note ? `<div class="text-[11px] text-amber-700">${esc(i.note)}</div>` : ""}</td>
+        <td class="num font-semibold">${fmt(i.qty)}</td><td class="num">${fmt2(i.cost)}</td>
+        <td class="num">${ebPrice(i.m.price1)}</td><td class="num">${ebPrice(i.m.price2)}</td>
+        <td>${ebMatchText(i)}</td></tr>`).join("")}
+    </tbody></table></div>
+    <p class="text-[11px] muted mt-1">ทุน/ชิ้น = ราคาตามบิลซัพ (ใช้คิดเงินจ่ายซัพในหน้าแรก) · P1/P2 = ราคาขายจากบิลซัพที่สั่งไว้ หรือ Product_ID (ใช้ออกบิล WS) · ของแถมราคา 0 นำเข้าได้ แบ่งให้ลูกค้าเองในขั้นแบ่งของ</p>
+    <div class="flex justify-end gap-2 mt-3"><button class="btn btn-w" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-p" ${take.length ? "" : "disabled"} onclick="createEbillBill()">นำเข้า ${take.length} รายการ</button></div>`, true);
+}
+async function createEbillBill() {
+  const P = S.eb, E = P.E;
+  if (!P.name.trim()) return toast("ใส่ชื่อบิล", true);
+  if (P.dup.length && !confirm(`เลขบิล ${E.head.docNo} เคยนำเข้าแล้ว — นำเข้าซ้ำอีกใบ?`)) return;
+  const rows = E.items.filter(i => i.take && i.qty > 0);
+  const notes = [`E-bill ${E.head.docNo}`, E.head.ref ? "อ้างอิง " + E.head.ref : "", E.totals.deposit ? "หักมัดจำ " + fmt2(E.totals.deposit) + " (ก่อน VAT)" : "",
+    "ยอดท้ายบิล " + fmt2(E.totals.grand), E.head.note].filter(Boolean).join(" · ");
+  await run(async () => {
+    const res = await api("createBill", { name: P.name.trim(), billDate: P.billDate, supplier: P.supplier.trim(), fileName: P.file.name, notes,
+      docNo: E.head.docNo, ebill: E.head.link, inboxMsgId: P.inboxMsgId || undefined,
+      items: rows.map(i => {
+        const typed = i.bcIn && i.bcIn !== i.m.barcode, matched = i.m && (i.m.how === "barcode" || i.m.how === "code") && !typed;
+        return { key: matched ? i.m.key : undefined, barcode: typed ? i.bcIn : (i.m.barcode || i.barcode), itemCode: i.code, name: i.name, qty: i.qty, cost: i.cost,
+          price1: i.m.price1 === "" ? undefined : i.m.price1, price2: i.m.price2 === "" ? undefined : i.m.price2, note: i.note };
+      }) });
+    if (P.inboxMsgId && S.boot && S.boot.billInbox) S.boot.billInbox = S.boot.billInbox.filter(r => r.msgId !== P.inboxMsgId);
+    closeModal(); toast(`นำเข้าบิล ${P.name} แล้ว · ${res.items} รายการ`); openBill(res.billId);
+  });
+}
+
+// ===================================================================
+//  v3.11 — บิลรอตรวจ (รูปจาก LINE "Sอ่านบิล" → โปรแกรม ebill บนเครื่องร้านอ่าน → PM)
+// ===================================================================
+/** ข้อมูลจากโปรแกรม ebill (JSON ของ PEAK + analyse) → รูปแบบเดียวกับ parseEbill */
+function inboxToE(D) {
+  const h = D.head || {}, t = D.totals || {}, c = D.check || {};
+  return {
+    head: { seller: h.seller || "", taxId: String(h.sellerTaxId || "").replace(/\D/g, ""), docNo: h.docNo || "", date: ebillDate(h.docDate),
+      ref: h.ref || "", note: h.note || "", link: D.url || "" },
+    items: (D.items || []).map((i, k) => {
+      const qty = n0(i.qty), price = n0(i.price), disc = n0(i.discount);
+      const notes = [!i.barcode ? "ไม่มีบาร์โค้ดในบิล" : "", !price ? "ของแถม (ราคา 0)" : ""].filter(Boolean).join(" · ");
+      return { no: i.no || k + 1, code: i.code || "", barcode: normBarcode(i.barcode), qty, unit: i.unit || "", price, disc,
+        cost: i.cost_inc != null ? n0(i.cost_inc) : (qty ? r2(price - disc / qty) : price), costEx: n0(i.cost_exc), name: i.clean_name || i.name || "", note: notes };
+    }),
+    totals: { grand: n0(t.grand), deposit: n0(c.deposit != null ? c.deposit : t.deposit), check: c.ok ? "✓ ยอดตรงกับบิล" : "✗ ยอดไม่ตรงกับบิล — เปิดบิลออนไลน์เช็ก", vatMode: c.price_mode || "" }
+  };
+}
+function billInboxHtml() {
+  const L = (S.boot && S.boot.billInbox) || [];
+  if (!L.length || isStore()) return "";
+  const st = { "อ่านแล้ว": "bg-teal-100 text-teal-800", "มีปัญหา": "bg-red-100 text-red-700", "รออ่าน": "bg-gray-100 text-gray-700" };
+  return `<div class="card mb-3 border border-teal-200" id="billInbox">
+    <div class="flex flex-wrap items-center gap-2 mb-2"><h3 class="font-bold mr-auto"><i class="fa-brands fa-line text-green-600"></i> บิลรอตรวจจาก LINE (${L.length})</h3>
+      <span class="text-xs muted">ส่งรูปบิลในกลุ่ม + พิมพ์ Sอ่านบิล → เครื่องร้านอ่านให้ → ตรวจแล้วนำเข้าที่นี่</span></div>
+    ${L.map(r => {
+      const D = r.data || {}, h = D.head || {}, its = D.items || [];
+      return `<div class="flex flex-wrap items-center gap-3 py-2 px-2 rounded-lg border mb-1.5 ${r.status === "มีปัญหา" ? "border-red-200 bg-red-50/50" : "border-gray-100"}">
+        <span class="chip ${st[r.status] || ""}">${esc(r.status === "รออ่าน" ? "รอเครื่องอ่าน" : r.status)}</span>
+        <div class="flex-1 min-w-[220px]"><div class="font-semibold">${esc(r.docNo || r.fileName)}${h.seller ? ` <span class="text-xs muted font-normal">${esc(String(h.seller).replace(/^บริษัท\s*|\s*จำกัด.*$/g, ""))}</span>` : ""}</div>
+          <div class="text-xs text-gray-600">${r.status === "อ่านแล้ว" ? `${its.length} รายการ · ยอด ${money((D.totals || {}).grand)}${(D.check || {}).ok ? " ✓" : " ✗ ยอดไม่ตรง"} · ` : ""}รับ ${esc(String(r.receivedAt || "").slice(5, 16))}${r.userName ? " · " + esc(r.userName) : ""}${r.note ? ` · <span class="${r.status === "มีปัญหา" ? "text-red-700" : "text-amber-700"}">${esc(r.note)}</span>` : ""}</div></div>
+        ${r.fileUrl ? `<a class="btn btn-w btn-s" href="${esc(r.fileUrl)}" target="_blank" rel="noopener"><i class="fa-regular fa-image"></i> รูป</a>` : ""}
+        ${r.status === "อ่านแล้ว" ? `<button class="btn btn-p btn-s" onclick="run(() => ebillFromInbox(${jsq(r.msgId)}))">ตรวจและนำเข้า</button>` : ""}
+        ${r.status !== "รออ่าน" ? `<button class="btn btn-w btn-s" onclick="billInboxSkip(${jsq(r.msgId)})" title="ไม่นำเข้า (เช่น รูปซ้ำ / ไม่ใช่บิล)">ข้าม</button>` : ""}
+      </div>`; }).join("")}
+  </div>`;
+}
+async function ebillFromInbox(msgId) {
+  const r = ((S.boot && S.boot.billInbox) || []).find(x => x.msgId === msgId);
+  if (!r || !r.data) throw new Error("ไม่พบข้อมูลบิล");
+  const E = inboxToE(r.data);
+  if (!E.items.length) throw new Error("บิลนี้ไม่มีรายการสินค้า");
+  await ebillReview(E, { name: r.fileName || r.docNo || "LINE" }, { inboxMsgId: msgId });
+}
+async function billInboxSkip(msgId) {
+  if (!confirm("ข้ามบิลนี้ (ไม่นำเข้า)?")) return;
+  await run(async () => { await api("billInboxSkip", { msgId }); S.boot.billInbox = S.boot.billInbox.filter(r => r.msgId !== msgId); toast("ข้ามแล้ว"); renderBills(document.getElementById("view")); });
+}
+</script>
