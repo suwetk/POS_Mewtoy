@@ -8527,7 +8527,10 @@ function renderReportBillsTable_() {
         : (Number(it.price) || 0) * qty;
       const barcode = String(it.barcode || "").trim();
       const isRec = it.type === "rec";
-      const recTag = isRec ? `<span class="flex-shrink-0 bg-pink-500 text-white font-bold rounded px-1 mr-1" style="font-size:.68em">Rec</span>` : "";
+      // สีแถว + ป้ายตามประเภทชิ้น (2026-10, per Wing): Rec ชมพู, Pre เหลือง,
+      // WS เขียว, SP ม่วง — ชุดสีเดียวกับ ROW_TYPE_STYLE ในตะกร้า POS
+      const typeStyle = REPORT_ITEM_TYPE_STYLE[it.type] || null;
+      const recTag = typeStyle ? `<span class="flex-shrink-0 ${typeStyle.tag} text-white font-bold rounded px-1 mr-1" style="font-size:.68em">${typeStyle.label}</span>` : "";
       let recDetail = "";
       if (isRec && it.rec) {
         const r = it.rec;
@@ -8538,7 +8541,7 @@ function renderReportBillsTable_() {
         </div>`;
       }
       const itemCell = `
-        <td class="pl-1 pr-1.5 ${isFirst ? "pt-1.5" : "pt-0.5"} ${isLast ? "pb-1.5" : "pb-0.5"} ${isRec ? "bg-pink-100/70" : ""}">
+        <td class="pl-1 pr-1.5 ${isFirst ? "pt-1.5" : "pt-0.5"} ${isLast ? "pb-1.5" : "pb-0.5"} ${typeStyle ? typeStyle.row : ""}">
           <div class="flex items-baseline gap-1">
             <span class="text-gray-400 flex-shrink-0 text-right" style="font-size:.7em;width:1.1em">${ii + 1}.</span>
             ${recTag}
@@ -8606,6 +8609,8 @@ function renderReportBillsTable_() {
       <span class="font-semibold text-gray-400">สีแถวสินค้า:</span>
       <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded bg-white border border-gray-300 inline-block"></span>ขายปกติ</span>
       <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded bg-pink-100 border border-pink-300 inline-block"></span>Rec — รับของจอง</span>
+      <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded bg-lime-100 border border-lime-400 inline-block"></span>WS — ขายส่ง</span>
+      <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded bg-purple-100 border border-purple-300 inline-block"></span>SP — ราคาพิเศษ</span>
     </div>
     <div class="overflow-x-auto rounded-lg border border-gray-200">
       <table class="w-full table-fixed min-w-[900px]" style="font-size:15px;font-variant-numeric:tabular-nums">
@@ -9412,6 +9417,15 @@ async function loadTransactionsForDate() {
 // Transaction ID ส่วนที่เหลือถือเป็นขายปกติ
 const TRANS_VISIBLE_ITEM_LINES = 3;
 
+// สีแถวสินค้าตามประเภทในตาราง Report (renderReport items) — ชุดเดียวกับ
+// ROW_TYPE_STYLE ในตะกร้า POS และแท็บ Transactions (transItemLinesHtml_)
+const REPORT_ITEM_TYPE_STYLE = {
+  rec: { label: "Rec", tag: "bg-pink-500",   row: "bg-pink-100/70" },
+  pre: { label: "Pre", tag: "bg-amber-500",  row: "bg-amber-100/70" },
+  ws:  { label: "WS",  tag: "bg-lime-600",   row: "bg-lime-100/80" },
+  sp:  { label: "SP",  tag: "bg-purple-500", row: "bg-purple-100/70" }
+};
+
 function transItemLinesHtml_(bill) {
   const lines = [];
   (bill.items || []).forEach((it) => {
@@ -9424,7 +9438,7 @@ function transItemLinesHtml_(bill) {
       qty: qty,
       unitHtml: qty > 1 ? ` <span class="text-gray-400">(@${formatMoney(unit)})</span>` : "",
       amountHtml: formatMoney(lineTotal),
-      kind: it.type === "rec" ? "rec" : (it.type === "pre" ? "pre" : "normal")
+      kind: (it.type === "rec" || it.type === "pre" || it.type === "ws" || it.type === "sp") ? it.type : "normal"
     });
   });
   (bill.bookedItems || []).forEach((b) => {
@@ -9442,6 +9456,8 @@ function transItemLinesHtml_(bill) {
     let bg;
     if (l.kind === "pre") bg = "bg-amber-100";
     else if (l.kind === "rec") bg = "bg-pink-100";
+    else if (l.kind === "ws") bg = "bg-lime-100";
+    else if (l.kind === "sp") bg = "bg-purple-100";
     else bg = (normalIdx++ % 2 === 0) ? "bg-white" : "bg-gray-100";
     return `
       <div class="flex items-start gap-2 px-1.5 py-1 ${bg}">
