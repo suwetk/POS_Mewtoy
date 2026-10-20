@@ -235,7 +235,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.20-a</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.20-c</span>
       </div>
       <div class="flex-1"></div>
 
@@ -2288,6 +2288,24 @@
       <div class="flex gap-2 justify-end mt-1">
         <button id="editPreCustomerCancelBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ยกเลิก</button>
         <button id="editPreCustomerConfirmBtn" type="button" class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold">✅ บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- รูปใบจองให้ลูกค้า (2026-10-20, แบบ C) — ดู openPreCustImgModal() -->
+  <style>
+    #preCustImgCard { width:342px; border-radius:16px; border:1px solid #e5e7eb; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,.08); }
+  </style>
+  <div id="preCustImgModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl p-5 flex flex-wrap gap-5 items-start max-h-[92vh] overflow-y-auto">
+      <div id="preCustImgCard"></div>
+      <div class="flex flex-col gap-2 min-w-[200px] flex-1">
+        <h3 class="font-semibold text-gray-800 text-lg flex items-center gap-2"><i class="fa-solid fa-camera text-sky-500"></i> รูปใบจองให้ลูกค้า</h3>
+        <button id="preCustImgCopyBtn" type="button" class="bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg px-4 py-2.5 font-bold text-left"><i class="fa-solid fa-copy mr-1"></i> คัดลอกรูป</button>
+        <button id="preCustImgSaveBtn" type="button" class="bg-sky-100 hover:bg-sky-200 text-sky-800 rounded-lg px-4 py-2.5 font-bold text-left"><i class="fa-solid fa-download mr-1"></i> บันทึกรูป (PNG)</button>
+        <button id="preCustImgCloseBtn" type="button" class="bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg px-4 py-2.5 font-semibold text-left">ปิด</button>
+        <p class="text-xs text-gray-500 leading-relaxed">คัดลอกแล้วไปที่แชทลูกค้า กด Ctrl+V<br>(Chrome / Edge บนคอมใช้ได้ · ถ้าเครื่องไหนคัดลอกไม่ได้ ใช้ "บันทึกรูป" แทน)</p>
+        <p id="preCustImgStatus" class="text-sm text-emerald-700 font-semibold"></p>
       </div>
     </div>
   </div>
@@ -8258,6 +8276,7 @@ function renderDailySummary(summary) {
   document.getElementById("wsAdvanceSalesPaidToday").textContent = formatMoney(wsAdv.paymentsToday);
   document.getElementById("wsAdvanceSalesStatusLabel").textContent = wsAdv.available ? "" : "ยังไม่เชื่อมไฟล์ PM";
 
+  reportPrePoCards = summary.prePoCards || {}; // รูปใบจองให้ลูกค้า (2026-10-20)
   renderReportBillsList(summary.bills || [], summary.billCount || 0, summary.itemCount || 0, summary.preRows || []);
 
   const crossCheckLine = document.getElementById("crossCheckLine");
@@ -8377,7 +8396,288 @@ function preRowCardHtml_(pre, showBranch) {
 // container — shared by both report views below. Looks the clicked row's
 // full data back up from `preRows` (by lineId) rather than trying to
 // smuggle it through the button's markup.
+/* -----------------------------------------------------------------
+   รูปใบจองให้ลูกค้า (2026-10-20, per Wing — mockup แบบ C รอบ 2)
+   ปุ่ม 📷 ในตาราง "มัดจำ Pre ที่รับวันนี้" → การ์ดแนวตั้ง: หัว "Mewtoy
+   Pre-Order" + สาขา, รายการ "จำนวน x × มัดจำต่อชิ้น = รวม" (ไม่มีราคาตกลง/
+   ยอดค้าง), ประวัติชำระมัดจำทุกวันพร้อมช่องทาง, มัดจำรวม. คัดลอกรูปไปวางใน
+   แชท หรือบันทึกเป็น PNG (html2canvas โหลดไว้แล้วสำหรับการ์ดบัญชีธนาคาร).
+   ข้อมูลมาจาก summary.prePoCards (buildDailySummary_ ฝั่ง backend)
+   ----------------------------------------------------------------- */
+let reportPrePoCards = {};
+let preCustImgPoId = null;
+
+const PRE_CUST_IMG_METHOD_LABEL = { cash: "เงินสด", transfer: "โอน", credit: "บัตรเครดิต" };
+
+function preCustImgDate_(value, withTime) {
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return String(value || "");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yy = String((d.getFullYear() + 543) % 100).padStart(2, "0");
+  const time = withTime ? " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0") : "";
+  return dd + "/" + mm + "/" + yy + time;
+}
+
+function preCustImgMoney_(n) {
+  const v = Math.round((Number(n) || 0) * 100) / 100;
+  return v.toLocaleString("en-US", { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 });
+}
+
+// วาดรูปด้วย Canvas 2D ตรงๆ (ไม่ใช้ html2canvas) — ตำแหน่งตัวหนังสือ/ป้ายตรง
+// เป๊ะทุกเครื่อง และภาพตัวอย่างในหน้าต่าง = รูปที่คัดลอก/บันทึกจริง
+function preCustImgSummary_(card) {
+  const depByLine = {};
+  (card.deposits || []).forEach((d) => { depByLine[d.lineId] = (depByLine[d.lineId] || 0) + (Number(d.amount) || 0); });
+  let pieces = 0;
+  const items = (card.lines || []).map((l) => {
+    const qty = Math.max(1, Number(l.qty) || 1);
+    pieces += qty;
+    const lineDep = depByLine[l.lineId] || 0;
+    const perPiece = Math.round((lineDep / qty) * 100) / 100;
+    const even = Math.abs(perPiece * qty - lineDep) < 0.005;
+    return { name: l.itemName || "-", qty: qty, total: lineDep, perPiece: perPiece, even: even };
+  });
+  const hist = [];
+  const histMap = {};
+  (card.deposits || []).forEach((d) => {
+    const key = preCustImgDate_(d.paidAt, false) + "|" + (d.method || "cash");
+    if (!histMap[key]) {
+      histMap[key] = { date: preCustImgDate_(d.paidAt, false), method: PRE_CUST_IMG_METHOD_LABEL[d.method] || d.method || "เงินสด", amount: 0 };
+      hist.push(histMap[key]);
+    }
+    histMap[key].amount += Number(d.amount) || 0;
+  });
+  return { items: items, hist: hist, pieces: pieces, total: hist.reduce((s, h) => s + h.amount, 0) };
+}
+
+function preCustImgWrap_(ctx, text, maxWidth) {
+  const seg = (typeof Intl !== "undefined" && Intl.Segmenter)
+    ? Array.from(new Intl.Segmenter("th", { granularity: "word" }).segment(String(text)), (x) => x.segment)
+    : String(text).split(/(\s+)/);
+  const lines = [];
+  let cur = "";
+  const pushPiece = (piece) => {
+    if (ctx.measureText(cur + piece).width <= maxWidth || cur === "") {
+      if (ctx.measureText(piece).width > maxWidth && cur === "") {
+        // คำเดียวยาวเกินบรรทัด — ตัดทีละตัวอักษร (grapheme)
+        const chars = (typeof Intl !== "undefined" && Intl.Segmenter)
+          ? Array.from(new Intl.Segmenter("th", { granularity: "grapheme" }).segment(piece), (x) => x.segment)
+          : Array.from(piece);
+        chars.forEach((ch) => {
+          if (ctx.measureText(cur + ch).width > maxWidth && cur) { lines.push(cur); cur = ""; }
+          cur += ch;
+        });
+      } else {
+        cur += piece;
+      }
+    } else {
+      lines.push(cur.trimEnd());
+      cur = piece.trimStart();
+    }
+  };
+  seg.forEach(pushPiece);
+  if (cur) lines.push(cur.trimEnd());
+  return lines.length ? lines : [""];
+}
+
+function drawPreCustImgCanvas_(card) {
+  const sum = preCustImgSummary_(card);
+  const W = 340, PAD = 16, SCALE = 2;
+  const FONT = "'Segoe UI', Tahoma, 'Noto Sans Thai', 'Leelawadee UI', sans-serif";
+  const C = { ink: "#1f2937", mute: "#6b7280", amber: "#92400e", hd: "#fbbf24", hdInk: "#451a03", pill: "#451a03", pillInk: "#fde68a",
+              line: "#f3f4f6", soft: "#fffbeb", dash: "#fcd34d", qty: "#ea580c", border: "#e5e7eb" };
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const font = (size, weight) => (weight || "400") + " " + size + "px " + FONT;
+
+  function layout(draw) {
+    let y = 0;
+    const text = (str, x, yy, size, weight, color, align) => {
+      if (!draw) return;
+      ctx.font = font(size, weight); ctx.fillStyle = color; ctx.textAlign = align || "left"; ctx.textBaseline = "middle";
+      ctx.fillText(str, x, yy);
+    };
+    const rect = (x, yy, w, h, color) => { if (draw) { ctx.fillStyle = color; ctx.fillRect(x, yy, w, h); } };
+    const pill = (x, yy, w, h, color) => {
+      if (!draw) return;
+      ctx.fillStyle = color; ctx.beginPath();
+      const r = h / 2; ctx.moveTo(x + r, yy); ctx.arcTo(x + w, yy, x + w, yy + h, r); ctx.arcTo(x + w, yy + h, x, yy + h, r);
+      ctx.arcTo(x, yy + h, x, yy, r); ctx.arcTo(x, yy, x + w, yy, r); ctx.closePath(); ctx.fill();
+    };
+
+    // หัว
+    rect(0, 0, W, 46, C.hd);
+    text("Mewtoy Pre-Order", PAD, 23, 16, "800", C.hdInk);
+    ctx.font = font(12, "700");
+    const br = String(card.branch || "");
+    if (br) {
+      const bw = ctx.measureText(br).width + 20;
+      pill(W - PAD - bw, 12, bw, 22, C.pill);
+      text(br, W - PAD - bw / 2, 23, 12, "700", C.pillInk, "center");
+    }
+    y = 46;
+
+    // เลขใบจอง + ลูกค้า
+    y += 10;
+    text((card.poId || "") + (card.openedAt ? " · " + preCustImgDate_(card.openedAt, true) : ""), PAD, y + 8, 12, "400", C.mute);
+    y += 18;
+    ctx.font = font(15, "700");
+    preCustImgWrap_(ctx, card.customerName || "ลูกค้าขาจร", W - PAD * 2).forEach((ln) => { text(ln, PAD, y + 10, 15, "700", C.ink); y += 20; });
+    y += 8;
+    rect(0, y, W, 1, C.line); y += 1;
+
+    // รายการ
+    sum.items.forEach((it) => {
+      y += 10;
+      ctx.font = font(14, "600");
+      preCustImgWrap_(ctx, it.name, W - PAD * 2).forEach((ln) => { text(ln, PAD, y + 10, 14, "600", C.ink); y += 20; });
+      y += 2;
+      const cy = y + 10;
+      ctx.font = font(13, "400");
+      let x = PAD;
+      const seg = (str) => { text(str, x, cy, 13, "400", C.amber); ctx.font = font(13, "400"); x += ctx.measureText(str).width; };
+      seg("จำนวน ");
+      if (it.qty > 1) {
+        ctx.font = font(12, "700");
+        const qs = String(it.qty), qw = Math.max(20, ctx.measureText(qs).width + 14);
+        pill(x, cy - 9, qw, 18, C.qty);
+        text(qs, x + qw / 2, cy, 12, "700", "#ffffff", "center");
+        x += qw;
+      } else {
+        seg(String(it.qty));
+      }
+      seg(it.even ? " × มัดจำ " + preCustImgMoney_(it.perPiece) : " · มัดจำรวม");
+      text(preCustImgMoney_(it.total), W - PAD, cy, 14, "800", C.amber, "right");
+      y += 20 + 10;
+      rect(0, y, W, 1, C.line); y += 1;
+    });
+
+    // ประวัติชำระ + รวม
+    const histTop = y;
+    const histRows = sum.hist.length ? sum.hist : [{ date: "", method: "", amount: 0, none: true }];
+    const histH = 8 + histRows.length * 20 + 6;
+    const totH = 44;
+    rect(0, histTop, W, histH + totH, C.soft);
+    if (draw) { ctx.strokeStyle = C.dash; ctx.setLineDash([4, 3]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, histTop + 0.5); ctx.lineTo(W, histTop + 0.5); ctx.stroke(); ctx.setLineDash([]); }
+    y += 8;
+    histRows.forEach((h) => {
+      text(h.none ? "ยังไม่ได้ชำระมัดจำ" : h.date + " ชำระมัดจำ · " + h.method, PAD, y + 10, 12, "400", C.amber);
+      text(preCustImgMoney_(h.amount), W - PAD, y + 10, 12, "700", C.amber, "right");
+      y += 20;
+    });
+    y += 6;
+    text("มัดจำรวม (" + sum.pieces + " ชิ้น)", PAD, y + 22, 13, "800", C.amber);
+    text(preCustImgMoney_(sum.total), W - PAD, y + 22, 21, "800", C.amber, "right");
+    y += totH;
+    return y;
+  }
+
+  ctx.font = font(14, "400");
+  const H = Math.ceil(layout(false));
+  canvas.width = W * SCALE; canvas.height = H * SCALE;
+  ctx.scale(SCALE, SCALE);
+  // พื้นขาว + มุมโค้ง
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.beginPath(); const R = 14;
+  ctx.moveTo(R, 0); ctx.arcTo(W, 0, W, H, R); ctx.arcTo(W, H, 0, H, R); ctx.arcTo(0, H, 0, 0, R); ctx.arcTo(0, 0, W, 0, R); ctx.closePath();
+  ctx.clip();
+  layout(true);
+  ctx.restore();
+  return canvas;
+}
+
+let preCustImgCanvas = null;
+
+function openPreCustImgModal(poId) {
+  const card = reportPrePoCards[poId];
+  if (!card) { showToast("ไม่พบข้อมูลใบจอง " + poId + " — กดโหลดข้อมูลใหม่อีกครั้ง", "error"); return; }
+  openPreCustImgCard_(card);
+}
+
+// แท็บ Pre-Order (2026-10-20, per Wing "ทำให้ pre order ด้วยเลย") — สร้างการ์ด
+// จาก lastLoadedPreOrders ที่โหลดมาแล้ว (มี depositHistory ทุกงวดอยู่แล้ว)
+// ไม่ต้องเรียก backend เพิ่ม; ใช้ได้กับใบจองทุกวัน ไม่ใช่แค่ที่จ่ายมัดจำวันนี้
+function openPreCustImgFromPreOrders_(poId) {
+  const lines = lastLoadedPreOrders.filter((l) => l.poId === poId && l.status !== PO_STATUS_CANCELLED_LABEL);
+  if (lines.length === 0) { showToast("ไม่พบรายการในใบจอง " + poId + " (อาจถูกยกเลิกทั้งหมด)", "error"); return; }
+  const first = lines[0];
+  const branchFromId = (String(poId).match(/^PO-([^-]+)-/) || [])[1] || "";
+  const deposits = [];
+  lines.forEach((l) => (l.depositHistory || []).forEach((d) => {
+    if (Number(d.amount) > 0) deposits.push({ lineId: l.lineId, amount: Number(d.amount), method: d.method, paidAt: d.paidAt });
+  }));
+  deposits.sort((a, b) => new Date(a.paidAt) - new Date(b.paidAt));
+  openPreCustImgCard_({
+    poId: poId,
+    branch: first.branch || branchFromId || getBranchCode(),
+    openedAt: first.openedAt || "",
+    customerName: first.customerName || "ลูกค้าขาจร",
+    lines: lines.map((l) => ({ lineId: l.lineId, itemName: l.itemName, qty: l.qty })),
+    deposits: deposits
+  });
+}
+
+function openPreCustImgCard_(card) {
+  const poId = card.poId;
+  preCustImgPoId = poId;
+  preCustImgCanvas = drawPreCustImgCanvas_(card);
+  const box = document.getElementById("preCustImgCard");
+  box.innerHTML = "";
+  const img = document.createElement("img");
+  img.src = preCustImgCanvas.toDataURL("image/png");
+  img.alt = "รูปใบจอง " + poId;
+  img.style.width = "340px";
+  img.style.display = "block";
+  box.appendChild(img);
+  document.getElementById("preCustImgStatus").textContent = "";
+  document.getElementById("preCustImgModal").classList.remove("hidden");
+}
+
+function closePreCustImgModal() {
+  preCustImgPoId = null;
+  preCustImgCanvas = null;
+  document.getElementById("preCustImgModal").classList.add("hidden");
+}
+
+async function copyPreCustImg() {
+  const status = document.getElementById("preCustImgStatus");
+  try {
+    if (!preCustImgCanvas || !navigator.clipboard || typeof ClipboardItem === "undefined") throw new Error("unsupported");
+    const blob = await new Promise((resolve) => preCustImgCanvas.toBlob(resolve, "image/png"));
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    status.textContent = "คัดลอกรูปแล้ว — ไปที่แชทลูกค้า กด Ctrl+V";
+    showToast("คัดลอกรูปแล้ว วางในแชทได้เลย (Ctrl+V)", "success");
+  } catch (err) {
+    console.error(err);
+    status.textContent = "เครื่องนี้คัดลอกรูปไม่ได้ — กด \"บันทึกรูป\" แทน";
+  }
+}
+
+function savePreCustImg() {
+  const status = document.getElementById("preCustImgStatus");
+  if (!preCustImgCanvas) return;
+  const link = document.createElement("a");
+  link.download = (preCustImgPoId || "preorder") + ".png";
+  link.href = preCustImgCanvas.toDataURL("image/png");
+  link.click();
+  status.textContent = "บันทึกรูปแล้ว";
+}
+
+function setupPreCustImgModal() {
+  document.getElementById("preCustImgCloseBtn").addEventListener("click", closePreCustImgModal);
+  document.getElementById("preCustImgCopyBtn").addEventListener("click", copyPreCustImg);
+  document.getElementById("preCustImgSaveBtn").addEventListener("click", savePreCustImg);
+  document.getElementById("preCustImgModal").addEventListener("click", (e) => {
+    if (e.target.id === "preCustImgModal") closePreCustImgModal();
+  });
+}
+
 function wirePreEditButtons_(container, preRows) {
+  container.querySelectorAll(".pre-cust-img-btn").forEach((btn) => {
+    btn.addEventListener("click", () => openPreCustImgModal(btn.getAttribute("data-po-id")));
+  });
   container.querySelectorAll(".pre-edit-customer-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const lineId = btn.getAttribute("data-line-id");
@@ -8791,6 +9091,9 @@ function renderReportPreList_() {
             <button type="button" class="pre-edit-customer-btn text-amber-700 hover:underline" style="font-size:.68em" data-line-id="${escapeHtml(g.items[0].lineId)}">
               <i class="fa-solid fa-pen" style="font-size:.85em"></i> แก้ชื่อ
             </button>
+            ${reportPrePoCards[g.poId] ? `<button type="button" class="pre-cust-img-btn mt-1 inline-flex items-center gap-1 text-white bg-sky-500 hover:bg-sky-600 font-bold rounded px-1.5 py-0.5" style="font-size:.66em" data-po-id="${escapeHtml(g.poId)}">
+              <i class="fa-solid fa-camera"></i> รูปให้ลูกค้า
+            </button>` : ""}
           </td>
           ${itemCell}
           ${payCells}
@@ -10874,6 +11177,9 @@ function wirePreOrderActionButtons(container) {
   });
   // One print button per PO-ID GROUP (not per line) — gathers every line
   // sharing that poId, same grouping logic as the render above.
+  container.querySelectorAll(".po-cust-img-btn").forEach((btn) => {
+    btn.addEventListener("click", () => openPreCustImgFromPreOrders_(btn.getAttribute("data-po-id")));
+  });
   container.querySelectorAll(".po-print-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const poId = btn.getAttribute("data-po-id");
@@ -11011,6 +11317,7 @@ function renderPreOrderPoList() {
               <div class="font-semibold text-gray-700 text-xs">${escapeHtml(poId)}</div>
               <div class="text-[11px] text-gray-400">${escapeHtml((first.openedAt || "").slice(0, 10))}</div>
               <button type="button" class="po-print-btn text-[11px] bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold px-2 py-1 rounded-lg mt-1" data-po-id="${escapeHtml(poId)}">🖨️ พิมพ์ใบจอง</button>
+              <button type="button" class="po-cust-img-btn block text-[11px] bg-sky-500 hover:bg-sky-600 text-white font-semibold px-2 py-1 rounded-lg mt-1" data-po-id="${escapeHtml(poId)}">📷 รูปให้ลูกค้า</button>
               ${bulkDepositBtnHtml}
             </td>
             <td rowspan="${lines.length}" class="py-2 pr-3 align-top bg-emerald-50/30">
@@ -18688,6 +18995,7 @@ async function init() {
   setupEditApprovalModal();
   setupEditPreCustomerModal();
   setupPoEditItemModal();
+  setupPreCustImgModal();
   setupProductCheckSearch();
   setupPreOrderTab();
   setupWSTab();
