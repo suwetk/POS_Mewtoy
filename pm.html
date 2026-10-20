@@ -2548,7 +2548,7 @@ function offerTitle(o) { return !o || !o.title || /^offer$/i.test(String(o.title
 // ===================================================================
 //  แจ้งเตือน (หน้าแรก) — ไม่ส่ง LINE
 // ===================================================================
-const AL_KIND = { inbox: ["บิลรอตรวจ", "bg-violet-100 text-violet-800"], late: ["เลยกำหนด", "bg-red-100 text-red-700"], close: ["ใกล้ปิดสั่ง", "bg-amber-100 text-amber-800"],
+const AL_KIND = { inbox: ["บิลรอตรวจ", "bg-violet-100 text-violet-800"], wsadd: ["ปิดรับสั่งเพิ่ม WS", "bg-orange-100 text-orange-800"], late: ["เลยกำหนด", "bg-red-100 text-red-700"], close: ["ใกล้ปิดสั่ง", "bg-amber-100 text-amber-800"],
   done: ["ของเข้าครบ รอกดจบ", "bg-teal-100 text-teal-800"], draft: ["ร่างยังไม่ใส่วันปิด", "bg-gray-100 text-gray-700"] };
 function orderAlerts(rounds) {
   const out = [];
@@ -2576,6 +2576,11 @@ function orderAlerts(rounds) {
 function homeAlertsHtml() {
   const B = S.boot, rounds = (B.rounds || []), all = orderAlerts(rounds);
   const ibx = (B.billInbox || []).filter(r => r.status !== "รออ่าน");   // บิลจาก LINE ที่เครื่องอ่านแล้ว รอคนตรวจ
+  (B.bills || []).filter(b => b.docType === "บิลเสนอ" && b.addCloseAt && b.status === "นำเข้าแล้ว").forEach(b => {   // บิลเสนอ Dreamtoy: วันปิดรับสั่งเพิ่มจาก WS (v3.12)
+    const d = daysTo(b.addCloseAt); if (d === null || d > 2) return;
+    all.unshift({ k: "wsadd", hot: d <= 0, sort: d, act: `openBill(${jsq(b.billId)})`, btn: "เปิดบิล", title: `บิลเสนอ ${b.name} · ปิดรับสั่งเพิ่ม WS ${fmtDate(b.addCloseAt)}`,
+      detail: (d < 0 ? `เลยมา ${-d} วัน — รวมยอดแล้วส่ง DT` : d === 0 ? "ปิดวันนี้ — รวมยอดสั่งเพิ่มแล้วส่ง DT" : `อีก ${d} วัน`) });
+  });
   if (ibx.length) all.unshift({ k: "inbox", hot: ibx.some(r => r.status === "มีปัญหา"), sort: 0, act: "go('bills')", btn: "ไปตรวจ",
     title: `บิลรอตรวจจาก LINE ${ibx.length} ใบ`, detail: ibx.map(r => (r.docNo || r.fileName) + (r.status === "มีปัญหา" ? " (มีปัญหา)" : "")).join(" · ") });
   const active = rounds.filter(r => r.status !== "จบ");
@@ -2830,6 +2835,7 @@ async function billFile(file) {
   const nm = /\(\s*([A-Z]{3})\s*(\d)\s*\)/i.exec(file.name) || /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*(\d)\b/i.exec(file.name);
   S.billPend = { file, buf, wb, sheet, grid, map, name: nm ? nm[1][0].toUpperCase() + nm[1].slice(1, 3).toLowerCase() + " " + nm[2] : "", billDate: todayStr(), supplier: "Dreamtoy" };
   pendGroups();
+  pfDetect(S.billPend);
   renderBillPend();
 }
 function pendGroups() {
@@ -2852,7 +2858,8 @@ function custOptions(sel, withShop, noneLabel) {
 }
 function renderBillPend() {
   const p = S.billPend, rows = pendRows();
-  const take = rows.filter(r => r.qty > 0 || r.hasDem), pos = take.filter(r => r.qty > 0), zeroDem = take.filter(r => !(r.qty > 0));
+  const take = rows.filter(r => r.qty > 0 || r.hasDem || (p.allRows && /^\d{8,14}$/.test(String(r.barcode)))), pos = take.filter(r => r.qty > 0), zeroDem = take.filter(r => !(r.qty > 0) && r.hasDem);
+  const zeroOffer = p.allRows ? take.filter(r => !(r.qty > 0) && !r.hasDem).length : 0;
   const cutPos = pos.filter(r => r.cut).length;
   const sel = f => `<select class="sel" onchange="S.billPend.map['${f}']=parseInt(this.value,10); renderBillPend()">${colOptions(p.grid, p.map, p.map[f], f !== "qty")}</select>`;
   const gsum = (i, f) => rows.reduce((s, r) => s + r.dem[i][f], 0);
@@ -2861,6 +2868,11 @@ function renderBillPend() {
       <label>ชื่อบิล *<input class="inp w-full mt-1" placeholder="Jan 1" value="${esc(p.name)}" oninput="S.billPend.name=this.value"></label>
       <label>วันที่<input type="date" class="inp w-full mt-1" value="${esc(p.billDate)}" oninput="S.billPend.billDate=this.value"></label>
       <label>ซัพ<input class="inp w-full mt-1" value="${esc(p.supplier)}" oninput="S.billPend.supplier=this.value"></label></div>
+    <div class="flex flex-wrap items-center gap-3 text-sm mb-3 rounded-lg border ${p.docType ? "border-amber-300 bg-amber-50" : "border-gray-200"} px-3 py-2">
+      <label class="flex items-center gap-1">เอกสารนี้คือ <select class="sel" onchange="S.billPend.docType=this.value; renderBillPend()">
+        <option value="" ${!p.docType ? "selected" : ""}>บิลจริง / Invoice</option><option value="บิลเสนอ" ${p.docType ? "selected" : ""}>บิลเสนอ (Proforma) — ยังสั่งเพิ่มได้</option></select></label>
+      <label class="flex items-center gap-1"><input type="checkbox" ${p.allRows ? "checked" : ""} onchange="S.billPend.allRows=this.checked; renderBillPend()"> นำเข้าแถวที่ได้ 0 ด้วย (ให้ WS สั่งเพิ่มได้)</label>
+      ${p.docType ? `<span class="text-xs text-amber-800">บิลเสนอ = ยอดที่ DT จะให้ · ยังแก้/สั่งเพิ่มได้ · Invoice จริงมาแล้วค่อยแก้จำนวนจริงในแท็บ 2</span>` : ""}</div>
     <div class="flex flex-wrap gap-2 text-xs items-center mb-2">
       <label>แท็บ <select class="sel" onchange="const p=S.billPend; p.sheet=this.value; p.grid=gridOf(p.wb.Sheets[p.sheet]); p.map=detectMap(p.grid); pendGroups(); renderBillPend()">${p.wb.SheetNames.map(n => `<option ${n === p.sheet ? "selected" : ""}>${esc(n)}</option>`).join("")}</select></label>
       <label>หัวตารางแถว <input class="qin" style="width:48px" value="${p.map.headerRow + 1}" onchange="S.billPend.map.headerRow=Math.max(0,this.value-1); pendGroups(); renderBillPend()"></label>
@@ -2873,7 +2885,7 @@ function renderBillPend() {
         <td class="num">${fmt(gsum(i, "base"))}</td><td class="num">${fmt(gsum(i, "add"))}</td>
         <td><select class="sel" style="max-width:240px" onchange="S.billPend.gmap[${jsq(g.label)}]=this.value; renderBillPend()">${custOptions(p.gmap[g.label], true)}</select></td></tr>`).join("")}
       </tbody></table><p class="text-[11px] muted mt-1">ระบบจำชื่อนี้ไว้ ครั้งหน้าเลือกให้เอง · MT = ร้านเรา</p></div>` : ""}
-    <div class="text-sm mb-2">บิลให้มา <b>${pos.length}</b> รายการ · <b>${fmt(pos.reduce((s, r) => s + r.qty, 0))}</b> ชิ้น${cutPos ? ` · ในนี้ติด **CUT ${cutPos} รายการ (ยังนำเข้าเพราะบิลยังให้มา)` : ""}${zeroDem.length ? ` · มีคนสั่งแต่บิลให้ 0: <b class="text-red-600">${zeroDem.length}</b> รายการ (นำเข้าไว้ให้เห็นว่าถูกตัด)` : ""}</div>
+    <div class="text-sm mb-2">บิลให้มา <b>${pos.length}</b> รายการ · <b>${fmt(pos.reduce((s, r) => s + r.qty, 0))}</b> ชิ้น${cutPos ? ` · ในนี้ติด **CUT ${cutPos} รายการ (ยังนำเข้าเพราะบิลยังให้มา)` : ""}${zeroDem.length ? ` · มีคนสั่งแต่บิลให้ 0: <b class="text-red-600">${zeroDem.length}</b> รายการ (นำเข้าไว้ให้เห็นว่าถูกตัด)` : ""}${zeroOffer ? ` · ได้ 0 (สั่งเพิ่มได้) <b>${zeroOffer}</b> รายการ` : ""}${p.pfTotal ? ` · ยอดตามบิล ${money(p.pfTotal.p1)} · P2 ${money(p.pfTotal.p2)} → จ่ายจริงประมาณ <b>${money(p.pfTotal.net)}</b>` : ""}</div>
     <div class="overflow-auto max-h-56 border rounded-lg"><table class="g"><thead><tr><th>บาร์โค้ด</th><th>ชื่อ</th><th class="num">บิล</th><th class="num">P2</th>${p.groups.map(g => `<th class="num">${esc(g.label)} F</th>`).join("")}</tr></thead><tbody>
       ${take.slice(0, 12).map(r => `<tr><td>${esc(r.barcode)}</td><td>${esc(r.name)}</td><td class="num">${fmt(r.qty)}</td><td class="num">${fmt(r.price2)}</td>${r.dem.map(d => `<td class="num">${d.base || ""}${d.add ? ` <span class="text-teal-700">+${d.add}</span>` : ""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
     <div class="flex justify-end gap-2 mt-3"><button class="btn btn-w" onclick="closeModal()">ยกเลิก</button>
@@ -2881,16 +2893,17 @@ function renderBillPend() {
 }
 async function createBill() {
   const p = S.billPend; if (!p.name.trim()) return toast("ใส่ชื่อบิล เช่น Jan 1", true);
-  const rows = pendRows().filter(r => r.qty > 0 || r.hasDem);
+  const rows = pfMerge(pendRows().filter(r => r.qty > 0 || r.hasDem || (p.allRows && /^\d{8,14}$/.test(String(r.barcode)))));
   const unmapped = p.groups.filter((g, i) => !p.gmap[g.label] && rows.some(r => r.dem[i].base || r.dem[i].add));
   if (unmapped.length && !confirm(`ยังไม่ได้เลือกลูกค้าให้ ${unmapped.map(g => g.label).join(", ")} — ยอดของคนนี้จะไม่ถูกนำเข้า ทำต่อไหม?`)) return;
   const demand = [], aliases = {};
   p.groups.forEach(g => { if (p.gmap[g.label]) aliases[g.label] = p.gmap[g.label]; });
   rows.forEach(r => r.dem.forEach(d => { const code = p.gmap[d.label]; if (code && (d.base || d.add)) demand.push({ barcode: r.barcode, name: r.name, label: d.label, code, customer: custName(code), base: d.base, add: d.add }); }));
   await run(async () => {
-    const res = await api("createBill", { name: p.name.trim(), billDate: p.billDate, supplier: p.supplier, fileName: p.file.name, demand, aliases,
-      items: rows.map(x => ({ barcode: x.barcode, itemCode: x.itemCode, name: x.name, pcsCtn: x.pcsCtn, price1: x.price1, price2: x.price2, qty: Math.max(0, x.qty), cut: x.cut })) });
+    const res = await api("createBill", { name: p.name.trim(), billDate: p.billDate, supplier: p.supplier, fileName: p.file.name, demand, aliases, docType: p.docType || "",
+      items: rows.map(x => ({ barcode: x.barcode, itemCode: x.itemCode, name: x.name, pcsCtn: x.pcsCtn, price1: x.price1, price2: x.price2, qty: Math.max(0, x.qty), cut: x.cut, note: x.pfNote || "" })) });
     Object.keys(aliases).forEach(l => S.boot.settings["Alias:" + l.trim().toUpperCase()] = aliases[l]);
+    if (p.docType === "บิลเสนอ") ss("pm_btab_" + res.billId, "addon");   // บิลเสนอ → เปิดแท็บสั่งเพิ่มก่อน
     closeModal(); toast("นำเข้าบิลแล้ว" + (res.demand ? ` · ยอดต่อคน ${res.demand} ช่อง` : "")); openBill(res.billId);
   });
 }
@@ -2916,6 +2929,7 @@ function renderBill() {
     <div class="card mb-3"><div class="flex flex-wrap items-center gap-2">
       <button class="btn btn-w btn-s" onclick="go('bills')"><i class="fa-solid fa-arrow-left"></i></button>
       <div class="mr-auto"><div class="font-bold text-lg leading-tight">${esc(b.name)}</div><div class="text-xs muted">${esc(b.supplier)} · ${fmtDate(b.billDate)} · ${esc(b.fileName || "")} · ${esc(b.billId)}${b.ebill ? ` · <a href="${esc(b.ebill)}" target="_blank" rel="noopener"><i class="fa-solid fa-qrcode"></i> E-bill ${esc(b.docNo || "")}</a>` : ""}</div>${b.notes ? `<div class="text-xs text-gray-600">${esc(b.notes)}</div>` : ""}</div>
+      ${b.docType ? `<span class="chip ${b.docType === "บิลเสนอ" ? "bg-amber-100 text-amber-800" : "bg-teal-100 text-teal-800"}">${esc(b.docType === "บิลเสนอ" ? "บิลเสนอ (Proforma)" : b.docType)}</span>` : ""}
       ${chip(b.status)}
       ${!isStore() ? `<select class="sel" onchange="run(async()=>{await api('updateBill',{billId:S.bill.bill.billId,status:this.value}); toast('สถานะ: '+this.value)})">${BILL_STATUS.map(s => `<option ${s === b.status ? "selected" : ""}>${s}</option>`).join("")}</select>` : ""}
       ${isAdmin() ? `<button class="btn btn-d btn-s" onclick="delBill()"><i class="fa-solid fa-trash"></i></button>` : ""}
@@ -3167,7 +3181,7 @@ function btAddon(body) {
   const tot = c => B.items.reduce((s, i) => { s.f += X.fx(i.key, c); s.g += X.gx(i.key, c); return s; }, { f: 0, g: 0 });
   const totG = B.items.reduce((s, i) => s + fgSum(i.key), 0), totAdd = B.items.reduce((s, i) => s + X.addConf(i.key), 0);
   const others = (S.boot.customers || []).filter(c => !codes.includes(c.code));
-  body.innerHTML = `
+  body.innerHTML = `${pfPanel(X)}
     <div class="card mb-3">
       <p class="text-sm mb-2"><b>ขั้นตอน:</b> บิลมา → ส่งไฟล์/ข้อความให้ WS สั่งเพิ่ม → ใส่ยอดสั่งเพิ่ม (G) หรือนำเข้าไฟล์ที่ WS ส่งกลับ → ส่งยอดรวมให้ DT → DT ตอบว่าได้เพิ่มเท่าไหร่ ใส่ช่อง "DT ได้เพิ่ม" → ไปแท็บ 2 แบ่งของ</p>
       <div class="flex flex-wrap gap-x-6 gap-y-2 mb-3 text-sm">
@@ -3185,7 +3199,7 @@ function btAddon(body) {
     </div>
     ${codes.filter(c => c !== SHOP_CODE).length ? `<div class="card mb-3"><h3 class="font-semibold mb-2 text-sm">ส่งให้ WS สั่งเพิ่ม</h3><div class="overflow-auto"><table class="g"><thead><tr><th>ร้าน</th><th class="num">สั่งไว้ (F)</th><th class="num">สั่งเพิ่ม (G)</th><th></th></tr></thead><tbody>
       ${codes.filter(c => c !== SHOP_CODE).map(c => { const t = tot(c); return `<tr><td><b>${esc(X.names[c] || custName(c))}</b> <span class="text-xs muted">${esc(c)}</span></td><td class="num">${fmt(t.f)}</td><td class="num text-teal-700">${t.g ? fmt(t.g) : ""}</td>
-        <td class="whitespace-nowrap"><button class="btn btn-w btn-s" onclick="wsAddonFile(${jsq(c)})"><i class="fa-solid fa-file-excel"></i> ไฟล์ให้กรอก</button> <button class="btn btn-w btn-s" onclick="addonMsg(${jsq(c)})"><i class="fa-brands fa-line"></i> ข้อความ</button></td></tr>`; }).join("")}
+        <td class="whitespace-nowrap">${B.bill.docType === "บิลเสนอ" ? `<button class="btn btn-w btn-s" title="ไฟล์บิลเสนอของ DT ล้างคอลัมน์จำนวน (M) ให้ร้านนี้กรอก" onclick="pfWsFile(${jsq(c)})"><i class="fa-solid fa-file-excel text-amber-600"></i> ไฟล์บิลเสนอ</button> ` : ""}<button class="btn btn-w btn-s" onclick="wsAddonFile(${jsq(c)})"><i class="fa-solid fa-file-excel"></i> ไฟล์ให้กรอก</button> <button class="btn btn-w btn-s" onclick="addonMsg(${jsq(c)})"><i class="fa-brands fa-line"></i> ข้อความ</button></td></tr>`; }).join("")}
       </tbody></table></div></div>` : ""}
     <div class="flex flex-wrap items-center gap-2 mb-2"><input class="inp w-64" placeholder="ค้นหาสินค้า / บาร์โค้ด" value="${esc(S.addQ || "")}" onchange="S.addQ=this.value; renderBill()">
       <label class="text-sm muted flex items-center gap-1"><input type="checkbox" ${onlyDem ? "checked" : ""} onchange="ss('pm_addondem', this.checked?'1':null); renderBill()"> เฉพาะที่มีคนสั่ง</label></div>
@@ -3244,11 +3258,24 @@ function exportAddonDT() {
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Add order"); XLSX.writeFile(wb, safeFile(`บิล ${B.bill.name} สั่งเพิ่มรวม.xlsx`));
 }
 /** นำเข้าไฟล์สั่งเพิ่ม: ไฟล์ที่ระบบสร้าง (ช่อง "สั่งเพิ่ม (G)") หรือไฟล์บิลเดิมที่กรอกช่อง G มา */
+/** ไฟล์สั่งเพิ่มหลายชีต (เช่น List of Stock มี Sheet2 = สต๊อกดิบ) → เลือกชีตที่มีแถวกรอกจำนวนมากสุด · ไม่มีใครกรอก → แบบเดิม */
+function addonSheet(wb, keySet) {
+  if (wb.SheetNames.length < 2) return wb.SheetNames[0];
+  const filled = n => { try {
+    const g = gridOf(wb.Sheets[n]), m = detectMap(g, keySet); if (m.qty < 0 || m.barcode < 0) return 0;
+    if (!/order|สั่ง|qty|จำนวน|mew|^g$|\(g\)/i.test(hdr((g[m.headerRow] || [])[m.qty]))) return 0;   // ชีตสต๊อก/pivot ไม่ใช่ไฟล์สั่ง
+    return extract(g, m).filter(r => r.qty > 0 && /^\d{8,14}$/.test(String(r.barcode))).length;
+  } catch (e) { return 0; } };
+  // ชีตที่เปิดค้างไว้ตอนร้านเซฟ (ร้านกรอกชีตนั้น) → ถ้ามียอด ใช้ชีตนั้น · ไม่งั้นชีตแรกที่มียอด (ชีตท้าย ๆ มักเป็นของเดือนก่อน)
+  const act = wb.SheetNames[(((wb.Workbook || {}).WBView || [])[0] || {}).activeTab || 0];
+  if (act && filled(act)) return act;
+  return wb.SheetNames.find(n => filled(n)) || pickSheet(wb, keySet);
+}
 function importAddon() {
   pickFiles(".xlsx,.xlsm,.xls", true, fs => run(async () => {
     const B = S.bill, keySet = new Set(B.items.map(i => i.key)), entries = [];
     for (const file of fs) {
-      const { wb } = await readBook(file), sheet = pickSheet(wb, keySet), grid = gridOf(wb.Sheets[sheet]), map = detectMap(grid, keySet);
+      const { wb } = await readBook(file), sheet = addonSheet(wb, keySet), grid = gridOf(wb.Sheets[sheet]), map = detectMap(grid, keySet);
       const groups = detectGroups(grid, map.headerRow);
       const rowsAll = extract(grid, map);
       if (groups.length) {
@@ -3260,17 +3287,19 @@ function importAddon() {
         });
       } else {
         const hr = grid[map.headerRow] || []; let gc = hr.findIndex(v => /สั่งเพิ่ม|\(G\)|^G$|add/i.test(hdr(v))); if (gc < 0) gc = map.qty;
-        const rows = {}; let out = 0;
-        rowsAll.forEach(r => { const v = Math.max(0, toQty((grid[r.r] || [])[gc])); if (!v) return; const k = itemKeyOf(r.barcode, r.name); if (!keySet.has(k)) { out++; return; } rows[k] = (rows[k] || 0) + v; });
+        const rows = {}, extra = {}; let out = 0; const pf = B.bill.docType === "บิลเสนอ";
+        rowsAll.forEach(r => { const v = Math.max(0, toQty((grid[r.r] || [])[gc])); if (!v) return; const k = itemKeyOf(r.barcode, r.name);
+          if (!keySet.has(k)) { if (pf && /^\d{8,14}$/.test(String(r.barcode))) { extra[k] = { barcode: r.barcode, itemCode: r.itemCode, name: r.name, pcsCtn: r.pcsCtn, price1: r.price1, price2: r.price2, cut: r.cut, note: "List of Stock · " + file.name }; rows[k] = (rows[k] || 0) + v; } else out++; return; }
+          rows[k] = (rows[k] || 0) + v; });
         let code = ""; grid.slice(0, 4).forEach(r => (r || []).forEach(v => { const m = /ร้าน\s*:.*\(([^()]+)\)\s*$/.exec(hdr(v)); if (m && !code) code = m[1].trim(); }));
         if (!code) { const gc2 = guessCustomer(file.name); code = gc2 ? gc2.code : ""; }
-        entries.push({ src: file.name, code, rows, out });
+        entries.push({ src: file.name, code, rows, out, extra });
       }
     }
     S.addPend = entries;
     openModal(`<h3 class="font-bold mb-2">นำเข้ายอดสั่งเพิ่ม (G)</h3>
       ${entries.length ? `<table class="g"><thead><tr><th>ไฟล์ / ชื่อ</th><th class="num">รายการ</th><th class="num">ชิ้น</th><th>ลูกค้า</th></tr></thead><tbody>
-      ${entries.map((e, i) => `<tr><td class="text-xs">${esc(e.src)}${e.out ? `<div class="text-amber-700">${e.out} รายการไม่อยู่ในบิลนี้ (ข้าม)</div>` : ""}</td><td class="num">${Object.keys(e.rows).length}</td><td class="num">${fmt(Object.values(e.rows).reduce((s, v) => s + v, 0))}</td>
+      ${entries.map((e, i) => `<tr><td class="text-xs">${esc(e.src)}${e.out ? `<div class="text-amber-700">${e.out} รายการไม่อยู่ในบิลนี้ (ข้าม)</div>` : ""}${e.extra && Object.keys(e.extra).length ? `<div class="text-teal-700">+ ${Object.keys(e.extra).length} รายการจาก List of Stock (ยังไม่อยู่ในบิล → เพิ่มเข้าบิลให้)</div>` : ""}</td><td class="num">${Object.keys(e.rows).length}</td><td class="num">${fmt(Object.values(e.rows).reduce((s, v) => s + v, 0))}</td>
         <td><select class="sel" style="max-width:220px" onchange="S.addPend[${i}].code=this.value">${custOptions(e.code, true)}</select></td></tr>`).join("")}</tbody></table>
       <p class="text-xs muted mt-2">ยอดสั่งเพิ่มเดิมของร้านที่เลือกจะถูกแทนด้วยยอดในไฟล์</p>` : `<p class="muted">ไม่พบยอดสั่งเพิ่มในไฟล์</p>`}
       <div class="flex justify-end gap-2 mt-3"><button class="btn btn-w" onclick="closeModal()">ยกเลิก</button>${entries.length ? `<button class="btn btn-p" onclick="run(saveAddonImport)">นำเข้า</button>` : ""}</div>`);
@@ -3280,6 +3309,8 @@ async function saveAddonImport() {
   const B = S.bill, E = S.addPend.filter(e => e.code), rows = [], aliases = {};
   if (!E.length) return toast("เลือกลูกค้าก่อน", true);
   E.forEach(e => { if (e.label) aliases[e.label] = e.code; Object.entries(e.rows).forEach(([key, add]) => rows.push({ key, code: e.code, customer: custName(e.code), add })); });
+  const extra = {}; E.forEach(e => Object.assign(extra, e.extra || {}));
+  if (Object.keys(extra).length) await api("addBillItems", { billId: B.bill.billId, source: "สั่งเพิ่มจาก List of Stock", items: Object.values(extra) });
   await api("saveBillDemand", { billId: B.bill.billId, rows, replaceAddFor: [...new Set(E.map(e => e.code))], aliases });
   closeModal(); toast(`นำเข้ายอดสั่งเพิ่ม ${rows.length} ช่องแล้ว`); await reloadBill();
 }
@@ -3676,6 +3707,94 @@ async function runDiag() {
         ${D.tabs.map(x => `<tr><td>${esc(x.name)}</td><td class="num">${x.rows == null ? "ยังไม่มี" : fmt(x.rows)}</td><td class="text-xs">${(x.misplaced || []).length ? `<span class="text-red-700">คอลัมน์สลับ: ${esc(x.misplaced.join(", "))}</span>` : (x.missing || []).length ? `<span class="muted">จะเพิ่มให้เอง: ${esc(x.missing.join(", "))}</span>` : ""}</td></tr>`).join("")}</tbody></table></div>
     </div>`;
   });
+}
+
+// ===================================================================
+//  v3.12 — บิลเสนอ (Proforma) ของ Dreamtoy
+//  ไฟล์แบบ "MODEL KIT OCT 4": NOTE 1 (NEW/REPEAT) · Offer · Type (**CUT) · MEW TOY Order (M) · แถว 0 = ยังสั่งเพิ่มได้
+// ===================================================================
+function pfDetect(p) {
+  const hr = p.map.headerRow, H = (p.grid[hr] || []).map(hdr);
+  p.map.note1 = H.findIndex(h => /^note\s*1?$/i.test(h));
+  const qh = p.map.qty >= 0 ? H[p.map.qty] : "";
+  const top = p.file.name + " " + p.grid.slice(0, hr).map(r => (r || []).join(" ")).join(" ");
+  const isPf = p.map.offer >= 0 && !p.groups.length && /mew\s*toy|order/i.test(qh) && !/confirm|invoice|ใบกำกับ/i.test(top);   // ไฟล์ CONFIRM QTY / Invoice = ยอดจริง
+  p.docType = isPf ? "บิลเสนอ" : ""; p.allRows = isPf;
+  if (isPf) { const nm = /(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*(\d)/i.exec(p.file.name); if (nm && !p.name) p.name = nm[1][0].toUpperCase() + nm[1].slice(1).toLowerCase() + " " + nm[2]; }
+  const rows = extract(p.grid, p.map).filter(r => r.barcode && r.qty > 0);
+  // ยอดตามบิล = ผลรวมคอลัมน์ Amount ของไฟล์ (DT คิดเองในไฟล์ ไม่จำเป็นต้องเท่า P1×จำนวน) · ไม่มีคอลัมน์ → P1×จำนวน
+  const ai = H.findIndex(h => /^amount$/i.test(h)), bc = p.map.barcode;
+  const amt = ai >= 0 && bc >= 0 ? p.grid.slice(hr + 1).filter(g => /^\d{8,14}$/.test(String(g[bc] || "").trim())).reduce((s, g) => s + n0(g[ai]), 0) : 0;
+  p.pfTotal = rows.length ? { p1: amt || rows.reduce((s, r) => s + n0(r.price1) * r.qty, 0), p2: rows.reduce((s, r) => s + n0(r.price2) * r.qty, 0), net: rows.reduce((s, r) => s + supUnit(r, r.qty, p.supplier) * r.qty, 0) } : null;
+}
+/** รวมแถวบาร์โค้ดซ้ำ (สินค้าเดียวกันหลาย Offer) + หมายเหตุ NEW/REPEAT · Offer · ตู้ J TOY */
+function pfMerge(rows) {
+  const p = S.billPend, by = new Map();
+  rows.forEach(r => {
+    const g = p.grid[r.r] || [], tag = p.map.note1 >= 0 ? hdr(g[p.map.note1]).toUpperCase() : "";
+    const ob = p.map.oldBarcode >= 0 ? hdr(g[p.map.oldBarcode]) : "", extra = ob && !normBarcode(ob) && ob !== "0" ? ob : "";
+    const note = [tag, r.offer ? "Offer " + r.offer.replace(/\s+/g, " ") : "", extra].filter(Boolean).join(" · ");
+    const k = itemKeyOf(r.barcode, r.name), x = by.get(k);
+    if (!x) { by.set(k, Object.assign({}, r, { pfNote: note })); return; }
+    x.qty += r.qty; x.cut = x.cut || r.cut; if (note && !x.pfNote.includes(note)) x.pfNote += " | " + note;
+    if (r.hasDem) { x.hasDem = true; x.dem = (x.dem || []).map((d, i) => ({ label: d.label, base: d.base + r.dem[i].base, add: d.add + r.dem[i].add })); }
+  });
+  return [...by.values()];
+}
+function pfPanel(X) {
+  const B = S.bill, b = B.bill; if (b.docType !== "บิลเสนอ") return "";
+  const got = B.items.filter(i => i.billQty > 0), zero = B.items.length - got.length;
+  const p2 = got.reduce((s, i) => s + n0(i.price2) * i.billQty, 0), net = got.reduce((s, i) => s + supUnit(i, i.billQty, b.supplier) * i.billQty, 0);
+  const d = daysTo(b.addCloseAt);
+  return `<div class="card mb-3 border border-amber-300 bg-amber-50/40">
+    <div class="flex flex-wrap items-center gap-2 mb-2"><h3 class="font-bold mr-auto"><i class="fa-solid fa-file-signature text-amber-600"></i> บิลเสนอ (Proforma) — ยังไม่ใช่ยอดจริง</h3>
+      <button class="btn btn-w btn-s" onclick="pfToInvoice()" title="เมื่อ Invoice จริงมา"><i class="fa-solid fa-file-invoice"></i> Invoice จริงมาแล้ว</button></div>
+    <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm mb-3">
+      <div><div class="kpi">DT ให้</div><b>${fmt(got.length)}</b> รายการ · <b>${fmt(got.reduce((s, i) => s + i.billQty, 0))}</b> ชิ้น</div>
+      <div><div class="kpi">ได้ 0 (สั่งเพิ่มได้)</div><b>${fmt(zero)}</b> รายการ</div>
+      <div><div class="kpi">ยอด P2 (ก่อนหัก)</div><b>${money(p2)}</b></div>
+      <div><div class="kpi">จ่ายจริงประมาณ</div><b class="text-amber-800">${money(net)}</b></div>
+      <div><div class="kpi">ปิดรับสั่งเพิ่ม WS</div><input type="date" class="inp" style="padding:3px 6px" value="${esc(b.addCloseAt || "")}" onchange="pfSetClose(this.value)">
+        ${d !== null ? `<span class="text-xs ${d <= 1 ? "text-red-600 font-semibold" : "muted"}">${d < 0 ? "เลยมา " + (-d) + " วัน" : d === 0 ? "วันนี้" : "อีก " + d + " วัน"}</span>` : ""}</div>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <button class="btn btn-p btn-s" onclick="pfWsFile('')"><i class="fa-solid fa-file-excel"></i> ไฟล์ให้ WS กรอก (ล้างคอลัมน์ M)</button>
+      <button class="btn btn-w btn-s" onclick="pfAddLos()"><i class="fa-solid fa-list"></i> เพิ่มรายการจาก List of Stock</button>
+    </div>
+    <p class="text-xs muted mt-2">ไฟล์ให้ WS = ไฟล์ของ DT เหมือนเดิมทุกอย่าง แค่ล้างจำนวนช่อง MEW TOY Order ให้ร้านกรอกยอดสั่งเพิ่มเอง (ใช้กับไฟล์ List of Stock ได้ด้วย) · ร้านส่งกลับ → "นำเข้าไฟล์สั่งเพิ่มจาก WS" ด้านล่าง · ตัวที่ร้านสั่งจาก List of Stock ระบบเพิ่มเข้าบิลให้เอง</p>
+  </div>`;
+}
+async function pfSetClose(v) { await run(async () => { await api("updateBill", { billId: S.bill.bill.billId, addCloseAt: v }); S.bill.bill.addCloseAt = v; const bb = (S.boot.bills || []).find(x => x.billId === S.bill.bill.billId); if (bb) bb.addCloseAt = v; renderBill(); }); }
+async function pfToInvoice() {
+  if (!confirm("เปลี่ยนเป็น Invoice จริง?\nแล้วแก้จำนวนที่ได้จริงในแท็บ 2 (ช่อง \"มาจริง\") ให้ตรงกับ Invoice")) return;
+  await run(async () => { await api("updateBill", { billId: S.bill.bill.billId, docType: "Invoice จริง" }); S.bill.bill.docType = "Invoice จริง"; toast("เปลี่ยนเป็น Invoice จริงแล้ว — แก้จำนวนจริงในแท็บ 2"); setBillTab("alloc"); });
+}
+/** ไฟล์ของ DT (บิลเสนอ / List of Stock) → ล้างจำนวนคอลัมน์ M ทุกแถวสินค้า → ให้ WS กรอก · เลือกไฟล์ทุกครั้ง (ใช้ได้ทั้ง 2 แบบ) */
+function pfWsFile(code) {
+  pickFiles(".xlsx,.xlsm", false, fs => run(async () => {
+    const file = fs[0], { buf, wb } = await readBook(file), sheet = pickSheet(wb), grid = gridOf(wb.Sheets[sheet]), map = detectMap(grid);
+    if (map.qty < 0) throw new Error("หาคอลัมน์จำนวน (MEW TOY Order) ในไฟล์นี้ไม่เจอ");
+    const cells = []; let n = 0;
+    for (let r = map.headerRow + 1; r < grid.length; r++) { const g = grid[r] || []; if (!normBarcode(g[map.barcode])) continue; const v = g[map.qty]; if (v !== null && v !== "") { cells.push({ r, c: map.qty, v: null }); n++; } }
+    const name = code ? (deriveBill().names[code] || custName(code)) : "";
+    const base = file.name.replace(/\.[^.]+$/, "").replace(/\s*-\s*MEW\s*TOY\s*$/i, "");
+    const skipped = await fillCells(buf, sheet, cells, safeFile(`${base} - สั่งเพิ่ม${name ? " - " + name : ""}.xlsx`));
+    toast(`ล้างคอลัมน์ ${colName(map.qty)} แล้ว ${n} แถว` + (skipped.length ? ` · แก้ไม่ได้ ${skipped.length} ช่อง (สูตรร่วม)` : ""), !!skipped.length);
+  }));
+}
+/** List of Stock ที่ตามมาทีหลัง → เพิ่มรายการเข้าบิลเดิม (จำนวนตามบิล 0) */
+function pfAddLos() {
+  pickFiles(".xlsx,.xlsm,.xls", false, fs => run(async () => {
+    const file = fs[0], { wb } = await readBook(file), sheet = pickSheet(wb), grid = gridOf(wb.Sheets[sheet]), map = detectMap(grid);
+    let rows = extract(grid, map).filter(r => /^\d{8,14}$/.test(String(r.barcode)));
+    if (!rows.length) throw new Error("ไม่พบรายการ (บาร์โค้ด) ในไฟล์นี้");
+    const ordered = rows.filter(r => r.qty > 0);
+    if (ordered.length) rows = ordered;   // มีคนกรอกจำนวนแล้ว → เพิ่มเฉพาะที่สั่ง
+    else if (rows.length > 100 && !confirm(`ไฟล์นี้มี ${rows.length} รายการ (ยังไม่มีใครกรอกจำนวน)\nปกติไม่ต้องเพิ่มทั้งหมด — นำเข้าไฟล์สั่งเพิ่มจาก WS แล้วระบบจะเพิ่มเฉพาะตัวที่ร้านสั่งให้เอง\n\nยังต้องการเพิ่มทั้งหมด?`)) return;
+    const r = await api("addBillItems", { billId: S.bill.bill.billId, source: file.name,
+      items: rows.map(x => ({ barcode: x.barcode, itemCode: x.itemCode, name: x.name, pcsCtn: x.pcsCtn, price1: x.price1, price2: x.price2, cut: x.cut, note: "List of Stock" + (x.offer ? " · " + x.offer : "") })) });
+    toast(`เพิ่ม ${r.added} รายการ · มีอยู่แล้ว ${r.skipped}`); await reloadBill();
+  }));
 }
 </script>
 </body>
