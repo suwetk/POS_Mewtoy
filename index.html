@@ -235,7 +235,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.19-d</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.20-a</span>
       </div>
       <div class="flex-1"></div>
 
@@ -2288,6 +2288,53 @@
       <div class="flex gap-2 justify-end mt-1">
         <button id="editPreCustomerCancelBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ยกเลิก</button>
         <button id="editPreCustomerConfirmBtn" type="button" class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold">✅ บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- แก้สินค้าในใบจอง (2026-10-20, per Wing) — เปลี่ยนสินค้า/บาร์โค้ด/ราคาตกลง
+       ของรายการจองที่ยังไม่เสร็จสิ้น ไม่ต้องไปแก้ใน Google Sheet เอง. มัดจำไม่ถูกแตะ.
+       ดู handleUpdatePreOrderItem_ ใน pos_backend.gs -->
+  <div id="poEditItemModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-5 flex flex-col gap-3">
+      <h3 class="font-semibold text-gray-800 text-lg flex items-center gap-2">
+        <i class="fa-solid fa-pen-to-square text-amber-600"></i> แก้สินค้าในใบจอง
+      </h3>
+      <div class="text-sm bg-gray-50 rounded-lg px-3 py-2 text-gray-600">
+        เดิม: <b id="poEditItemOldDesc" class="text-gray-800"></b>
+        <div id="poEditItemMeta" class="text-xs text-gray-500 mt-0.5"></div>
+      </div>
+      <div class="relative">
+        <label class="block text-xs text-gray-500 mb-1" for="poEditItemSearch">ค้นหาสินค้า (บาร์โค้ด / ชื่อ)</label>
+        <input id="poEditItemSearch" type="text" autocomplete="off"
+               class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500"
+               placeholder="ยิงบาร์โค้ดหรือพิมพ์ชื่อ — เลือกแล้วใส่ราคา Price 2 ให้">
+        <div id="poEditItemSugg" class="hidden absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"></div>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1" for="poEditItemName">ชื่อสินค้า</label>
+        <input id="poEditItemName" type="text" class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500">
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1" for="poEditItemBarcode">บาร์โค้ด</label>
+          <input id="poEditItemBarcode" type="text" class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500" placeholder="(ไม่บังคับ)">
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1" for="poEditItemAgreed">ราคาตกลง <span id="poEditItemQtyNote"></span></label>
+          <input id="poEditItemAgreed" type="number" min="0" step="1" class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm text-right focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500">
+        </div>
+      </div>
+      <p id="poEditItemPriceHint" class="text-xs text-gray-500 -mt-1"></p>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1" for="poEditItemReason">เหตุผล (ไม่บังคับ)</label>
+        <input id="poEditItemReason" type="text" class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500" placeholder="เช่น ลงสินค้าผิดตัว">
+      </div>
+      <p class="text-xs text-gray-400">มัดจำที่รับไว้ไม่เปลี่ยน · ระบบบันทึกประวัติการแก้ไว้ในช่อง Notes ของใบจอง</p>
+      <p id="poEditItemError" class="text-sm text-red-500 hidden"></p>
+      <div class="flex gap-2 justify-end mt-1">
+        <button id="poEditItemCancelBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ยกเลิก</button>
+        <button id="poEditItemConfirmBtn" type="button" class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold">✅ บันทึก</button>
       </div>
     </div>
   </div>
@@ -5299,7 +5346,7 @@ function cartRowHtml(item) {
               }
               <select data-id="${item.id}" class="row-type-select text-[10px] font-bold rounded-full border px-2 py-0.5 ${style.select}" ${item.lineId ? "disabled title='ผูกกับรายการจองจริง เอาออกได้เฉพาะด้วยปุ่มลบ 🗑'" : ""}>
                 <option value="branch" ${item.type === "branch" ? "selected" : ""}>${escapeHtml(branchLabel)}</option>
-                <option value="pre" ${item.type === "pre" ? "selected" : ""}>Pre</option>
+                <option value="pre" ${item.type === "pre" ? "selected" : ""} ${editingTransactionId && item.type !== "pre" ? "disabled" : ""}>Pre${editingTransactionId ? " (เปิดในบิลใหม่เท่านั้น)" : ""}</option>
                 <option value="rec" ${item.type === "rec" ? "selected" : ""}>Rec${item.lineId ? "" : " (กรอกเอง)"}</option>
                 <option value="ws" ${item.type === "ws" ? "selected" : ""}>WS</option>
                 <option value="sp" ${item.type === "sp" ? "selected" : ""}>SP</option>
@@ -6755,6 +6802,15 @@ async function submitEditSale() {
     return;
   }
   if (!editingTransactionId) return;
+
+  // แถว "Pre" ในโหมดแก้บิล (2026-10, per Wing — บิล #0025): editSale เขียน
+  // ทับแค่ Sales_History ไม่ได้เปิดใบจองใน PreOrders ให้ แถว Pre ที่ใส่ตรงนี้
+  // จึงกลายเป็น "ยอดขาย" ธรรมดา ไม่มีใบจองจริง → ไม่ให้บันทึก ต้องเปิดจองใน
+  // บิลใหม่ที่หน้า POS แทน
+  if (cart.some((i) => i.type === "pre")) {
+    showEditApprovalModalError("การแก้บิลเปิดจอง (Pre) ใหม่ไม่ได้ — ระบบจะไม่สร้างใบจองให้ กรุณาลบแถว Pre ออก แล้วเปิดจองในบิลใหม่ที่หน้า POS");
+    return;
+  }
 
   const approverPin = document.getElementById("editApproverPinInput").value.trim();
   if (!approverPin) {
@@ -10780,6 +10836,7 @@ function preOrderLineActionButtons(line) {
     <div class="flex items-center gap-1.5">
       ${poIconBtn_("po-fulfill-btn bg-emerald-50 hover:bg-emerald-100 text-emerald-700", "fa-receipt", fulfillTitle, `data-line-id="${escapeHtml(line.lineId)}"`)}
       ${poIconBtn_("po-add-deposit-btn bg-sky-50 hover:bg-sky-100 text-sky-700", "fa-hand-holding-dollar", "เพิ่มมัดจำ", `data-line-id="${escapeHtml(line.lineId)}"`)}
+      ${poIconBtn_("po-edit-item-btn bg-amber-50 hover:bg-amber-100 text-amber-700", "fa-pen-to-square", "แก้สินค้า / ราคาตกลง", `data-line-id="${escapeHtml(line.lineId)}"`)}
       ${poIconBtn_("po-cancel-btn bg-red-50 hover:bg-red-100 text-red-600", "fa-xmark", "ยกเลิกใบจอง", `data-line-id="${escapeHtml(line.lineId)}"`)}
       ${openedWithBillBtn}
     </div>`;
@@ -10802,6 +10859,12 @@ function wirePreOrderActionButtons(container) {
     btn.addEventListener("click", () => {
       const line = lastLoadedPreOrders.find((l) => l.lineId === btn.getAttribute("data-line-id"));
       if (line) openPreOrderCancelModal(line);
+    });
+  });
+  container.querySelectorAll(".po-edit-item-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const line = lastLoadedPreOrders.find((l) => l.lineId === btn.getAttribute("data-line-id"));
+      if (line) openPoEditItemModal(line);
     });
   });
   container.querySelectorAll(".po-view-bill-btn").forEach((btn) => {
@@ -12463,6 +12526,153 @@ async function submitEditPreCustomerName() {
     btn.disabled = false;
     btn.innerHTML = originalHtml;
   }
+}
+
+/* -----------------------------------------------------------------
+   แก้สินค้าในใบจอง (2026-10-20, per Wing) — ปุ่ม ✏️ ในแท็บ Pre-Order
+   ----------------------------------------------------------------- */
+let poEditItemTarget = null;
+
+function poEditItemShowError_(msg) {
+  const el = document.getElementById("poEditItemError");
+  el.textContent = msg;
+  el.classList.toggle("hidden", !msg);
+}
+
+function poEditItemPriceHint_() {
+  const hint = document.getElementById("poEditItemPriceHint");
+  const target = poEditItemTarget;
+  if (!target) { hint.textContent = ""; return; }
+  const p = findByBarcodeExact(document.getElementById("poEditItemBarcode").value.trim());
+  const qty = Number(target.qty) || 1;
+  if (!p) { hint.textContent = ""; return; }
+  const parts = [];
+  if (Number(p.price2) > 0) parts.push("Price 2 = " + formatMoney(p.price2));
+  if (Number(p.price1 || p.price) > 0) parts.push("Price 1 = " + formatMoney(p.price1 || p.price));
+  hint.textContent = parts.length ? "ราคาในระบบ (ต่อชิ้น): " + parts.join(" · ") + (qty > 1 ? " — ช่องราคาตกลงเป็นยอดรวม " + qty + " ชิ้น" : "") : "";
+}
+
+function openPoEditItemModal(line) {
+  poEditItemTarget = line;
+  const qty = Number(line.qty) || 1;
+  document.getElementById("poEditItemOldDesc").textContent =
+    (line.itemName || "-") + (line.itemBarcode ? " (" + line.itemBarcode + ")" : "") + " · ราคา " + formatMoney(line.agreedTotal);
+  document.getElementById("poEditItemMeta").textContent =
+    (line.poId || "") + " · " + (line.customerName || "ลูกค้าขาจร") + " · มัดจำแล้ว " + formatMoney(line.depositAmount) + (qty > 1 ? " · " + qty + " ชิ้น" : "");
+  document.getElementById("poEditItemSearch").value = "";
+  document.getElementById("poEditItemSugg").classList.add("hidden");
+  document.getElementById("poEditItemName").value = line.itemName || "";
+  document.getElementById("poEditItemBarcode").value = line.itemBarcode || "";
+  document.getElementById("poEditItemAgreed").value = Number(line.agreedTotal) || 0;
+  document.getElementById("poEditItemQtyNote").textContent = qty > 1 ? "(รวม " + qty + " ชิ้น)" : "";
+  document.getElementById("poEditItemReason").value = "";
+  poEditItemShowError_("");
+  poEditItemPriceHint_();
+  document.getElementById("poEditItemModal").classList.remove("hidden");
+  document.getElementById("poEditItemSearch").focus();
+}
+
+function closePoEditItemModal() {
+  poEditItemTarget = null;
+  document.getElementById("poEditItemModal").classList.add("hidden");
+}
+
+function pickPoEditItemProduct_(p) {
+  const qty = Number(poEditItemTarget && poEditItemTarget.qty) || 1;
+  const unit = Number(p.price2) > 0 ? Number(p.price2) : Number(p.price) || 0;
+  document.getElementById("poEditItemName").value = p.name || "";
+  document.getElementById("poEditItemBarcode").value = p.barcode || "";
+  if (unit > 0) document.getElementById("poEditItemAgreed").value = Math.round(unit * qty * 100) / 100;
+  document.getElementById("poEditItemSearch").value = "";
+  document.getElementById("poEditItemSugg").classList.add("hidden");
+  poEditItemPriceHint_();
+}
+
+function renderPoEditItemSuggestions_() {
+  const box = document.getElementById("poEditItemSugg");
+  const q = document.getElementById("poEditItemSearch").value.trim().toLowerCase();
+  if (q.length < 2) { box.classList.add("hidden"); return; }
+  const exact = findByBarcodeExact(q);
+  const matches = exact ? [exact] : productList.filter((p) =>
+    String(p.barcode).toLowerCase().includes(q) || String(p.name || "").toLowerCase().includes(q)
+  ).slice(0, 8);
+  if (matches.length === 0) {
+    box.innerHTML = '<div class="px-3 py-2 text-xs text-gray-400">ไม่พบสินค้า — พิมพ์ชื่อเองในช่องด้านล่างได้</div>';
+  } else {
+    box.innerHTML = matches.map((p, i) => `
+      <button type="button" data-idx="${i}" class="po-edit-sugg w-full text-left px-3 py-2 hover:bg-amber-50 border-b last:border-b-0">
+        <div class="text-sm text-gray-800">${escapeHtml(p.name || "-")}</div>
+        <div class="text-[11px] text-gray-400 font-mono">${escapeHtml(String(p.barcode))} · Price 2: ${formatMoney(p.price2)} · Price 1: ${formatMoney(p.price1 || p.price)}</div>
+      </button>`).join("");
+    box.querySelectorAll(".po-edit-sugg").forEach((btn) => {
+      btn.addEventListener("click", () => pickPoEditItemProduct_(matches[Number(btn.getAttribute("data-idx"))]));
+    });
+  }
+  box.classList.remove("hidden");
+  box._matches = matches;
+}
+
+async function submitPoEditItem() {
+  const target = poEditItemTarget;
+  if (!target) return;
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl === "YOUR_URL_HERE") { poEditItemShowError_("กรุณาวางลิงก์ Apps Script Web App ที่แท็บ Settings ก่อน"); return; }
+  const itemName = document.getElementById("poEditItemName").value.trim();
+  const itemBarcode = document.getElementById("poEditItemBarcode").value.trim();
+  const agreedRaw = document.getElementById("poEditItemAgreed").value;
+  const agreedTotal = Number(agreedRaw);
+  if (!itemName) { poEditItemShowError_("กรุณาใส่ชื่อสินค้า"); return; }
+  if (agreedRaw === "" || !isFinite(agreedTotal) || agreedTotal < 0) { poEditItemShowError_("ราคาตกลงไม่ถูกต้อง"); return; }
+  if (agreedTotal > 100000 && !confirm("ราคาตกลง " + formatMoney(agreedTotal) + " บาท สูงผิดปกติ — ยืนยันบันทึก?")) return;
+
+  const btn = document.getElementById("poEditItemConfirmBtn");
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+  poEditItemShowError_("");
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        action: "updatePreOrderItem",
+        pin: currentStaff ? currentStaff.pin : "",
+        branch: getBranchCode(),
+        lineId: target.lineId,
+        itemName: itemName,
+        itemBarcode: itemBarcode,
+        agreedTotal: agreedTotal,
+        reason: document.getElementById("poEditItemReason").value.trim()
+      })
+    });
+    const result = await response.json();
+    if (!result || result.status !== "success") throw new Error((result && result.message) || "แก้สินค้าไม่สำเร็จ");
+    showToast(result.message || "แก้สินค้าในใบจองเรียบร้อยแล้ว", "success");
+    closePoEditItemModal();
+    loadPreOrders();
+  } catch (err) {
+    console.error(err);
+    poEditItemShowError_(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
+
+function setupPoEditItemModal() {
+  document.getElementById("poEditItemCancelBtn").addEventListener("click", closePoEditItemModal);
+  document.getElementById("poEditItemConfirmBtn").addEventListener("click", submitPoEditItem);
+  const search = document.getElementById("poEditItemSearch");
+  search.addEventListener("input", renderPoEditItemSuggestions_);
+  search.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const exact = findByBarcodeExact(search.value.trim());
+    const box = document.getElementById("poEditItemSugg");
+    const pick = exact || (box._matches && box._matches[0]);
+    if (pick) pickPoEditItemProduct_(pick);
+  });
+  document.getElementById("poEditItemBarcode").addEventListener("input", poEditItemPriceHint_);
 }
 
 function setupEditPreCustomerModal() {
@@ -18477,6 +18687,7 @@ async function init() {
   setupVoidModal();
   setupEditApprovalModal();
   setupEditPreCustomerModal();
+  setupPoEditItemModal();
   setupProductCheckSearch();
   setupPreOrderTab();
   setupWSTab();
