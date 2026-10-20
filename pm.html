@@ -3191,7 +3191,8 @@ function btAddon(body) {
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <button class="btn btn-w" onclick="importAddon()"><i class="fa-solid fa-file-import"></i> นำเข้าไฟล์สั่งเพิ่มจาก WS</button>
-        <button class="btn btn-w" onclick="exportAddonDT()" ${totG ? "" : "disabled"}><i class="fa-solid fa-paper-plane"></i> สรุปสั่งเพิ่มส่ง DT (Excel)</button>
+        <button class="btn btn-p" onclick="fillDTFile()" ${totG ? "" : "disabled"} title="เลือกไฟล์บิลของ DT (หรือ List of Stock) → เติมยอดสั่งเพิ่มลงคอลัมน์เดิม จับคู่ด้วยบาร์โค้ด"><i class="fa-solid fa-file-pen"></i> เติมยอดลงไฟล์ DT (แบบเดิม)</button>
+        <button class="btn btn-w" onclick="exportAddonDT()" ${totG ? "" : "disabled"}><i class="fa-solid fa-paper-plane"></i> สรุปสั่งเพิ่ม (ตาราง)</button>
         <select class="sel" onchange="if(this.value){S.ddCodes.push(this.value); renderBill();}"><option value="">+ เพิ่มร้าน WS ที่ไม่มีในไฟล์</option>${others.map(c => `<option value="${esc(c.code)}">${esc(custLabel(c))}</option>`).join("")}</select>
         <label class="text-sm muted flex items-center gap-1"><input type="checkbox" ${editF ? "checked" : ""} onchange="S.editF=this.checked; renderBill()"> แก้ยอด F</label>
         <button class="btn ${dirty ? "btn-p" : "btn-w"} ml-auto" onclick="run(()=>saveDemandDraft())"><i class="fa-solid fa-floppy-disk"></i> บันทึก${dirty ? ` (${dirty})` : ""}</button>
@@ -3256,6 +3257,52 @@ function exportAddonDT() {
   const ws = XLSX.utils.aoa_to_sheet(aoa); for (let r = 2; r < aoa.length; r++) { const c = ws[XLSX.utils.encode_cell({ r, c: 0 })]; if (c) { c.t = "s"; c.v = String(c.v); } }
   ws["!cols"] = [{ wch: 15 }, { wch: 10 }, { wch: 50 }];
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Add order"); XLSX.writeFile(wb, safeFile(`บิล ${B.bill.name} สั่งเพิ่มรวม.xlsx`));
+}
+/** เติมยอดสั่งเพิ่ม (G รวมทุกร้าน) ลงไฟล์ของ DT รูปแบบเดิม — จับคู่ด้วยบาร์โค้ด ไม่ใช่ลำดับแถว (กันวางผิดแถว)
+ *  คอลัมน์จำนวน (MEW TOY Order / ORDER QTY) = ยอดเดิมในไฟล์ + สั่งเพิ่ม · บาร์โค้ดซ้ำหลายแถว (หลาย Offer) → บวกที่แถวแรก
+ *  ใช้ได้ทั้งไฟล์บิลเสนอ และไฟล์ List of Stock (ทีละไฟล์) */
+function fillDTFile() {
+  const B = S.bill, X = deriveBill(), codes = addonCodes(X);
+  const gsum = {}; B.items.forEach(i => { const g = codes.reduce((s, c) => s + X.gx(i.key, c), 0); if (g > 0) gsum[i.key] = g; });
+  if (!Object.keys(gsum).length) return toast("ยังไม่มียอดสั่งเพิ่ม", true);
+  pickFiles(".xlsx,.xlsm", false, fs => run(async () => {
+    const file = fs[0], { buf, wb } = await readBook(file), keySet = new Set(Object.keys(gsum));
+    // ชีตที่เป็นไฟล์สั่ง (มีคอลัมน์จำนวนแบบ Order/QTY) และมีสินค้าที่สั่งเพิ่มมากสุด — ข้ามชีตสต๊อก/pivot
+    let sheet = "", best = -1;
+    wb.SheetNames.forEach(n => { try { const g = gridOf(wb.Sheets[n]), m = detectMap(g);
+      if (m.qty < 0 || m.barcode < 0 || !/order|สั่ง|qty|จำนวน|mew/i.test(hdr((g[m.headerRow] || [])[m.qty]))) return;
+      let c = 0; for (let r = m.headerRow + 1; r < g.length; r++) { const b = normBarcode((g[r] || [])[m.barcode]); if (b && keySet.has(itemKeyOf(b, ""))) c++; }
+      if (c > best) { best = c; sheet = n; } } catch (e) {} });
+    if (!sheet) throw new Error("หาคอลัมน์บาร์โค้ด / จำนวน (MEW TOY Order / ORDER QTY) ในไฟล์นี้ไม่เจอ");
+    const grid = gridOf(wb.Sheets[sheet]), map = detectMap(grid);
+    const itemOf = {}; B.items.forEach(i => itemOf[i.key] = i);
+    const seen = new Set(), cells = [], lines = []; let before = 0;
+    for (let r = map.headerRow + 1; r < grid.length; r++) {
+      const g = grid[r] || [], bc = normBarcode(g[map.barcode]); if (!bc) continue;
+      const k = itemKeyOf(bc, ""), old = n0(g[map.qty]); before += old;
+      if (!gsum[k] || seen.has(k)) continue; seen.add(k);
+      const nv = old + gsum[k]; cells.push({ r, c: map.qty, v: nv });
+      lines.push({ row: r + 1, bc, name: String(g[map.name] ?? (itemOf[k] || {}).name ?? ""), old, add: gsum[k], nv });
+    }
+    const missing = Object.keys(gsum).filter(k => !seen.has(k)).map(k => itemOf[k]);
+    if (!cells.length) throw new Error(`ไม่มีสินค้าที่สั่งเพิ่มอยู่ในไฟล์นี้ (ชีต ${sheet}) — เลือกไฟล์ผิดหรือเปล่า?`);
+    // กันเติมซ้ำ: ไฟล์บิลเสนอ ยอดเดิมควรเท่ายอดที่ DT ให้ในบิล
+    const billQ = B.items.reduce((s, i) => s + n0(i.billQty), 0), isBillFile = lines.some(l => l.old > 0);
+    const warn = /^final/i.test(file.name) ? "ชื่อไฟล์ขึ้นต้นด้วย Final — อาจเป็นไฟล์ที่เติมยอดแล้ว"
+      : isBillFile && billQ && before > billQ ? `ยอดในไฟล์ (${fmt(before)} ชิ้น) มากกว่ายอดที่ DT ให้ในบิล (${fmt(billQ)} ชิ้น) — อาจเติมยอดไปแล้ว` : "";
+    if (warn && !confirm(warn + "\nเติมซ้ำจะสั่งเกิน — ควรใช้ไฟล์ต้นฉบับที่ DT ส่งมา\n\nยังจะเติมต่อ?")) return;
+    const out = safeFile("Final " + file.name.replace(/\.xlsm$/i, ".xlsx"));
+    const skipped = await fillCells(buf, sheet, cells, out);
+    const add = lines.reduce((s, l) => s + l.add, 0);
+    openModal(`<h3 class="font-bold mb-1">เติมยอดลงไฟล์ DT แล้ว</h3><div class="text-xs muted mb-3">${esc(out)} · ชีต ${esc(sheet)} · คอลัมน์ ${colName(map.qty)} · จับคู่ด้วยบาร์โค้ด</div>
+      <div class="text-sm mb-2">แก้ <b>${lines.length}</b> แถว · สั่งเพิ่ม <b>${fmt(add)}</b> ชิ้น · ยอดในไฟล์ ${fmt(before)} → <b>${fmt(before + add)}</b> ชิ้น</div>
+      ${skipped.length ? `<div class="text-sm text-red-600 mb-2">แก้ไม่ได้ ${skipped.length} ช่อง (เป็นสูตร): ${esc(skipped.join(", "))} — แก้ในไฟล์เอง</div>` : ""}
+      ${missing.length ? `<div class="text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2 mb-2">ไม่อยู่ในไฟล์นี้ ${missing.length} รายการ (${fmt(missing.reduce((s, i) => s + gsum[i.key], 0))} ชิ้น) — ปกติคือของจาก List of Stock → เติมในไฟล์ List of Stock อีกรอบ:<br>${missing.slice(0, 12).map(i => `${esc(i.barcode)} ${esc(i.name)} +${gsum[i.key]}`).join("<br>")}${missing.length > 12 ? "<br>…" : ""}</div>` : ""}
+      <div class="max-h-80 overflow-auto"><table class="g"><thead><tr><th class="num">แถว</th><th>บาร์โค้ด</th><th>สินค้า (ในไฟล์)</th><th class="num">เดิม</th><th class="num">+เพิ่ม</th><th class="num">ใหม่</th></tr></thead><tbody>
+      ${lines.map(l => `<tr><td class="num">${l.row}</td><td>${esc(l.bc)}</td><td class="text-xs">${esc(l.name)}</td><td class="num">${fmt(l.old)}</td><td class="num text-teal-700">+${fmt(l.add)}</td><td class="num"><b>${fmt(l.nv)}</b></td></tr>`).join("")}</tbody></table></div>
+      <p class="text-xs muted mt-2">ไฟล์ที่ได้ = ไฟล์ของ DT เดิมทุกอย่าง (สูตร/ฟอร์แมต/แถว) แก้แค่ช่องจำนวนตามตารางนี้ · เปิดใน Excel แล้วยอดรวม/Amount คำนวณใหม่เอง</p>
+      <div class="text-right mt-3"><button class="btn btn-p" onclick="closeModal()">ปิด</button></div>`, true);
+  }));
 }
 /** นำเข้าไฟล์สั่งเพิ่ม: ไฟล์ที่ระบบสร้าง (ช่อง "สั่งเพิ่ม (G)") หรือไฟล์บิลเดิมที่กรอกช่อง G มา */
 /** ไฟล์สั่งเพิ่มหลายชีต (เช่น List of Stock มี Sheet2 = สต๊อกดิบ) → เลือกชีตที่มีแถวกรอกจำนวนมากสุด · ไม่มีใครกรอก → แบบเดิม */
