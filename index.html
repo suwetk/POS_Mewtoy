@@ -235,7 +235,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.20-c</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.20-e</span>
       </div>
       <div class="flex-1"></div>
 
@@ -1259,8 +1259,15 @@
           <p class="text-sm">ยังไม่มีใบจอง หรือยังไม่ได้กด "รีเฟรช"</p>
         </div>
         <div id="poListTableWrap" class="hidden overflow-x-auto max-h-[70vh] overflow-y-auto">
-          <table class="w-full text-sm">
-            <thead class="text-gray-500 border-b sticky top-0 bg-white">
+          <!-- table-fixed + ความกว้างคอลัมน์ตายตัว (2026-10-20, per Wing — ชื่อสินค้า
+               ยาวๆ ดันคอลัมน์ "สถานะ"/"การดำเนินการ" หลุดขอบขวาจนมองไม่เห็นปุ่ม ✏️):
+               คอลัมน์รายการตัดบรรทัดเองเสมอ ปุ่มจัดการอยู่ในจอทุกครั้ง -->
+          <table class="w-full text-sm table-fixed min-w-[860px]">
+            <colgroup>
+              <col style="width:170px"><col style="width:150px"><col>
+              <col style="width:120px"><col style="width:190px">
+            </colgroup>
+            <thead class="text-gray-500 border-b sticky top-0 bg-white z-[1]">
               <tr>
                 <th class="py-2 text-left">เลขที่ใบจอง</th>
                 <th class="py-2 text-left">ลูกค้า</th>
@@ -8678,6 +8685,19 @@ function wirePreEditButtons_(container, preRows) {
   container.querySelectorAll(".pre-cust-img-btn").forEach((btn) => {
     btn.addEventListener("click", () => openPreCustImgModal(btn.getAttribute("data-po-id")));
   });
+  // ✏️ แก้สินค้า จากตาราง Pre หน้า Report (2026-10-20) — ใช้หน้าต่างเดียวกับ
+  // แท็บ Pre-Order; บันทึกแล้วโหลด Report ใหม่ให้เห็นราคาใหม่ทันที
+  container.querySelectorAll(".pre-edit-item-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const pre = preRows.find((p) => p.lineId === btn.getAttribute("data-line-id"));
+      if (!pre) return;
+      openPoEditItemModal({
+        lineId: pre.lineId, poId: pre.poId, customerName: pre.customerName,
+        itemName: pre.itemName, itemBarcode: pre.itemBarcode || "", qty: pre.qty,
+        agreedTotal: pre.agreedTotal, depositAmount: pre.depositAmountRunning, status: pre.status
+      }, "report");
+    });
+  });
   container.querySelectorAll(".pre-edit-customer-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const lineId = btn.getAttribute("data-line-id");
@@ -9076,6 +9096,9 @@ function renderReportPreList_() {
           </div>
           <div class="text-amber-800 leading-tight" style="font-size:.72em;padding-left:2.4em">
             ราคาตกลง ${formatMoneySmart_(agreedTotal)} · <b>มัดจำวันนี้ ${formatMoneySmart_(it.depositAmount)}</b> · ค้าง ${formatMoneySmart_(remaining)}${withBillHtml}
+            ${it.status !== PO_STATUS_DONE_LABEL && it.status !== PO_STATUS_CANCELLED_LABEL
+              ? `<button type="button" class="pre-edit-item-btn ml-1.5 text-amber-700 hover:text-amber-900 hover:underline font-semibold" data-line-id="${escapeHtml(it.lineId)}"><i class="fa-solid fa-pen-to-square"></i> แก้สินค้า</button>`
+              : ""}
           </div>
         </td>`;
       if (!isFirst) return `<tr class="${bg}">${itemCell}</tr>`;
@@ -11313,14 +11336,14 @@ function renderPreOrderPoList() {
           const isFirst = i === 0;
           const groupCellsHtml = isFirst
             ? `
-            <td rowspan="${lines.length}" class="py-2 pl-2 pr-3 whitespace-nowrap border-l-4 border-emerald-200 align-top bg-emerald-50/30">
-              <div class="font-semibold text-gray-700 text-xs">${escapeHtml(poId)}</div>
+            <td rowspan="${lines.length}" class="py-2 pl-2 pr-2 border-l-4 border-emerald-200 align-top bg-emerald-50/30">
+              <div class="font-semibold text-gray-700 text-xs break-all">${escapeHtml(poId)}</div>
               <div class="text-[11px] text-gray-400">${escapeHtml((first.openedAt || "").slice(0, 10))}</div>
               <button type="button" class="po-print-btn text-[11px] bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold px-2 py-1 rounded-lg mt-1" data-po-id="${escapeHtml(poId)}">🖨️ พิมพ์ใบจอง</button>
               <button type="button" class="po-cust-img-btn block text-[11px] bg-sky-500 hover:bg-sky-600 text-white font-semibold px-2 py-1 rounded-lg mt-1" data-po-id="${escapeHtml(poId)}">📷 รูปให้ลูกค้า</button>
               ${bulkDepositBtnHtml}
             </td>
-            <td rowspan="${lines.length}" class="py-2 pr-3 align-top bg-emerald-50/30">
+            <td rowspan="${lines.length}" class="py-2 pr-3 align-top bg-emerald-50/30 break-words">
               <div class="font-medium text-gray-700">${escapeHtml(first.customerName || "-")}</div>
               <div class="text-[11px] text-gray-400">${escapeHtml(first.customerPhone || "")}</div>
             </td>`
@@ -11328,12 +11351,12 @@ function renderPreOrderPoList() {
           return `
             <tr class="${isFirst ? "border-t-2 border-emerald-100" : ""} border-b border-gray-100 last:border-b-0">
               ${groupCellsHtml}
-              <td class="py-2 pr-3 align-middle">
-                <div class="text-gray-700 flex items-center flex-wrap gap-x-1.5 gap-y-1">${storewdBarcodeChip_(l.itemBarcode)}<span>${escapeHtml(l.itemName)}</span><span class="text-gray-400 text-xs">x${l.qty}</span></div>
+              <td class="py-2 pr-3 align-middle" style="overflow-wrap:anywhere">
+                <div class="text-gray-700 flex items-center flex-wrap gap-x-1.5 gap-y-1">${storewdBarcodeChip_(l.itemBarcode)}<span class="min-w-0">${escapeHtml(l.itemName)}</span><span class="text-gray-400 text-xs">x${l.qty}</span></div>
                 <div class="text-[11px] text-gray-400 mt-0.5">${escapeHtml(preOrderDepositSummaryText(l))}</div>
               </td>
               <td class="py-2 text-center align-middle">${preOrderStatusBadge(l.status)}</td>
-              <td class="py-2 align-middle">${preOrderLineActionButtons(l)}</td>
+              <td class="py-2 align-middle"><div class="flex justify-center">${preOrderLineActionButtons(l)}</div></td>
             </tr>`;
         })
         .join("");
@@ -12859,8 +12882,11 @@ function poEditItemPriceHint_() {
   hint.textContent = parts.length ? "ราคาในระบบ (ต่อชิ้น): " + parts.join(" · ") + (qty > 1 ? " — ช่องราคาตกลงเป็นยอดรวม " + qty + " ชิ้น" : "") : "";
 }
 
-function openPoEditItemModal(line) {
+let poEditItemOrigin = "preorder"; // "report" = เปิดจากตาราง Pre หน้า Report → บันทึกแล้วโหลด Report ใหม่
+
+function openPoEditItemModal(line, origin) {
   poEditItemTarget = line;
+  poEditItemOrigin = origin || "preorder";
   const qty = Number(line.qty) || 1;
   document.getElementById("poEditItemOldDesc").textContent =
     (line.itemName || "-") + (line.itemBarcode ? " (" + line.itemBarcode + ")" : "") + " · ราคา " + formatMoney(line.agreedTotal);
@@ -12955,8 +12981,14 @@ async function submitPoEditItem() {
     const result = await response.json();
     if (!result || result.status !== "success") throw new Error((result && result.message) || "แก้สินค้าไม่สำเร็จ");
     showToast(result.message || "แก้สินค้าในใบจองเรียบร้อยแล้ว", "success");
+    const origin = poEditItemOrigin;
     closePoEditItemModal();
-    loadPreOrders();
+    if (origin === "report") {
+      if (reportViewMode === "master") loadMasterReport();
+      else loadDailySummary();
+    } else {
+      loadPreOrders();
+    }
   } catch (err) {
     console.error(err);
     poEditItemShowError_(err.message);
