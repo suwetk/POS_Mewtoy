@@ -6,77 +6,124 @@
 <title>ใบสั่งงานช่างฝังพลอย</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anuphan:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anuphan:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
-/* Layout: workbench — big-touch form on the left, the printable drawing sheet on the right, gem-cut guide below */
+/* Layout: workbench — big-touch form on the left, printable drawing sheets on the right, shape & cut reference below */
 :root{
   --bg:#EDF0F3; --panel:#FFFFFF; --ink:#18202C; --muted:#5A6576; --line:#CBD3DD;
-  --accent:#23479E; --accent-soft:#E3E9F7; --ok:#1E7A4F; --warn:#9A5B00;
+  --accent:#23479E; --accent-soft:#E3E9F7; --ok:#1E7A4F; --ok-soft:#E2F3EA; --warn:#9A5B00; --warn-soft:#FBF0DC;
   --display:'Anuphan','IBM Plex Sans Thai',Tahoma,sans-serif;
   --body:'IBM Plex Sans Thai','Sarabun',Tahoma,sans-serif;
   --mono:'IBM Plex Mono',Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#12161D; --panel:#1B212B; --ink:#E7ECF3; --muted:#9AA6B6; --line:#323C4A;
-  --accent:#8EA8EE; --accent-soft:#25304A; --ok:#5FC694; --warn:#E3A84B; color-scheme:dark}}
+  --accent:#8EA8EE; --accent-soft:#25304A; --ok:#5FC694; --ok-soft:#173226; --warn:#E3A84B; --warn-soft:#3A2C15; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#12161D; --panel:#1B212B; --ink:#E7ECF3; --muted:#9AA6B6; --line:#323C4A;
-  --accent:#8EA8EE; --accent-soft:#25304A; --ok:#5FC694; --warn:#E3A84B; color-scheme:dark}
+  --accent:#8EA8EE; --accent-soft:#25304A; --ok:#5FC694; --ok-soft:#173226; --warn:#E3A84B; --warn-soft:#3A2C15; color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.6;padding-inline:16px;padding-block:20px 48px}
-.wrap{max-width:1240px;margin:0 auto;display:grid;gap:28px}
+.wrap{max-width:1280px;margin:0 auto;display:grid;gap:28px}
 h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.25}
 h1{font-size:clamp(1.6rem,4vw,2.3rem);font-weight:700}
 h2{font-size:1.4rem;font-weight:700}
-h3{font-size:1.1rem;font-weight:600}
+h3{font-size:1.08rem;font-weight:600}
 p{margin:0}
 .intro{display:grid;gap:10px}
-.intro p{color:var(--muted);max-width:62ch}
+.intro p{color:var(--muted);max-width:66ch}
 .steps{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:6px 0 0}
 .steps li{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px 14px 4px 6px;display:flex;align-items:center;gap:8px;font-size:.95rem}
-.steps b{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--panel);font-family:var(--mono);font-size:.85rem}
-.main{display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);gap:24px;align-items:start}
-@media (max-width:900px){.main{grid-template-columns:1fr}}
+.badge{display:inline-grid;place-items:center;flex:none;width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--panel);font-family:var(--mono);font-size:.85rem;font-weight:600}
+.main{display:grid;grid-template-columns:minmax(0,430px) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:960px){.main{grid-template-columns:1fr}}
 .form{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;display:grid;gap:18px}
-.group{display:grid;gap:8px}
-.group>label,.glabel{font-weight:600;font-size:1rem}
+.sec{display:grid;gap:12px}
+.sec+.sec{border-top:1px solid var(--line);padding-top:18px}
+.sec>h3{display:flex;align-items:center;gap:10px}
+.group{display:grid;gap:6px}
+.group>label,.glabel{font-weight:600;font-size:.98rem}
 .hint{font-size:.88rem;color:var(--muted)}
-.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
-.chip{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;border:2px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;font-size:.9rem;line-height:1.3;cursor:pointer;text-align:center}
-.chip svg{width:44px;height:44px}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.chip{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border:2px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;font-size:.86rem;line-height:1.25;cursor:pointer;text-align:center}
+.chip small{color:var(--muted);font-size:.72rem}
+.chip svg{width:42px;height:42px}
 .chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
-.chip:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-input,select,textarea{font:inherit;font-size:1.05rem;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-width:0}
-input[type=color]{padding:2px;height:48px;cursor:pointer}
-textarea{min-height:90px;resize:vertical}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.tab{white-space:nowrap;padding:6px 12px;border-radius:999px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:.9rem;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--panel);font-weight:600}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{flex:1 1 0;min-width:96px;padding:10px 8px;border:2px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;font-size:.95rem;line-height:1.3;cursor:pointer}
+.seg button small{display:block;color:var(--muted);font-size:.74rem}
+.seg button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.seg.small button{padding:7px 8px;font-size:.9rem}
+.stones{display:flex;flex-wrap:wrap;gap:8px}
+.stone{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 6px;border:2px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;font-size:.9rem;cursor:pointer}
+.stone svg{width:32px;height:32px;flex:none}
+.stone[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.stone.add{border-style:dashed;color:var(--accent);font-weight:600;padding-left:12px}
+.rowbtns{display:flex;flex-wrap:wrap;gap:8px}
+.chip:focus-visible,.tab:focus-visible,.seg button:focus-visible,.stone:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,label.btn:focus-within{outline:3px solid var(--accent);outline-offset:2px}
+input,select,textarea{font:inherit;font-size:1.02rem;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:8px;padding:9px 12px;width:100%;min-width:0}
+input:disabled{opacity:.75}
+input[type=color]{padding:2px;height:46px;cursor:pointer}
+input[type=checkbox]{width:22px;height:22px;flex:none;accent-color:var(--accent)}
+textarea{min-height:80px;resize:vertical}
 .row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.num{display:grid;gap:4px}
-.num span{font-size:.9rem;color:var(--muted)}
-.num input{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:1.2rem;text-align:center}
-.sample{background:var(--accent-soft);border-radius:8px;padding:8px 12px;font-size:.92rem}
+.num{display:grid;gap:2px}
+.num span{font-size:.88rem;color:var(--muted)}
+.num input{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:1.15rem;text-align:center}
+.check{display:flex;align-items:center;gap:10px;font-size:.95rem;cursor:pointer}
+.sample{background:var(--accent-soft);border-radius:8px;padding:10px 12px;font-size:.92rem;display:grid;gap:8px}
+.note{border-radius:8px;padding:9px 12px;font-size:.92rem;line-height:1.5}
+.note.warn{background:var(--warn-soft);color:var(--warn)}
+.note.ok{background:var(--ok-soft);color:var(--ok)}
+.note.info{background:var(--accent-soft);color:var(--ink)}
+.subbox{display:grid;gap:10px;border:1.5px dashed var(--line);border-radius:10px;padding:12px}
+.photo{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.photo img{width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line);background:#fff}
+.btn{display:inline-flex;align-items:center;justify-content:center;font:inherit;font-weight:600;font-size:1.02rem;padding:12px 20px;border-radius:10px;border:2px solid var(--accent);cursor:pointer;background:var(--panel);color:var(--accent);text-decoration:none}
+.btn.primary{background:var(--accent);color:var(--panel)}
+.btn.small{padding:7px 14px;font-size:.9rem}
+.btn.danger{border-color:var(--warn);color:var(--warn)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
 .sheetcol{display:grid;gap:14px;min-width:0}
+.pages{display:grid;gap:18px}
 .sheet{background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 10px 30px rgba(20,30,50,.12);overflow:hidden}
 .sheet svg{display:block;width:100%;height:auto}
 .actions{display:flex;flex-wrap:wrap;gap:10px}
-.btn{font:inherit;font-weight:600;font-size:1.02rem;padding:12px 20px;border-radius:10px;border:2px solid var(--accent);cursor:pointer;background:var(--panel);color:var(--accent)}
-.btn.primary{background:var(--accent);color:var(--panel)}
-.btn.danger{border-color:var(--warn);color:var(--warn)}
 .status{font-size:.95rem;color:var(--ok);min-height:1.4em}
-.export{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:12px}
-.export img{border:1px solid var(--line);border-radius:6px;max-width:420px;width:100%;background:#fff}
+.export{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:14px}
+.outs{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.outs figure{margin:0;display:grid;gap:6px}
+.outs img{border:1px solid var(--line);border-radius:6px;width:100%;background:#fff}
+.outs figcaption{font-size:.88rem;color:var(--muted)}
 .guide{display:grid;gap:16px}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:10px;align-content:start}
 .card .pics{display:flex;gap:10px;justify-content:center;background:#fff;border-radius:8px;padding:8px}
-.card .pics svg{width:46%;height:auto;max-width:130px}
-.card ul{margin:0;padding-left:1.1em;display:grid;gap:4px;font-size:.95rem}
-.card .en{font-family:var(--mono);font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.card .pics svg{width:46%;height:auto;max-width:120px}
+.card ul{margin:0;padding-left:1.1em;display:grid;gap:4px;font-size:.94rem}
+.en{font-family:var(--mono);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.shapes{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.shapecard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:start}
+.shapecard svg{width:64px;height:64px;background:#fff;border-radius:8px}
+.shapecard p{font-size:.86rem;color:var(--muted);line-height:1.45}
+.shapecard .w{color:var(--warn)}
 .tips{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;display:grid;gap:10px}
 .tips ol{margin:0;padding-left:1.3em;display:grid;gap:6px}
 .foot{color:var(--muted);font-size:.88rem}
-@media print{body{background:#fff;padding:0}.intro,.form,.actions,.status,.export,.guide,.tips{display:none!important}.main{display:block}.sheet{border:0;box-shadow:none}}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media print{
+  @page{size:A4;margin:6mm}
+  body{background:#fff;padding:0}
+  .intro,.form,.actions,.status,.export,.guide,.tips{display:none!important}
+  .main{display:block}
+  .sheet{border:0;box-shadow:none;border-radius:0;break-after:page}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
 <body>
@@ -84,289 +131,603 @@ textarea{min-height:90px;resize:vertical}
 <div class="wrap">
   <header class="intro">
     <h1>ใบสั่งงานช่างฝังพลอย</h1>
-    <p>กรอกข้อมูลพลอยทางซ้าย ภาพแบบ (มุมบน + มุมข้าง + ตัวเลขขนาด) จะวาดให้เองทันที แล้วกดปุ่ม “ทำเป็นรูปส่งช่าง” เพื่อบันทึกรูปไปส่งทาง LINE</p>
+    <p>กรอกข้อมูลทางซ้าย แบบเขียนช่างทางขวาจะวาดให้เองทันที ใช้ได้ทั้งงานฝัง งานเจียทรงใหม่ และใบงานที่มีพลอยหลายเม็ด</p>
     <ol class="steps">
-      <li><b>1</b>เลือกรูปทรง</li>
-      <li><b>2</b>เลือกแบบเจียระไน</li>
-      <li><b>3</b>ใส่ขนาด (มม.)</li>
-      <li><b>4</b>กดทำเป็นรูปส่งช่าง</li>
+      <li><span class="badge">1</span>เลือกประเภทงาน</li>
+      <li><span class="badge">2</span>เพิ่มพลอย</li>
+      <li><span class="badge">3</span>เลือกทรงและแบบเจีย</li>
+      <li><span class="badge">4</span>ใส่ขนาด (มม.)</li>
+      <li><span class="badge">5</span>กดทำเป็นรูปส่งช่าง</li>
     </ol>
   </header>
 
   <section class="main">
     <form class="form" id="f" autocomplete="off">
-      <p class="sample" id="sampleNote">ตอนนี้เป็น <b>ข้อมูลตัวอย่าง</b> (พลอยสีน้ำเงิน 30×22×8 มม.) แก้เป็นของจริงได้เลย</p>
-
-      <div class="group">
-        <span class="glabel">1. รูปทรงพลอย (มองจากด้านบน)</span>
-        <div class="chips" id="shapeChips"></div>
-      </div>
-
-      <div class="group">
-        <span class="glabel">2. แบบเจียระไน</span>
-        <div class="chips" id="cutChips"></div>
-      </div>
-
-      <div class="group">
-        <span class="glabel">3. ขนาด (มิลลิเมตร)</span>
-        <div class="row3">
-          <label class="num" for="w"><span>กว้าง (W)</span><input id="w" type="number" inputmode="decimal" step="0.01" min="0"></label>
-          <label class="num" for="l"><span>ยาว (L)</span><input id="l" type="number" inputmode="decimal" step="0.01" min="0"></label>
-          <label class="num" for="d"><span>ลึก</span><input id="d" type="number" inputmode="decimal" step="0.01" min="0"></label>
+      <div class="sample" id="sampleNote">
+        <p>ตอนนี้เป็น <b>ข้อมูลตัวอย่าง</b> แก้เป็นของจริงได้เลย หรือลองดูตัวอย่างแบบอื่น</p>
+        <div class="rowbtns">
+          <button type="button" class="btn small" id="sampleSet">ตัวอย่างงานฝัง</button>
+          <button type="button" class="btn small" id="sampleRecut">ตัวอย่างงานเจีย 3 เม็ด</button>
         </div>
-        <p class="hint" id="roundHint" hidden>ทรงกลม: ช่อง “ยาว” จะเท่ากับ “กว้าง” ให้อัตโนมัติ</p>
       </div>
 
-      <div class="row2">
-        <div class="group"><label for="stoneId">รหัสพลอย</label><input id="stoneId"></div>
-        <div class="group"><label for="qty">จำนวน (เม็ด)</label><input id="qty" type="number" min="1" inputmode="numeric"></div>
-      </div>
-      <div class="group"><label for="material">ชนิด / สีพลอย</label><input id="material" placeholder="เช่น ไพลินสีน้ำเงิน, โกเมน, บุษราคัม"></div>
-      <div class="row2">
-        <div class="group"><label for="carat">น้ำหนัก (กะรัต)</label><input id="carat" type="number" step="0.01" min="0" inputmode="decimal" placeholder="ไม่ใส่ก็ได้"></div>
-        <div class="group"><label for="gemColor">สีในภาพ</label><input id="gemColor" type="color"></div>
-      </div>
-      <div class="group">
-        <label for="setting">แบบการฝัง</label>
-        <select id="setting">
-          <option>หนามเตย 4 เขี้ยว (4-Prong)</option>
-          <option>หนามเตย 6 เขี้ยว (6-Prong)</option>
-          <option>ฝังหุ้ม (Bezel)</option>
-          <option>ฝังหุ้มครึ่ง (Half Bezel)</option>
-          <option>ฝังไข่ปลา (Pavé)</option>
-          <option>ฝังราง (Channel)</option>
-          <option>ให้ช่างแนะนำ</option>
-        </select>
-      </div>
-      <div class="group"><label for="metal">ตัวเรือน / โลหะ</label>
-        <input id="metal" list="metals" placeholder="เช่น ทอง 18K, เงิน 925">
-        <datalist id="metals"><option value="ทองคำ 18K"><option value="ทองคำ 14K"><option value="ทองคำขาว 18K"><option value="เงิน 925"><option value="เงิน 925 ชุบทอง"><option value="ทองคำ 96.5%"></datalist>
-      </div>
-      <div class="row2">
-        <div class="group"><label for="customer">ลูกค้า</label><input id="customer"></div>
-        <div class="group"><label for="deadline">กำหนดส่ง</label><input id="deadline" type="date"></div>
-      </div>
-      <div class="row2">
-        <div class="group"><label for="jobNo">เลขที่งาน</label><input id="jobNo"></div>
-        <div class="group"><label for="date">วันที่สั่ง</label><input id="date" type="date"></div>
-      </div>
-      <div class="group"><label for="shop">ชื่อร้าน / ผู้สั่งงาน</label><input id="shop"></div>
-      <div class="group"><label for="notes">หมายเหตุถึงช่าง</label><textarea id="notes" placeholder="เช่น ขอบ่ารองก้นให้แน่น, หันด้านยาวตามแนวนิ้ว"></textarea></div>
-      <button type="button" class="btn danger" id="resetBtn">เริ่มใบใหม่ (ล้างข้อมูล)</button>
+      <section class="sec">
+        <h3><span class="badge">1</span>ประเภทงาน</h3>
+        <div class="seg" id="modeSeg"></div>
+      </section>
+
+      <section class="sec">
+        <h3><span class="badge">2</span>พลอยในใบงานนี้</h3>
+        <div class="stones" id="stoneList"></div>
+        <div class="rowbtns">
+          <button type="button" class="btn small" id="dupBtn">ทำสำเนาเม็ดนี้</button>
+          <button type="button" class="btn small danger" id="delBtn">ลบเม็ดนี้</button>
+        </div>
+      </section>
+
+      <section class="sec">
+        <h3><span class="badge">3</span>รูปทรง · เม็ดที่ <span id="edNo">1</span></h3>
+        <div class="tabs" id="grpTabs" role="tablist" aria-label="กลุ่มรูปทรง"></div>
+        <div class="chips" id="shapeChips"></div>
+        <div class="seg small" id="trilSeg" hidden></div>
+        <span class="glabel">แบบเจียระไน</span>
+        <div class="chips" id="cutChips"></div>
+        <span class="glabel">ทรงด้านข้าง</span>
+        <div class="seg small" id="profSeg"></div>
+        <p class="note warn" id="shapeWarn" hidden></p>
+      </section>
+
+      <section class="sec">
+        <h3><span class="badge">4</span>ขนาดและรายละเอียด</h3>
+        <div class="row3">
+          <label class="num" for="sw"><span>กว้าง (W)</span><input id="sw" data-s="w" type="number" inputmode="decimal" step="0.01" min="0"></label>
+          <label class="num" for="sl"><span>ยาว (L)</span><input id="sl" data-s="l" type="number" inputmode="decimal" step="0.01" min="0"></label>
+          <label class="num" for="sd"><span>ลึก</span><input id="sd" data-s="d" type="number" inputmode="decimal" step="0.01" min="0"></label>
+        </div>
+        <label class="check" for="slock" id="lockRow"><input type="checkbox" id="slock" data-s="lock"><span>ล็อกสัดส่วนมาตรฐาน (ใส่แค่ความกว้าง ระบบคำนวณความยาวให้)</span></label>
+        <div class="row2">
+          <div class="group"><label for="stol">ค่าคลาดเคลื่อนที่ยอมรับ</label>
+            <select id="stol" data-s="tol"><option value="">ไม่ระบุ</option><option value="0.02">±0.02 มม.</option><option value="0.05">±0.05 มม.</option><option value="0.10">±0.10 มม.</option><option value="0.20">±0.20 มม.</option></select></div>
+          <div class="group"><label for="sqty">จำนวน (เม็ด)</label><input id="sqty" data-s="qty" type="number" min="1" inputmode="numeric"></div>
+        </div>
+        <div class="row2">
+          <div class="group"><label for="sid">รหัสพลอย</label><input id="sid" data-s="stoneId"></div>
+          <div class="group"><label for="scarat">น้ำหนัก (กะรัต)</label><input id="scarat" data-s="carat" type="number" step="0.01" min="0" inputmode="decimal" placeholder="ไม่ใส่ก็ได้"></div>
+        </div>
+        <div class="row2">
+          <div class="group"><label for="smat">ชนิด / สีพลอย</label><input id="smat" data-s="material" placeholder="เช่น ไพลิน, โกเมน"></div>
+          <div class="group"><label for="scolor">สีในภาพ</label><input id="scolor" data-s="color" type="color"></div>
+        </div>
+
+        <div class="group" id="setBox">
+          <label for="sset">แบบการฝัง</label>
+          <select id="sset" data-s="setting"></select>
+        </div>
+
+        <div class="subbox" id="recutBox">
+          <span class="glabel">เจียจากพลอยเดิม</span>
+          <div class="group"><label for="fshape">ทรงเดิม</label><select id="fshape" data-f="shape"></select></div>
+          <div class="row3">
+            <label class="num" for="fw"><span>กว้างเดิม</span><input id="fw" data-f="w" type="number" inputmode="decimal" step="0.01" min="0"></label>
+            <label class="num" for="fl"><span>ยาวเดิม</span><input id="fl" data-f="l" type="number" inputmode="decimal" step="0.01" min="0"></label>
+            <label class="num" for="fd"><span>ลึกเดิม</span><input id="fd" data-f="d" type="number" inputmode="decimal" step="0.01" min="0"></label>
+          </div>
+          <p class="note" id="fitMsg" hidden></p>
+          <p class="hint">ระบบตรวจคร่าว ๆ จากภาพมุมบน โดยวางทรงใหม่ไว้กลางพลอยเดิม ควรให้ช่างเจียยืนยันอีกครั้ง</p>
+        </div>
+
+        <div class="group">
+          <span class="glabel">รูปถ่ายพลอยจริง</span>
+          <div class="photo">
+            <img id="photoPrev" alt="รูปพลอย" hidden>
+            <label class="btn small" for="photoIn">เลือกรูป</label>
+            <input type="file" id="photoIn" accept="image/*" class="vh">
+            <button type="button" class="btn small danger" id="photoDel" hidden>เอารูปออก</button>
+          </div>
+        </div>
+        <div class="group"><label for="snote">หมายเหตุเม็ดนี้</label><textarea id="snote" data-s="note" placeholder="เช่น ขอสีให้เท่ากันทั้งชุด"></textarea></div>
+      </section>
+
+      <section class="sec">
+        <h3><span class="badge">5</span>ข้อมูลงาน</h3>
+        <div class="row2">
+          <div class="group"><label for="jshop">ชื่อร้าน / ผู้สั่งงาน</label><input id="jshop" data-j="shop"></div>
+          <div class="group"><span class="glabel">โลโก้ร้าน</span>
+            <div class="photo"><img id="logoPrev" alt="โลโก้" hidden><label class="btn small" for="logoIn">เลือกโลโก้</label><input type="file" id="logoIn" accept="image/*" class="vh"><button type="button" class="btn small danger" id="logoDel" hidden>ลบ</button></div></div>
+        </div>
+        <div class="row2">
+          <div class="group"><label for="jno">เลขที่งาน</label><input id="jno" data-j="jobNo"></div>
+          <div class="group"><label for="jrev">ครั้งที่แก้ (Rev.)</label><input id="jrev" data-j="rev" placeholder="A"></div>
+        </div>
+        <div class="row2">
+          <div class="group"><label for="jdate">วันที่สั่ง</label><input id="jdate" data-j="date" type="date"></div>
+          <div class="group"><label for="jdue">กำหนดส่ง</label><input id="jdue" data-j="deadline" type="date"></div>
+        </div>
+        <div class="row2">
+          <div class="group"><label for="jcust">ลูกค้า</label><input id="jcust" data-j="customer"></div>
+          <div class="group" id="metalBox"><label for="jmetal">ตัวเรือน / โลหะ</label>
+            <input id="jmetal" data-j="metal" list="metals" placeholder="เช่น ทอง 18K">
+            <datalist id="metals"><option value="ทองคำ 18K"><option value="ทองคำ 14K"><option value="ทองคำขาว 18K"><option value="เงิน 925"><option value="เงิน 925 ชุบทอง"><option value="ทองคำ 96.5%"></datalist></div>
+        </div>
+        <div class="row2">
+          <div class="group"><label for="jdrawn">ผู้เขียนแบบ</label><input id="jdrawn" data-j="drawnBy"></div>
+          <div class="group"><label for="jcheck">ผู้ตรวจแบบ</label><input id="jcheck" data-j="checkedBy"></div>
+        </div>
+        <div class="group"><label for="jnotes">หมายเหตุรวมถึงช่าง</label><textarea id="jnotes" data-j="notes"></textarea></div>
+        <label class="check" for="jdetail" id="detailRow"><input type="checkbox" id="jdetail" data-j="detailAll"><span>แนบแบบละเอียดแยกทุกเม็ด (หน้าละ 1 เม็ด)</span></label>
+        <button type="button" class="btn danger" id="resetBtn">เริ่มใบใหม่ (ล้างข้อมูลพลอย)</button>
+      </section>
     </form>
 
     <div class="sheetcol">
-      <div class="sheet" id="sheet" aria-label="ภาพใบสั่งงาน"></div>
       <div class="actions">
         <button type="button" class="btn primary" id="pngBtn">ทำเป็นรูปส่งช่าง</button>
-        <button type="button" class="btn" id="printBtn">พิมพ์ใบงาน</button>
         <button type="button" class="btn" id="copyBtn">คัดลอกข้อความ (ส่ง LINE)</button>
+        <button type="button" class="btn" id="printBtn" hidden>พิมพ์ / บันทึก PDF</button>
       </div>
       <p class="status" id="status" role="status"></p>
       <div class="export" id="exportBox" hidden>
         <h3>รูปพร้อมส่งแล้ว</h3>
-        <p>มือถือ: <b>กดค้างที่รูป</b> แล้วเลือก “บันทึกรูป” · คอมพิวเตอร์: <b>คลิกขวาที่รูป</b> แล้วเลือก “บันทึกรูปภาพ” จากนั้นส่งรูปให้ช่างทาง LINE</p>
-        <a class="btn primary" id="dlLink" download="ใบสั่งงานช่าง.png" style="justify-self:start;text-decoration:none">ดาวน์โหลดรูป</a>
-        <img id="pngOut" alt="ใบสั่งงานช่างแบบรูปภาพ">
+        <p id="exportHint">มือถือ: <b>กดค้างที่รูป</b> แล้วเลือก “บันทึกรูป” · คอมพิวเตอร์: <b>คลิกขวาที่รูป</b> แล้วเลือก “บันทึกรูปภาพ” ถ้ามีหลายหน้า ให้บันทึกทุกรูปแล้วส่งพร้อมกันทาง LINE</p>
+        <div class="outs" id="outs"></div>
       </div>
+      <div class="pages" id="pages" aria-label="ภาพใบสั่งงาน"></div>
     </div>
   </section>
 
   <section class="guide">
-    <h2>รู้จักแบบเจียระไน (อธิบายให้ช่างเข้าใจตรงกัน)</h2>
+    <h2>รูปทรงทั้งหมด 18 ทรง</h2>
+    <div class="shapes" id="shapeGuide"></div>
+  </section>
+
+  <section class="guide">
+    <h2>แบบเจียระไน (ให้ช่างเข้าใจตรงกัน)</h2>
     <div class="cards" id="cards"></div>
   </section>
 
   <section class="tips">
-    <h2>วิธีวัดพลอยให้ช่างทำงานง่าย</h2>
+    <h2>วิธีวัดพลอยและอ่านใบงาน</h2>
     <ol>
       <li>ใช้ <b>เวอร์เนียร์</b> วัดเป็นมิลลิเมตร ใส่ทศนิยม 1–2 ตำแหน่ง เช่น 7.85</li>
-      <li><b>ยาว (L)</b> วัดด้านที่ยาวที่สุด · <b>กว้าง (W)</b> วัดด้านที่ตั้งฉากกับด้านยาว</li>
-      <li><b>ลึก</b> วัดจากหน้าบนสุด (หน้าโต๊ะ) ลงไปถึงก้นพลอย</li>
-      <li>พลอยเม็ดจริงอาจไม่เท่ากันทุกเม็ด ถ้าเป็นชุด ให้วัดทุกเม็ดหรือส่งพลอยตัวจริงให้ช่างลองบ่าก่อน</li>
-      <li>ภาพในใบงานวาด <b>ตามสัดส่วน ไม่ใช่ขนาดจริง</b> ให้ช่างยึดตัวเลข มม. เป็นหลัก</li>
+      <li><b>ยาว (L)</b> วัดด้านที่ยาวที่สุดในแนวตั้งของภาพ · <b>กว้าง (W)</b> วัดแนวนอน · <b>ลึก</b> วัดจากหน้าบนสุดถึงก้น</li>
+      <li><b>ค่าคลาดเคลื่อน (±)</b> คือขนาดที่ยอมให้ต่างได้ เช่น 3.50 ±0.05 หมายถึงรับได้ตั้งแต่ 3.45 ถึง 3.55 มม.</li>
+      <li>งานเจีย: ในภาพมุมบน <b>เส้นประ</b> คือพลอยเดิม <b>ลายเส้นเฉียง</b> คือเนื้อที่ต้องเจียออก</li>
+      <li>ภาพในใบงานวาด <b>ตามสัดส่วน ไม่ใช่ขนาดจริง (NTS)</b> ให้ช่างยึดตัวเลข มม. เป็นหลัก</li>
     </ol>
-    <p class="foot">คำแนะนำเรื่องแบบฝังในหน้านี้เป็นแนวทางทั่วไป ควรให้ช่างยืนยันอีกครั้งก่อนลงมือทำ</p>
+    <p class="foot">คำแนะนำเรื่องแบบฝังและการคำนวณเนื้อพลอยเป็นแนวทางทั่วไป ควรให้ช่างยืนยันก่อนลงมือทำ</p>
   </section>
 </div>
 
 <script>
-const SHAPES={oval:'ไข่ (Oval)',round:'กลม (Round)',cushion:'หมอน (Cushion)',pear:'หยดน้ำ (Pear)',marquise:'เม็ดข้าว (Marquise)',emerald:'สี่เหลี่ยมตัดมุม (Emerald)'};
-const CUTS={brilliant:'เหลี่ยมเพชร (Modified Brilliant)',step:'ขั้นบันได (Step Cut)',rose:'ก้นแบน (Rose Cut)',cab:'หลังเบี้ย (Cabochon)'};
-const SETTING_TIP={brilliant:'ก้นแหลม: ช่างต้องเจาะบ่าให้ลึกพอรับก้น',step:'ก้นเป็นสัน: ระวังมุมแตกเวลาบีบเขี้ยว',rose:'ก้นแบน: วางบนบ่าเรียบได้เลย เหมาะฝังหุ้ม',cab:'ก้นแบน หน้าโค้ง: นิยมฝังหุ้มหรือหนามเตย'};
-const today=new Date();const iso=d=>d.toISOString().slice(0,10);
-const pad=n=>String(n).padStart(2,'0');
-const DEFAULTS={shop:'เจ้ปู',jobNo:'J'+String(today.getFullYear()).slice(2)+pad(today.getMonth()+1)+pad(today.getDate())+'-01',date:iso(today),customer:'',stoneId:'BS-001',material:'พลอยสีน้ำเงิน (ตัวอย่าง)',shape:'oval',cut:'rose',w:30,l:22,d:8,carat:'',qty:1,gemColor:'#2b5fc7',setting:'ฝังหุ้ม (Bezel)',metal:'เงิน 925',deadline:'',notes:'ตัวอย่าง: พลอยก้นแบน หน้าเจียแบบ Rose Cut ขอบ่ารองก้นเต็มแผ่น',sample:true};
-const FIELDS=['shop','jobNo','date','customer','stoneId','material','w','l','d','carat','qty','gemColor','setting','metal','deadline','notes'];
-const KEY='jpuu-gem-order-v1';
-let st;
-try{st=Object.assign({},DEFAULTS,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){st=Object.assign({},DEFAULTS)}
+const IS_FILE=location.protocol==='file:';
 const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num=v=>{const n=parseFloat(v);return isFinite(n)&&n>0?n:0};
 const fmt=v=>{const n=parseFloat(v);return isFinite(n)?(+n.toFixed(2)).toString():'—'};
 const thDate=v=>{if(!v)return '—';const d=new Date(v+'T00:00:00');return isNaN(d)?v:d.toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'})};
+const todayISO=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
+const jobNoFor=()=>{const d=new Date();return 'J'+String(d.getFullYear()).slice(2)+pad(d.getMonth()+1)+pad(d.getDate())+'-01'};
 
-/* ---------- geometry (mm, origin at centre, y down) ---------- */
-function outline(shape,a,b){
-  const P=[],N=240;
-  if(shape==='emerald'){const c=.28*Math.min(a,b);return [[-a+c,-b],[a-c,-b],[a,-b+c],[a,b-c],[a-c,b],[-a+c,b],[-a,b-c],[-a,-b+c]];}
-  if(shape==='marquise'){for(let i=0;i<=N/2;i++){const y=-b+2*b*i/(N/2);P.push([a*(1-(y/b)**2),y])}for(let i=1;i<N/2;i++){const y=b-2*b*i/(N/2);P.push([-a*(1-(y/b)**2),y])}return P;}
-  if(shape==='pear'){const raw=[];for(let i=0;i<N;i++){const t=2*Math.PI*i/N;raw.push([Math.sin(t)*Math.pow(Math.sin(t/2),1.3),-Math.cos(t)])}
-    const xs=raw.map(p=>p[0]),mx=Math.max(...xs.map(Math.abs));return raw.map(([x,y])=>[x/mx*a,y*b]);}
-  const n=shape==='cushion'?3.4:2;
-  for(let i=0;i<N;i++){const t=2*Math.PI*i/N,c=Math.cos(t),s=Math.sin(t);P.push([a*Math.sign(c)*Math.pow(Math.abs(c),2/n),b*Math.sign(s)*Math.pow(Math.abs(s),2/n)])}
-  return P;
-}
-function ray(poly,th){const dx=Math.cos(th),dy=Math.sin(th);let best=0;
-  for(let i=0;i<poly.length;i++){const p=poly[i],q=poly[(i+1)%poly.length];const ex=q[0]-p[0],ey=q[1]-p[1];const den=dx*ey-dy*ex;if(Math.abs(den)<1e-12)continue;
-    const t=(p[0]*ey-p[1]*ex)/den,u=(p[0]*dy-p[1]*dx)/den;if(t>0&&u>=-1e-9&&u<=1+1e-9&&t>best)best=t;}
-  return [dx*best,dy*best];}
-const sc=(p,k)=>[p[0]*k,p[1]*k];
-const ring=(poly,n,k,off=0)=>Array.from({length:n},(_,i)=>sc(ray(poly,-Math.PI/2+2*Math.PI*(i+off)/n),k));
+/* ---------- catalogue ---------- */
+const SH={
+ oval:{th:'ไข่',en:'Oval',g:'curve',note:'ทรงยอดนิยม ประกายสม่ำเสมอ'},
+ round:{th:'กลม',en:'Round',g:'curve',nat:1,note:'ทรงมาตรฐาน ฝังได้ทุกแบบ'},
+ cushion:{th:'หมอน',en:'Cushion',g:'curve',note:'มุมมน ทนทาน ไม่บิ่นง่าย'},
+ pear:{th:'หยดน้ำ',en:'Pear',g:'curve',warn:'ปลายแหลม 1 จุด ใช้เขี้ยว V หุ้มปลาย'},
+ marquise:{th:'เม็ดข้าว',en:'Marquise',g:'curve',warn:'ปลายแหลม 2 จุด ใช้เขี้ยว V หุ้มปลายทั้งสองข้าง'},
+ emerald:{th:'สี่เหลี่ยมตัดมุม',en:'Emerald / Octagon',g:'rect',warn:'มุมตัด ระวังมุมแตกตอนบีบเขี้ยว',note:'ถ้าเจียแบบเหลี่ยมเพชร จะเรียกว่า Radiant'},
+ princess:{th:'สี่เหลี่ยมจัตุรัส',en:'Princess / Square',g:'rect',nat:1,warn:'มุมแหลม 4 มุม ใช้เขี้ยว V ที่ทุกมุม'},
+ baguette:{th:'แท่ง',en:'Baguette',g:'rect',warn:'มุมบาง ระวังบิ่นตอนฝังราง'},
+ trillion:{th:'สามเหลี่ยม',en:'Trillion',g:'tri',nat:1,warn:'มุมแหลม 3 มุม ใช้เขี้ยว V ที่ทุกมุม',note:'เลือกได้ทั้งขอบโค้งและขอบตรง'},
+ truncated:{th:'สามเหลี่ยมตัดมุม',en:'Truncated Triangle',g:'tri',nat:1,note:'ตัดทั้งสามมุม ยังดูเป็นสามเหลี่ยม มุมไม่แหลม แข็งแรงขึ้น'},
+ hexagon:{th:'หกเหลี่ยม',en:'Hexagon',g:'poly',nat:1,note:'ตัดสามมุมของสามเหลี่ยม ได้หกด้านเท่ากัน ได้เนื้อดีและสมมาตร'},
+ pentagon:{th:'ห้าเหลี่ยม',en:'Pentagon',g:'poly',nat:1,note:'ห้าด้าน ทำทรงปกติหรือยืดเป็นรูปบ้านได้'},
+ shield:{th:'โล่',en:'Shield',g:'poly',warn:'ปลายล่างแหลม ใช้เขี้ยว V หุ้มปลาย',note:'คงปลายเดิมไว้หนึ่งมุม ตัดอีกสองมุม ได้เนื้อดี'},
+ kite:{th:'ว่าว',en:'Kite',g:'poly',warn:'ปลายแหลมบนและล่าง เสี่ยงบิ่น ใช้เขี้ยว V',note:'คงปลายหนึ่ง ตัดอีกสองด้านเป็นทรงว่าว'},
+ coffin:{th:'โลงศพ',en:'Coffin',g:'poly',note:'หกเหลี่ยมยาว ตัดมุม ดูทันสมัย'},
+ heart:{th:'หัวใจ',en:'Heart',g:'fancy',warn:'ร่องบนและปลายล่าง ต้องมีเขี้ยวรับทั้งสองจุด'},
+ star6:{th:'ดาว 6 แฉก',en:'6-Point Star',g:'fancy',nat:1,warn:'ปลายแฉกเสี่ยงบิ่น ควรมีเขี้ยวรับทุกแฉก',note:'แข็งแรงและได้เนื้อดีกว่าดาว 5 แฉก'},
+ star5:{th:'ดาว 5 แฉก',en:'5-Point Star',g:'fancy',nat:1,warn:'ปลายแฉกบาง เสี่ยงบิ่นมาก ควรฝังหุ้มหรือมีเขี้ยวรับทุกแฉก',note:'ได้เนื้อน้อย เม็ดเล็กยิ่งเปราะ'}};
+const GROUPS=[['recent','ใช้บ่อย'],['curve','โค้งมน'],['rect','เหลี่ยม'],['tri','สามเหลี่ยม'],['poly','หลายเหลี่ยม'],['fancy','หัวใจ · ดาว']];
+const CUTS={
+ brilliant:{th:'เหลี่ยมเพชร',en:'Brilliant',tip:'ก้นแหลม: ต้องคว้านบ่าให้ลึกพอรับก้น',pts:['หน้าเป็นเหลี่ยมสามเหลี่ยมและรูปว่าวรอบหน้าโต๊ะ','ประกายวิบวับมาก ใช้กับพลอยสีส่วนใหญ่','ก้นแหลม ต้องคว้านบ่าหรือเจาะรูใต้ให้ลึกพอ']},
+ step:{th:'ขั้นบันได',en:'Step Cut',tip:'ก้นเป็นสัน: ระวังมุมแตกเวลาบีบเขี้ยว',pts:['เหลี่ยมยาวขนานกับขอบ ซ้อนเป็นชั้น','ดูใส เห็นเนื้อพลอยชัด ประกายน้อยกว่าเหลี่ยมเพชร','มุมแตกง่าย ต้องระวังตอนบีบเขี้ยว']},
+ rose:{th:'ก้นแบน',en:'Rose Cut',tip:'ก้นแบน: วางบนบ่าเรียบได้ เหมาะฝังหุ้ม',pts:['ก้นแบน หน้านูนเป็นโดม เจียสามเหลี่ยมรอบยอด','ตัวเตี้ย ใส่สบาย ไม่เกี่ยวผ้า','นิยมฝังหุ้มหรือหนามเตยเตี้ย']},
+ hybrid:{th:'ผสม Rose/Step',en:'Rose-Step Hybrid',tip:'หน้าโดมเตี้ย ก้นตื้น: ฝังหุ้มหรือเขี้ยวเตี้ย',pts:['หน้าบนแบบ Rose ก้นแบบขั้นบันไดตื้น','ดูนุ่มนวล ไม่วาวจัด','ตัวเตี้ยกว่าเหลี่ยมเพชร เหมาะเม็ดเล็ก']},
+ cab:{th:'หลังเบี้ย',en:'Cabochon',tip:'ก้นแบน หน้าโค้ง: ฝังหุ้มหรือหนามเตย',pts:['ไม่มีเหลี่ยม ผิวหน้าโค้งมนเงา ก้นแบน','ใช้กับพลอยทึบหรือมีสาแหรก เช่น หยก มูนสโตน','ตรวจความโค้งของขอบก่อนทำบ่า']}};
+const PROF={std:['มาตรฐาน','Standard'],low:['ทรงเตี้ย','Low profile']};
+const MODES={set:{th:'สั่งฝัง',en:'Setting',sub:'งานฝังพลอย · Stone Setting'},recut:{th:'สั่งเจีย',en:'Recut',sub:'งานเจียระไนทรงใหม่ · Recut'},both:{th:'เจีย + ฝัง',en:'Recut & Set',sub:'งานเจียและฝัง · Recut & Setting'}};
+const SETTINGS=['หนามเตย 4 เขี้ยว (4-Prong)','หนามเตย 6 เขี้ยว (6-Prong)','เขี้ยว V หุ้มมุม (V-Prong)','ฝังหุ้ม (Bezel)','ฝังหุ้มครึ่ง (Half Bezel)','ฝังไข่ปลา (Pavé)','ฝังราง (Channel)','ให้ช่างแนะนำ'];
+const shapeName=(k,curved)=>`${SH[k].th} · ${SH[k].en}${k==='trillion'?(curved?' (ขอบโค้ง)':' (ขอบตรง)'):''}`;
 
-function topGeom(shape,cut,a,b){
-  const poly=outline(shape,a,b),lines=[],rings=[];
-  if(cut==='brilliant'){const n=8,T=ring(poly,n,.55),S=ring(poly,n,.78,.5),G=ring(poly,n,1),GH=ring(poly,n,1,.5);
-    rings.push(T);for(let i=0;i<n;i++){const j=(i+1)%n;lines.push([T[i],S[i]],[S[i],T[j]],[T[i],G[i]],[S[i],G[i]],[S[i],G[j]],[S[i],GH[i]])}}
-  else if(cut==='step'){const ks=[.82,.66,.5];ks.forEach(k=>rings.push(poly.map(p=>sc(p,k))));
-    if(shape==='emerald'){poly.forEach(p=>lines.push([p,sc(p,.5)]))}
-    else{[Math.atan2(-b,a),Math.atan2(-b,-a),Math.atan2(b,a),Math.atan2(b,-a)].forEach(th=>{const g=ray(poly,th);lines.push([g,sc(g,.5)])})}}
-  else if(cut==='rose'){const I=ring(poly,6,.5),G=ring(poly,12,1),C=[0,0];rings.push(I);
-    for(let i=0;i<6;i++){lines.push([C,I[i]],[I[i],G[2*i]],[I[i],G[(2*i+1)%12]],[I[(i+1)%6],G[(2*i+1)%12]])}}
-  else{rings.push({hl:true,pts:ring(poly,24,.62).slice(15,22)})}
-  return {poly,lines,rings};
+/* ---------- geometry ---------- */
+function superE(a,b,n){const P=[];for(let i=0;i<240;i++){const t=2*Math.PI*i/240,c=Math.cos(t),s=Math.sin(t);P.push([a*Math.sign(c)*Math.abs(c)**(2/n),b*Math.sign(s)*Math.abs(s)**(2/n)])}return P}
+const regular=(n,start,R=[1])=>Array.from({length:n},(_,i)=>{const t=(start+360*i/n)*Math.PI/180,r=R[i%R.length];return [r*Math.cos(t),r*Math.sin(t)]});
+const TRI=[[-1,-.57735],[1,-.57735],[0,1.1547]];
+function area(P){let s=0;for(let i=0;i<P.length;i++){const p=P[i],q=P[(i+1)%P.length];s+=p[0]*q[1]-q[0]*p[1]}return Math.abs(s/2)}
+function centroid(P){let A=0,cx=0,cy=0;for(let i=0;i<P.length;i++){const p=P[i],q=P[(i+1)%P.length],cr=p[0]*q[1]-q[0]*p[1];A+=cr;cx+=(p[0]+q[0])*cr;cy+=(p[1]+q[1])*cr}A/=2;return [cx/(6*A),cy/(6*A)]}
+function bulge(V,amt){const c=centroid(V),P=[];for(let i=0;i<V.length;i++){const p=V[i],q=V[(i+1)%V.length],ex=q[0]-p[0],ey=q[1]-p[1],len=Math.hypot(ex,ey);let nx=ey/len,ny=-ex/len;if(nx*((p[0]+q[0])/2-c[0])+ny*((p[1]+q[1])/2-c[1])<0){nx=-nx;ny=-ny}for(let j=0;j<40;j++){const s=j/40,b=amt*len*Math.sin(Math.PI*s);P.push([p[0]+ex*s+nx*b,p[1]+ey*s+ny*b])}}return P}
+function clipCorners(V,t){const P=[];V.forEach((p,i)=>{const a=V[(i+V.length-1)%V.length],b=V[(i+1)%V.length];P.push([p[0]+(a[0]-p[0])*t,p[1]+(a[1]-p[1])*t],[p[0]+(b[0]-p[0])*t,p[1]+(b[1]-p[1])*t])});return P}
+function raw(shape,curved,asp){
+  const poly=V=>({pts:V,verts:V});
+  switch(shape){
+    case 'round':return {pts:superE(1,1,2)};
+    case 'cushion':return {pts:superE(1,.85,3.4)};
+    case 'pear':{const P=[];for(let i=0;i<240;i++){const t=2*Math.PI*i/240;P.push([Math.sin(t)*Math.pow(Math.sin(t/2),1.3),-Math.cos(t)])}return {pts:P}}
+    case 'marquise':{const P=[],N=120;for(let i=0;i<=N;i++){const y=-1+2*i/N;P.push([.5*(1-y*y),y])}for(let i=1;i<N;i++){const y=1-2*i/N;P.push([-.5*(1-y*y),y])}return {pts:P}}
+    case 'heart':{const P=[];for(let i=0;i<240;i++){const t=2*Math.PI*i/240;P.push([16*Math.sin(t)**3,-(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))])}return {pts:P}}
+    case 'emerald':{const b=asp||.72,c=.28*Math.min(1,b);return poly([[-1+c,-b],[1-c,-b],[1,-b+c],[1,b-c],[1-c,b],[-1+c,b],[-1,b-c],[-1,-b+c]])}
+    case 'princess':return poly([[-1,-1],[1,-1],[1,1],[-1,1]]);
+    case 'baguette':return poly([[-1,-.4],[1,-.4],[1,.4],[-1,.4]]);
+    case 'trillion':return curved?{pts:bulge(TRI,.07),verts:TRI}:poly(TRI);
+    case 'truncated':return poly(clipCorners(TRI,.2));
+    case 'hexagon':return poly(regular(6,0));
+    case 'pentagon':return poly(regular(5,-90));
+    case 'shield':return poly([[-.7,-1],[.7,-1],[1,-.5],[0,1],[-1,-.5]]);
+    case 'kite':return poly([[0,-1],[.85,-.35],[0,1],[-.85,-.35]]);
+    case 'coffin':return poly([[-.45,-1],[.45,-1],[1,-.4],[.5,1],[-.5,1],[-1,-.4]]);
+    case 'star6':return Object.assign(poly(regular(12,-90,[1,.58])),{star:1});
+    case 'star5':return Object.assign(poly(regular(10,-90,[1,.45])),{star:1});
+    default:return {pts:superE(1,.75,2)};
+  }
 }
-function sideGeom(cut,a,D){
-  let poly,lines=[];const L=(x1,y1,x2,y2)=>lines.push([[x1,y1],[x2,y2]]);
-  if(cut==='brilliant'){const ta=.56*a,hc=.3*D,hg=.035*D;poly=[[-ta,0],[ta,0],[a,hc],[a,hc+hg],[0,D],[-a,hc+hg],[-a,hc]];
+function bbox(P){let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;for(const p of P){if(p[0]<x0)x0=p[0];if(p[0]>x1)x1=p[0];if(p[1]<y0)y0=p[1];if(p[1]>y1)y1=p[1]}return {x0,x1,y0,y1}}
+const RC={};
+function ratioOf(shape,curved){const k=shape+(curved?1:0);if(!(k in RC)){const b=bbox(raw(shape,curved).pts);RC[k]=(b.y1-b.y0)/(b.x1-b.x0)}return RC[k]}
+function outline(shape,a,b,curved){const r=raw(shape,curved,b/a),B=bbox(r.pts);const f=p=>[((p[0]-B.x0)/(B.x1-B.x0)*2-1)*a,((p[1]-B.y0)/(B.y1-B.y0)*2-1)*b];return {pts:r.pts.map(f),verts:r.verts?r.verts.map(f):null,star:!!r.star}}
+function ray(P,th,c){const dx=Math.cos(th),dy=Math.sin(th);let best=0;for(let i=0;i<P.length;i++){const p0=P[i][0]-c[0],p1=P[i][1]-c[1],q=P[(i+1)%P.length],ex=q[0]-c[0]-p0,ey=q[1]-c[1]-p1,den=dx*ey-dy*ex;if(Math.abs(den)<1e-12)continue;const t=(p0*ey-p1*ex)/den,u=(p0*dy-p1*dx)/den;if(t>0&&u>=-1e-9&&u<=1+1e-9&&t>best)best=t}return [c[0]+dx*best,c[1]+dy*best]}
+const scl=(p,k,c)=>[c[0]+(p[0]-c[0])*k,c[1]+(p[1]-c[1])*k];
+const ringAt=(P,n,k,off,c)=>Array.from({length:n},(_,i)=>scl(ray(P,-Math.PI/2+2*Math.PI*(i+off)/n,c),k,c));
+function topGeom(o,cut){
+  const P=o.pts,V=o.verts,c=centroid(P),lines=[],rings=[],L=(a,b)=>lines.push([a,b]);
+  const ang=p=>Math.atan2(p[1]-c[1],p[0]-c[0]);
+  if(cut==='brilliant'){
+    if(V&&o.star){const T=V.map(p=>scl(p,.42,c));rings.push(T);V.forEach((p,i)=>{L(T[i],p);if(i%2===0)L(c,T[i])})}
+    else if(V){const n=V.length,T=V.map(p=>scl(p,.5,c)),M=V.map((p,i)=>{const q=V[(i+1)%n];return ray(P,ang([(p[0]+q[0])/2,(p[1]+q[1])/2]),c)}),S=M.map(m=>scl(m,.74,c));rings.push(T);for(let i=0;i<n;i++){const j=(i+1)%n;L(T[i],V[i]);L(T[i],S[i]);L(S[i],T[j]);L(S[i],V[i]);L(S[i],V[j]);L(S[i],M[i])}}
+    else{const n=8,T=ringAt(P,n,.55,0,c),S=ringAt(P,n,.78,.5,c),G=ringAt(P,n,1,0,c),GH=ringAt(P,n,1,.5,c);rings.push(T);for(let i=0;i<n;i++){const j=(i+1)%n;L(T[i],S[i]);L(S[i],T[j]);L(T[i],G[i]);L(S[i],G[i]);L(S[i],G[j]);L(S[i],GH[i])}}
+  }else if(cut==='step'){
+    if(V){[.78,.6,.42].forEach(k=>rings.push(V.map(p=>scl(p,k,c))));V.forEach(p=>L(p,scl(p,.42,c)))}
+    else{[.82,.66,.5].forEach(k=>rings.push(P.map(p=>scl(p,k,c))));[-3,-1,1,3].forEach(q=>{const g=ray(P,q*Math.PI/4,c);L(g,scl(g,.5,c))})}
+  }else if(cut==='rose'){
+    const I=ringAt(P,6,.5,0,c),G=ringAt(P,12,1,0,c);rings.push(I);for(let i=0;i<6;i++){L(c,I[i]);L(I[i],G[2*i]);L(I[i],G[(2*i+1)%12]);L(I[(i+1)%6],G[(2*i+1)%12])}
+  }else if(cut==='hybrid'){
+    rings.push((V||P).map(p=>scl(p,.76,c)));const I=ringAt(P,6,.46,0,c);rings.push(I);I.forEach(p=>{L(c,p);L(p,scl(ray(P,ang(p),c),.76,c))});
+  }else{rings.push({hl:1,pts:ringAt(P,24,.62,0,c).slice(15,22)})}
+  return {poly:P,lines,rings};
+}
+function sideGeom(cut,a,D,prof){
+  const low=prof==='low';let poly=null,path=null;const lines=[],L=(x1,y1,x2,y2)=>lines.push([[x1,y1],[x2,y2]]);
+  if(cut==='brilliant'){const ta=(low?.64:.56)*a,hc=(low?.2:.3)*D,hg=.035*D;poly=[[-ta,0],[ta,0],[a,hc],[a,hc+hg],[0,D],[-a,hc+hg],[-a,hc]];
     L(-a,hc,a,hc);L(-ta,0,-.6*a,hc);L(ta,0,.6*a,hc);L(0,0,-.2*a,hc);L(0,0,.2*a,hc);L(-.55*a,hc+hg,0,D);L(.55*a,hc+hg,0,D);L(-.2*a,hc+hg,0,D);L(.2*a,hc+hg,0,D);}
-  else if(cut==='step'){const ta=.6*a,hc=.28*D,hg=.035*D,p=D-hc-hg;poly=[[-ta,0],[ta,0],[a,hc],[a,hc+hg],[.62*a,hc+hg+.45*p],[.2*a,D],[-.2*a,D],[-.62*a,hc+hg+.45*p],[-a,hc+hg]];
+  else if(cut==='step'){const ta=(low?.66:.6)*a,hc=(low?.2:.28)*D,hg=.035*D,p=D-hc-hg;poly=[[-ta,0],[ta,0],[a,hc],[a,hc+hg],[.62*a,hc+hg+.45*p],[.2*a,D],[-.2*a,D],[-.62*a,hc+hg+.45*p],[-a,hc+hg]];
     L(-a,hc,a,hc);L(-.8*a,hc*.5,.8*a,hc*.5);L(-.62*a,hc+hg+.45*p,.62*a,hc+hg+.45*p);}
   else if(cut==='rose'){const g=.86*D;poly=[[-a,D],[a,D],[a,g],[.6*a,.3*D],[.22*a,0],[-.22*a,0],[-.6*a,.3*D],[-a,g]];
     L(-a,g,a,g);const z=[[-a,g],[-.6*a,.3*D],[-.3*a,g],[0,.3*D],[.3*a,g],[.6*a,.3*D],[a,g]];for(let i=0;i<z.length-1;i++)L(...z[i],...z[i+1]);L(-.6*a,.3*D,.6*a,.3*D);L(0,.3*D,-.22*a,0);L(0,.3*D,.22*a,0);}
-  else{poly=null;L(-a,.92*D,a,.92*D)}
-  return {poly,lines};
+  else if(cut==='hybrid'){poly=[[-.28*a,0],[.28*a,0],[.72*a,.2*D],[a,.48*D],[a,.53*D],[.5*a,D],[-.5*a,D],[-a,.53*D],[-a,.48*D],[-.72*a,.2*D]];
+    L(-a,.48*D,a,.48*D);L(-.72*a,.2*D,.72*a,.2*D);L(-.734*a,.78*D,.734*a,.78*D);L(0,0,-.4*a,.2*D);L(0,0,.4*a,.2*D);}
+  else{path=[[-a,D],[a,D],[a,.92*D],'C',[a,.18*D],[.55*a,0],[0,0],'C',[-.55*a,0],[-a,.18*D],[-a,.92*D]];L(-a,.92*D,a,.92*D);}
+  return {poly,path,lines};
 }
-/* ---------- SVG helpers ---------- */
-const INK='#18202C',SOFT='#6B7686';
-function pts(arr,tf){return arr.map(p=>tf(p).map(v=>v.toFixed(2)).join(',')).join(' ')}
-function drawTop(g,tf,fill,sw=1.6,fw=.8){let s=`<polygon points="${pts(g.poly,tf)}" fill="${fill}" fill-opacity=".22" stroke="${INK}" stroke-width="${sw}" stroke-linejoin="round"/>`;
-  g.rings.forEach(r=>{if(r.hl){s+=`<polyline points="${pts(r.pts,tf)}" fill="none" stroke="${fill}" stroke-width="${sw*2.4}" stroke-linecap="round" opacity=".55"/>`}else s+=`<polygon points="${pts(r,tf)}" fill="none" stroke="${INK}" stroke-width="${fw}"/>`});
-  g.lines.forEach(([p,q])=>{const A=tf(p),B=tf(q);s+=`<line x1="${A[0].toFixed(2)}" y1="${A[1].toFixed(2)}" x2="${B[0].toFixed(2)}" y2="${B[1].toFixed(2)}" stroke="${INK}" stroke-width="${fw}"/>`});return s;}
-function drawSide(cut,a,D,tf,fill,sw=1.6,fw=.8){const g=sideGeom(cut,a,D);let s='';
-  if(g.poly)s+=`<polygon points="${pts(g.poly,tf)}" fill="${fill}" fill-opacity=".22" stroke="${INK}" stroke-width="${sw}" stroke-linejoin="round"/>`;
-  else{const P=k=>tf(k).map(v=>v.toFixed(2)).join(' ');s+=`<path d="M${P([-a,D])} L${P([a,D])} L${P([a,.92*D])} C${P([a,.18*D])} ${P([.55*a,0])} ${P([0,0])} C${P([-.55*a,0])} ${P([-a,.18*D])} ${P([-a,.92*D])} Z" fill="${fill}" fill-opacity=".22" stroke="${INK}" stroke-width="${sw}"/>`}
-  g.lines.forEach(([p,q])=>{const A=tf(p),B=tf(q);s+=`<line x1="${A[0].toFixed(2)}" y1="${A[1].toFixed(2)}" x2="${B[0].toFixed(2)}" y2="${B[1].toFixed(2)}" stroke="${INK}" stroke-width="${fw}"/>`});return s;}
+
+/* ---------- svg drawing ---------- */
+const INK='#18202C',SOFT='#6B7686',GRAY='#8A94A3',WARN='#9A5B00';
+const FF="'IBM Plex Sans Thai',Sarabun,Tahoma,sans-serif",MONOF="'IBM Plex Mono',Menlo,Consolas,monospace",DISP="Anuphan,'IBM Plex Sans Thai',Tahoma,sans-serif";
+const P2=(p,tf)=>tf(p).map(v=>v.toFixed(2)).join(',');
+const pts=(arr,tf)=>arr.map(p=>P2(p,tf)).join(' ');
+const ln=(p,q,tf,w,col=INK)=>{const A=tf(p),B=tf(q);return `<line x1="${A[0].toFixed(2)}" y1="${A[1].toFixed(2)}" x2="${B[0].toFixed(2)}" y2="${B[1].toFixed(2)}" stroke="${col}" stroke-width="${w}"/>`};
+function drawTop(g,tf,fill,sw=1.6,fw=.8,under=false){
+  let s=under?`<polygon points="${pts(g.poly,tf)}" fill="#fff"/>`:'';
+  s+=`<polygon points="${pts(g.poly,tf)}" fill="${fill}" fill-opacity=".22" stroke="${INK}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+  g.rings.forEach(r=>{s+=r.hl?`<polyline points="${pts(r.pts,tf)}" fill="none" stroke="${fill}" stroke-width="${sw*2.4}" stroke-linecap="round" opacity=".55"/>`:`<polygon points="${pts(r,tf)}" fill="none" stroke="${INK}" stroke-width="${fw}"/>`});
+  g.lines.forEach(([p,q])=>s+=ln(p,q,tf,fw));return s;
+}
+function sideShape(g,tf,attrs){
+  if(g.poly)return `<polygon points="${pts(g.poly,tf)}" ${attrs}/>`;
+  const p=g.path;return `<path d="M${P2(p[0],tf)} L${P2(p[1],tf)} L${P2(p[2],tf)} C${P2(p[4],tf)} ${P2(p[5],tf)} ${P2(p[6],tf)} C${P2(p[8],tf)} ${P2(p[9],tf)} ${P2(p[10],tf)} Z" ${attrs}/>`;
+}
+function drawSide(cut,a,D,prof,tf,fill,sw=1.6,fw=.8,under=false){
+  const g=sideGeom(cut,a,D,prof);let s=under?sideShape(g,tf,'fill="#fff"'):'';
+  s+=sideShape(g,tf,`fill="${fill}" fill-opacity=".22" stroke="${INK}" stroke-width="${sw}" stroke-linejoin="round"`);
+  g.lines.forEach(([p,q])=>s+=ln(p,q,tf,fw));return s;
+}
 function dimH(x1,x2,y,yFrom,label,above=true){const t=above?y-10:y+24;
   return `<line x1="${x1}" y1="${yFrom}" x2="${x1}" y2="${y+(above?-6:6)}" stroke="${SOFT}" stroke-width=".8"/><line x1="${x2}" y1="${yFrom}" x2="${x2}" y2="${y+(above?-6:6)}" stroke="${SOFT}" stroke-width=".8"/>
   <line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${INK}" stroke-width="1" marker-start="url(#ar)" marker-end="url(#ar)"/>
-  <text x="${(x1+x2)/2}" y="${t}" text-anchor="middle" font-family="${MONOF}" font-size="17" font-weight="600" fill="${INK}">${esc(label)}</text>`}
-function dimV(y1,y2,x,xFrom,label,right=true){const tx=right?x+10:x-10;
-  return `<line x1="${xFrom}" y1="${y1}" x2="${x+(right?6:-6)}" y2="${y1}" stroke="${SOFT}" stroke-width=".8"/><line x1="${xFrom}" y1="${y2}" x2="${x+(right?6:-6)}" y2="${y2}" stroke="${SOFT}" stroke-width=".8"/>
+  <text x="${(x1+x2)/2}" y="${t}" text-anchor="middle" font-family="${MONOF}" font-size="16" font-weight="600" fill="${INK}">${esc(label)}</text>`}
+function dimV(y1,y2,x,xFrom,label){
+  return `<line x1="${xFrom}" y1="${y1}" x2="${x+6}" y2="${y1}" stroke="${SOFT}" stroke-width=".8"/><line x1="${xFrom}" y1="${y2}" x2="${x+6}" y2="${y2}" stroke="${SOFT}" stroke-width=".8"/>
   <line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${INK}" stroke-width="1" marker-start="url(#ar)" marker-end="url(#ar)"/>
-  <text x="${tx}" y="${(y1+y2)/2+6}" text-anchor="${right?'start':'end'}" font-family="${MONOF}" font-size="17" font-weight="600" fill="${INK}">${esc(label)}</text>`}
-const FF="'IBM Plex Sans Thai',Sarabun,Tahoma,sans-serif",MONOF="'IBM Plex Mono',Menlo,Consolas,monospace",DISP="Anuphan,'IBM Plex Sans Thai',Tahoma,sans-serif";
+  <text transform="translate(${x+20},${(y1+y2)/2}) rotate(-90)" text-anchor="middle" font-family="${MONOF}" font-size="16" font-weight="600" fill="${INK}">${esc(label)}</text>`}
 function wrap(text,max){const out=[];String(text||'').split('\n').forEach(par=>{let segs;
   try{segs=[...new Intl.Segmenter('th',{granularity:'word'}).segment(par)].map(s=>s.segment)}catch(e){segs=Array.from(par)}
   let line='';segs.forEach(s=>{if(Array.from(line+s).length>max&&line){out.push(line);line=s.trimStart()}else line+=s});out.push(line)});return out;}
+const clip1=(t,max)=>{const w=wrap(t,max);return w[0]+(w.length>1?'…':'')};
 
-/* ---------- the sheet ---------- */
-function buildSheet(exportSize){
-  const W=parseFloat(st.w),L=parseFloat(st.shape==='round'?st.w:st.l),D=parseFloat(st.d),ok=W>0&&L>0&&D>0;
-  const fill=st.gemColor||'#2b5fc7';
-  let s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1131" ${exportSize?'width="1600" height="2262"':''} font-family="${FF}">
-  <defs><marker id="ar" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 Z" fill="${INK}"/></marker>
-  <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#E6EBF2" stroke-width="1"/></pattern></defs>
-  <rect width="800" height="1131" fill="#fff"/>
-  <rect x="24" y="24" width="752" height="1083" fill="none" stroke="${INK}" stroke-width="1.5"/>
-  <text x="44" y="66" font-family="${DISP}" font-size="30" font-weight="700" fill="${INK}">ใบสั่งงานช่าง · ฝังพลอย</text>
-  <text x="44" y="96" font-size="16" fill="${SOFT}">${esc(st.shop||'')}</text>
-  <text x="756" y="62" text-anchor="end" font-size="15" fill="${SOFT}">เลขที่งาน</text>
-  <text x="756" y="88" text-anchor="end" font-family="${MONOF}" font-size="20" font-weight="600" fill="${INK}">${esc(st.jobNo||'—')}</text>
-  <text x="756" y="110" text-anchor="end" font-size="14" fill="${SOFT}">วันที่สั่ง ${esc(thDate(st.date))}</text>
-  <line x1="24" y1="124" x2="776" y2="124" stroke="${INK}" stroke-width="1.5"/>
-  <rect x="24" y="124" width="752" height="452" fill="url(#grid)"/>
-  <line x1="430" y1="124" x2="430" y2="576" stroke="${INK}" stroke-width=".8" stroke-dasharray="4 4"/>
-  <text x="44" y="152" font-size="16" font-weight="600" fill="${INK}">มุมบน (Top View)</text>
-  <text x="450" y="152" font-size="16" font-weight="600" fill="${INK}">มุมข้าง (Side View)</text>
-  <line x1="24" y1="576" x2="776" y2="576" stroke="${INK}" stroke-width="1.5"/>`;
-  if(ok){
-    const k=Math.min(250/W,280/L,230/W,250/D),a=W/2,b=L/2;
-    const cx=222,cy=372,tfT=p=>[cx+p[0]*k,cy+p[1]*k];
-    s+=drawTop(topGeom(st.shape,st.cut,a,b),tfT,fill);
-    const l=cx-a*k,r=cx+a*k,t=cy-b*k,bo=cy+b*k;
-    s+=dimH(l,r,t-28,t-4,`W ${fmt(W)} mm`);
-    s+=dimV(t,bo,r+28,r+4,`L ${fmt(L)}`);
-    const sx=600,sTop=372-D*k/2,tfS=p=>[sx+p[0]*k,sTop+p[1]*k];
-    s+=drawSide(st.cut,a,D,tfS,fill);
-    const sl=sx-a*k,sr=sx+a*k;
-    s+=dimV(sTop,sTop+D*k,sl-26,sl-4,`ลึก ${fmt(D)}`,false);
-    s+=dimH(sl,sr,sTop+D*k+28,sTop+D*k+4,`W ${fmt(W)} mm`,false);
-    s+=`<text x="${sx}" y="560" text-anchor="middle" font-size="13" fill="${SOFT}">${esc(SETTING_TIP[st.cut])}</text>`;
-  }else{
-    s+=`<text x="400" y="360" text-anchor="middle" font-size="20" fill="${SOFT}">ใส่ขนาด กว้าง / ยาว / ลึก ให้ครบ เพื่อวาดภาพ</text>`;
+/* ---------- state ---------- */
+const KEY='jpuu-gem-order-v2',OLD='jpuu-gem-order-v1';
+function newStone(o={}){return Object.assign({stoneId:'',material:'',shape:'oval',curved:true,lock:true,cut:'brilliant',profile:'std',w:'',l:'',d:'',tol:'0.05',carat:'',qty:1,color:'#2b5fc7',setting:SETTINGS[0],photo:'',note:''},o,{from:Object.assign({shape:'trillion',w:'',l:'',d:''},o.from||{})})}
+function baseJob(o){return Object.assign({mode:'set',shop:'เจ้ปู',logo:'',jobNo:jobNoFor(),rev:'A',date:todayISO(),deadline:'',customer:'',metal:'เงิน 925',drawnBy:'',checkedBy:'',notes:'',detailAll:true,recent:['oval','trillion','hexagon','pear'],sel:0,tab:'',sample:true,stones:[]},o)}
+const sampleSet=()=>baseJob({notes:'ตัวอย่าง: พลอยก้นแบน หน้าเจียแบบ Rose Cut ขอบ่ารองก้นเต็มแผ่น',stones:[newStone({stoneId:'BS-001',material:'พลอยสีน้ำเงิน (ตัวอย่าง)',shape:'oval',cut:'rose',w:30,l:22,d:8,setting:'ฝังหุ้ม (Bezel)'})]});
+const sampleRecut=()=>baseJob({mode:'recut',metal:'',notes:'ตัวอย่าง: เจียพลอยเขียวทรงสามเหลี่ยม 5 มม. เป็นทรงใหม่ ขอสีและความสว่างใกล้เคียงกันทั้งชุด',stones:[
+  newStone({stoneId:'GS-01',material:'Green Sapphire (ตัวอย่าง)',shape:'hexagon',w:3.2,d:2.2,qty:10,color:'#3f8f7a',from:{shape:'trillion',w:5,d:3}}),
+  newStone({stoneId:'GS-02',material:'Green Sapphire (ตัวอย่าง)',shape:'shield',lock:false,w:3.4,l:3.3,d:2.3,qty:6,color:'#3f8f7a',from:{shape:'trillion',w:5,d:3}}),
+  newStone({stoneId:'GS-03',material:'Green Sapphire (ตัวอย่าง)',shape:'star6',w:2.9,d:2.2,qty:4,color:'#3f8f7a',from:{shape:'trillion',w:5,d:3}})]});
+let job;
+try{job=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){job=null}
+if(!job){let old=null;try{old=JSON.parse(localStorage.getItem(OLD)||'null')}catch(e){}
+  if(old&&!old.sample){job=baseJob({shop:old.shop||'',jobNo:old.jobNo||jobNoFor(),date:old.date||todayISO(),customer:old.customer||'',metal:old.metal||'',deadline:old.deadline||'',notes:old.notes||'',sample:false,
+    stones:[newStone({stoneId:old.stoneId||'',material:old.material||'',shape:SH[old.shape]?old.shape:'oval',cut:CUTS[old.cut]?old.cut:'brilliant',w:old.w,l:old.l,d:old.d,carat:old.carat||'',qty:old.qty||1,color:old.gemColor||'#2b5fc7',setting:old.setting||SETTINGS[0],lock:old.shape==='round'})]})}
+  else job=sampleSet();}
+job=baseJob(job);job.stones=(job.stones&&job.stones.length?job.stones:[newStone()]).map(s=>newStone(s));
+if(job.sel>=job.stones.length)job.sel=0;
+const cur=()=>job.stones[job.sel];
+function save(){try{localStorage.setItem(KEY,JSON.stringify(job))}catch(e){try{const lite=JSON.parse(JSON.stringify(job));lite.stones.forEach(s=>s.photo='');localStorage.setItem(KEY,JSON.stringify(lite));$('status').textContent='หมายเหตุ: พื้นที่ในเครื่องเต็ม รูปพลอยจะไม่ถูกจำไว้เมื่อปิดหน้านี้'}catch(e2){}}}
+
+/* ---------- per-stone geometry & fit ---------- */
+const effL=s=>SH[s.shape].nat&&s.lock?num(s.w)*ratioOf(s.shape,s.curved):num(s.l);
+const fromL=s=>SH[s.from.shape].nat?num(s.from.w)*ratioOf(s.from.shape,true):num(s.from.l);
+const isRecut=()=>job.mode!=='set', isSet=()=>job.mode!=='recut';
+function sg(s){
+  const W=num(s.w),L=effL(s),D=num(s.d),g={W,L,D,ok:W>0&&L>0&&D>0,recut:false};
+  if(!g.ok)return g;
+  let o1=outline(s.shape,W/2,L/2,s.curved);
+  if(isRecut()){const W0=num(s.from.w),L0=fromL(s),D0=num(s.from.d);
+    if(W0>0&&L0>0&&D0>0){const o0=outline(s.from.shape,W0/2,L0/2,true),c0=centroid(o0.pts),c1=centroid(o1.pts),dx=c0[0]-c1[0],dy=c0[1]-c1[1],sh=p=>[p[0]+dx,p[1]+dy];
+      o1={pts:o1.pts.map(sh),verts:o1.verts?o1.verts.map(sh):null,star:o1.star};Object.assign(g,{recut:true,o0,c0,W0,L0,D0});}}
+  g.o1=o1;return g;
+}
+function pip(P,p){let c=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const a=P[i],b=P[j];if((a[1]>p[1])!==(b[1]>p[1])&&p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0])c=!c}return c}
+function dseg(p,a,b){const vx=b[0]-a[0],vy=b[1]-a[1],t=Math.max(0,Math.min(1,((p[0]-a[0])*vx+(p[1]-a[1])*vy)/(vx*vx+vy*vy||1)));return Math.hypot(p[0]-a[0]-t*vx,p[1]-a[1]-t*vy)}
+function inside(A,P,eps){for(const p of A){if(!pip(P,p)){let d=Infinity;for(let j=0;j<P.length;j++)d=Math.min(d,dseg(p,P[j],P[(j+1)%P.length]));if(d>eps)return false}}return true}
+const FITC={};
+function fitInfo(s,g){
+  if(!g.recut)return null;const key=JSON.stringify([s.shape,s.curved,g.W,g.L,s.from.shape,g.W0,g.L0]);
+  if(!FITC[key]){const A=g.o1.pts.filter((_,i)=>i%2===0||g.o1.pts.length<40),P=g.o0.pts,eps=.003*g.W0;
+    let lo=0,hi=4;for(let i=0;i<22;i++){const m=(lo+hi)/2;if(inside(A.map(p=>scl(p,m,g.c0)),P,eps))lo=m;else hi=m}
+    FITC[key]={fits:lo>=.999,keep:Math.round(area(g.o1.pts)/area(P)*100),maxW:g.W*lo,maxL:g.L*lo};}
+  return Object.assign({depthOk:g.D<=g.D0+1e-9},FITC[key]);
+}
+const fitShort=f=>!f?'':(!f.fits?`⚠ ใหญ่เกินพลอยเดิม (ใหญ่สุด ≈ ${fmt(f.maxW)}×${fmt(f.maxL)})`:`เหลือเนื้อ ≈ ${f.keep}%`)+(f.depthOk?'':' · ⚠ ลึกเกินพลอยเดิม');
+const tolStr=s=>s.tol?` ±${s.tol}`:'';
+
+/* ---------- views ---------- */
+function views(s,g,T,S,dims){
+  if(!g.ok)return `<text x="${T.x+T.w/2+ (S.x+S.w-T.x-T.w)/2}" y="${T.y+T.h/2}" text-anchor="middle" font-size="${dims?18:12}" fill="${SOFT}">ใส่ขนาด กว้าง / ยาว / ลึก ให้ครบ</text>`;
+  const fill=s.color||'#2b5fc7',all=g.recut?g.o0.pts.concat(g.o1.pts):g.o1.pts,bx=bbox(all);
+  const sw=Math.max(g.W,g.recut?g.W0:0),sd=Math.max(g.D,g.recut?g.D0:0),pd=dims?58:8;
+  const k=Math.min((T.w-2*pd)/(bx.x1-bx.x0),(T.h-2*pd)/(bx.y1-bx.y0),(S.w-2*pd)/sw,(S.h-2*pd)/sd);
+  const ox=T.x+T.w/2-(bx.x0+bx.x1)/2*k,oy=T.y+T.h/2-(bx.y0+bx.y1)/2*k,tfT=p=>[ox+p[0]*k,oy+p[1]*k];
+  const sx=S.x+S.w/2,sTop=S.y+S.h/2-sd*k/2,tfS=p=>[sx+p[0]*k,sTop+p[1]*k];
+  const W1=dims?1.6:1.1,W2=dims?.8:.5;let out='';
+  if(g.recut){
+    out+=`<polygon points="${pts(g.o0.pts,tfT)}" fill="url(#hatch)" stroke="${GRAY}" stroke-width="${W1*.8}" stroke-dasharray="5 4"/>`;
+    out+=sideShape(sideGeom('brilliant',g.W0/2,g.D0,'std'),tfS,`fill="url(#hatch)" stroke="${GRAY}" stroke-width="${W1*.8}" stroke-dasharray="5 4"`);
   }
-  s+=`<text x="44" y="566" font-size="13" fill="${SOFT}">ภาพวาดตามสัดส่วน ไม่ใช่ขนาดจริง · ใช้ตัวเลข มม. เป็นหลัก</text>`;
-  const rows=[['รหัสพลอย',st.stoneId],['ชนิด / สีพลอย',st.material],['รูปทรง',SHAPES[st.shape]],['แบบเจียระไน',CUTS[st.cut]],
-    ['ขนาด กว้าง × ยาว',ok?`${fmt(W)} × ${fmt(L)} มม.`:'—'],['ความลึก',ok?`${fmt(D)} มม.`:'—'],['น้ำหนัก',st.carat?`${fmt(st.carat)} กะรัต`:'—'],['จำนวน',`${st.qty||1} เม็ด`],
-    ['แบบการฝัง',st.setting],['ตัวเรือน / โลหะ',st.metal],['ลูกค้า',st.customer],['กำหนดส่ง',thDate(st.deadline)]];
-  rows.forEach((r,i)=>{const col=i%2,row=Math.floor(i/2),x=col?412:44,y=600+row*48;
-    s+=`<text x="${x}" y="${y+14}" font-size="13" fill="${SOFT}">${esc(r[0])}</text><text x="${x}" y="${y+36}" font-size="17" font-weight="600" fill="${INK}">${esc(r[1]||'—')}</text>`;
-    if(col===0)s+=`<line x1="44" y1="${y+46}" x2="756" y2="${y+46}" stroke="#DCE2EA" stroke-width="1"/>`;});
-  const ny=600+6*48+14;
-  s+=`<text x="44" y="${ny+14}" font-size="13" fill="${SOFT}">หมายเหตุถึงช่าง</text><rect x="44" y="${ny+22}" width="712" height="118" fill="none" stroke="#C9D1DC" rx="4"/>`;
-  wrap(st.notes,52).slice(0,4).forEach((ln,i)=>{s+=`<text x="56" y="${ny+48+i*26}" font-size="16" fill="${INK}">${esc(ln)}</text>`});
-  const fy=1060;
-  [['ผู้สั่งงาน',44],['ช่างผู้รับงาน',290],['วันที่รับงาน',536]].forEach(([t,x])=>{s+=`<line x1="${x}" y1="${fy}" x2="${x+210}" y2="${fy}" stroke="${INK}" stroke-width=".8"/><text x="${x}" y="${fy+22}" font-size="13" fill="${SOFT}">${t}</text>`});
-  return s+'</svg>';
+  out+=drawTop(topGeom(g.o1,s.cut),tfT,fill,W1,W2,g.recut);
+  out+=drawSide(s.cut,g.W/2,g.D,s.profile,tfS,fill,W1,W2,g.recut);
+  if(dims){
+    const b1=bbox(g.o1.pts),l=ox+b1.x0*k,r=ox+b1.x1*k,t=oy+b1.y0*k,bo=oy+b1.y1*k,topAll=oy+bx.y0*k,rightAll=ox+bx.x1*k,tl=tolStr(s);
+    out+=dimH(l,r,topAll-26,t-4,`W ${fmt(g.W)}${tl} mm`);
+    out+=dimV(t,bo,rightAll+24,r+4,`L ${fmt(g.L)}${tl} mm`);
+    const sl=sx-g.W/2*k,sr=sx+g.W/2*k,sRight=sx+sw/2*k,sBot=sTop+sd*k;
+    out+=dimV(sTop,sTop+g.D*k,sRight+24,sr+4,`ลึก ${fmt(g.D)}${tl} mm`);
+    out+=dimH(sl,sr,sBot+26,sTop+g.D*k+4,`W ${fmt(g.W)} mm`,false);
+  }
+  return out;
 }
 
-/* ---------- chips ---------- */
-function mini(shape,cut,box=44){const g=topGeom(shape,cut,shape==='round'?1:.72,1),k=box*.42,tf=p=>[box/2+p[0]*k,box/2+p[1]*k];
-  return `<svg viewBox="0 0 ${box} ${box}" aria-hidden="true">${drawTop(g,tf,'#5b7fd6',1.1,.5).replaceAll(INK,'currentColor')}</svg>`}
-function chips(id,map,key,iconFn){const el=$(id);el.innerHTML='';Object.entries(map).forEach(([v,label])=>{const b=document.createElement('button');b.type='button';b.className='chip';b.id=`${key}-${v}`;
-  b.setAttribute('aria-pressed',st[key]===v);b.innerHTML=iconFn(v)+`<span>${esc(label)}</span>`;b.onclick=()=>{st[key]=v;st.sample=false;render(true)};el.appendChild(b)})}
-
-/* ---------- guide cards ---------- */
-const GUIDE=[
- ['step','Step Cut','ขั้นบันได','emerald',['หน้าพลอยเป็นเหลี่ยมยาวขนานกับขอบ ซ้อนกันเป็นชั้นๆ','ดูใส เห็นเนื้อพลอยชัด ประกายน้อยกว่าเหลี่ยมเพชร','ก้นเป็นสันหรือแบนเล็ก มุมพลอยแตกง่าย ช่างต้องระวังตอนบีบเขี้ยว']],
- ['brilliant','Modified Brilliant','เหลี่ยมเพชร','cushion',['หน้าพลอยเป็นเหลี่ยมสามเหลี่ยมและรูปว่าวรอบหน้าโต๊ะ','ประกายวิบวับมาก นิยมกับพลอยสีส่วนใหญ่','ก้นแหลม ช่างต้องคว้านบ่าหรือเจาะรูใต้ให้ลึกพอรับก้น']],
- ['rose','Rose Cut','ก้นแบน หน้าเหลี่ยม','oval',['ก้นแบนเรียบ ด้านบนนูนเป็นโดม เจียเป็นสามเหลี่ยมรอบจุดยอด','ตัวเตี้ย วางบนบ่าเรียบได้ ใส่สบายไม่เกี่ยวผ้า','นิยมฝังหุ้ม (Bezel) หรือหนามเตยเตี้ย']],
- ['cab','Cabochon','หลังเบี้ย','oval',['ไม่มีเหลี่ยม ผิวหน้าโค้งมนเงา ก้นแบน','นิยมกับพลอยทึบหรือพลอยที่มีสาแหรก เช่น หยก มูนสโตน','ฝังหุ้มหรือหนามเตย ตรวจความโค้งของขอบก่อนทำบ่า']]];
-function cards(){$('cards').innerHTML=GUIDE.map(([cut,en,th,shape,pts])=>{const a=shape==='emerald'?.7:.75,tfT=p=>[60+p[0]*44,60+p[1]*44];
-  const top=`<svg viewBox="0 0 120 120">${drawTop(topGeom(shape,cut,a,1),tfT,'#5b7fd6',1.4,.7)}</svg>`;
-  const D=cut==='rose'||cut==='cab'?.55:1.05,tfS=p=>[60+p[0]*44,60-D*22+p[1]*44];
-  const side=`<svg viewBox="0 0 120 120">${drawSide(cut,a,D,tfS,'#5b7fd6',1.4,.7)}</svg>`;
-  return `<article class="card"><div class="pics">${top}${side}</div><div><p class="en">${en}</p><h3>${th}</h3></div><ul>${pts.map(p=>`<li>${p}</li>`).join('')}</ul></article>`}).join('')}
-
-/* ---------- wiring ---------- */
-function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
-function render(rebuildChips){
-  if(rebuildChips){chips('shapeChips',SHAPES,'shape',v=>mini(v,'brilliant'));chips('cutChips',CUTS,'cut',v=>mini('oval',v))}
-  const round=st.shape==='round';$('l').disabled=round;$('roundHint').hidden=!round;if(round)$('l').value=st.w;
-  $('sampleNote').hidden=!st.sample;
-  $('sheet').innerHTML=buildSheet(false);$('exportBox').hidden=true;save();
+/* ---------- page parts ---------- */
+function pageSvg(inner,exp){return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 800 1131" ${exp?'width="1600" height="2262"':''} font-family="${FF}">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 Z" fill="${INK}"/></marker>
+  <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#E6EBF2" stroke-width="1"/></pattern>
+  <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#F4F6F9"/><line x1="0" y1="0" x2="0" y2="6" stroke="#B3BCC9" stroke-width="1.6"/></pattern></defs>
+  <rect width="800" height="1131" fill="#fff"/><rect x="24" y="24" width="752" height="1083" fill="none" stroke="${INK}" stroke-width="1.5"/>${inner}</svg>`}
+const img=(d,x,y,w,h)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#F4F6F9"/><image x="${x}" y="${y}" width="${w}" height="${h}" href="${d}" xlink:href="${d}" preserveAspectRatio="xMidYMid meet"/>`;
+function header(){
+  let s='',x0=44;
+  if(job.logo){s+=img(job.logo,40,34,80,80).replace('fill="#F4F6F9"','fill="#fff"');x0=134}
+  s+=`<text x="${x0}" y="68" font-family="${DISP}" font-size="30" font-weight="700" fill="${INK}">ใบสั่งงานช่าง</text>
+  <text x="${x0}" y="98" font-size="15" fill="${SOFT}">${esc(MODES[job.mode].sub)}${job.shop?' · '+esc(job.shop):''}</text>
+  <text x="756" y="58" text-anchor="end" font-size="13" fill="${SOFT}">เลขที่งาน · Job No.</text>
+  <text x="756" y="86" text-anchor="end" font-family="${MONOF}" font-size="21" font-weight="600" fill="${INK}">${esc(job.jobNo||'—')}</text>
+  <text x="756" y="108" text-anchor="end" font-size="13" fill="${SOFT}">วันที่สั่ง ${esc(thDate(job.date))}</text>
+  <line x1="24" y1="124" x2="776" y2="124" stroke="${INK}" stroke-width="1.5"/>`;return s;
 }
-function load(){FIELDS.forEach(f=>{const el=$(f);if(el)el.value=st[f]??''})}
-FIELDS.forEach(f=>{const el=$(f);if(!el)return;el.addEventListener('input',()=>{st[f]=el.value;st.sample=false;render(false)})});
+function titleBlock(pg,total){
+  const y=1000;let s=`<line x1="24" y1="${y}" x2="776" y2="${y}" stroke="${INK}" stroke-width="1.5"/>`;
+  const cells=[['ผู้สั่งงาน · Ordered',job.shop],['ผู้เขียนแบบ · Drawn',job.drawnBy],['ผู้ตรวจ · Checked',job.checkedBy],['ช่างผู้รับงาน · Received','']];
+  cells.forEach(([lab,name],i)=>{const x=24+i*146;if(i)s+=`<line x1="${x}" y1="${y}" x2="${x}" y2="1107" stroke="${INK}" stroke-width=".8"/>`;
+    s+=`<text x="${x+10}" y="${y+18}" font-size="11" fill="${SOFT}">${lab}</text><text x="${x+10}" y="${y+44}" font-size="14" font-weight="600" fill="${INK}">${esc(clip1(name||'',16))}</text>
+    <line x1="${x+10}" y1="${y+76}" x2="${x+136}" y2="${y+76}" stroke="${GRAY}" stroke-width=".8"/><text x="${x+10}" y="${y+97}" font-size="11" fill="${SOFT}">ลงชื่อ / วันที่</text>`});
+  const x=608;s+=`<line x1="${x}" y1="${y}" x2="${x}" y2="1107" stroke="${INK}" stroke-width="1.2"/>`;
+  [['Job No.',job.jobNo||'—'],['Rev.',job.rev||'—'],['แผ่นที่ · Sheet',`${pg} / ${total}`],['มาตราส่วน · Scale','NTS']].forEach(([a,b],i)=>{const yy=y+i*26.75;
+    if(i)s+=`<line x1="${x}" y1="${yy}" x2="776" y2="${yy}" stroke="${INK}" stroke-width=".6"/>`;
+    s+=`<text x="${x+10}" y="${yy+18}" font-size="11" fill="${SOFT}">${a}</text><text x="766" y="${yy+19}" text-anchor="end" font-family="${MONOF}" font-size="13" font-weight="600" fill="${INK}">${esc(b)}</text>`});
+  return s;
+}
+function notesBox(text,photo,x,y,w,h){
+  let s=`<text x="${x}" y="${y-8}" font-size="12" fill="${SOFT}">หมายเหตุถึงช่าง · Notes</text><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="#C9D1DC" rx="4"/>`;
+  const tw=photo?w-170:w,maxc=Math.floor(tw/8.6);
+  wrap(text||'',maxc).slice(0,Math.floor((h-14)/24)).forEach((t,i)=>s+=`<text x="${x+12}" y="${y+26+i*24}" font-size="15" fill="${INK}">${esc(t)}</text>`);
+  if(photo){s+=img(photo,x+w-160,y+6,154,h-12)+`<text x="${x+w-83}" y="${y+h-10}" text-anchor="middle" font-size="10" fill="${SOFT}">รูปพลอยจริง</text>`}
+  return s;
+}
+function specRows(s,g,f){
+  const it=[['รหัสพลอย · Stone ID',s.stoneId],['ชนิด / สี · Material',s.material],['รูปทรง · Shape',shapeName(s.shape,s.curved)],
+    ['แบบเจียระไน · Cut',`${CUTS[s.cut].th} · ${CUTS[s.cut].en}${s.profile==='low'?' (ทรงเตี้ย)':''}`],
+    ['ขนาด · W × L',g.ok?`${fmt(g.W)} × ${fmt(g.L)} มม.${tolStr(s)}`:'—'],['ความลึก · Depth',g.ok?`${fmt(g.D)} มม.${tolStr(s)}`:'—'],
+    ['น้ำหนัก · Weight',s.carat?`${fmt(s.carat)} กะรัต`:'—'],['จำนวน · Qty',`${s.qty||1} เม็ด`]];
+  if(isSet())it.push(['แบบการฝัง · Setting',s.setting]);
+  if(isRecut())it.push(['เจียจาก · Recut from',g.recut?`${SH[s.from.shape].en} ${fmt(g.W0)}×${fmt(g.L0)}×${fmt(g.D0)} มม.`:'—']);
+  if(isSet())it.push(['ตัวเรือน · Metal',job.metal]);
+  it.push(['ลูกค้า · Customer',job.customer],['กำหนดส่ง · Due',thDate(job.deadline)]);
+  return it;
+}
+function cautionText(s,g,f){const c=[];if(SH[s.shape].warn)c.push(SH[s.shape].warn);if(f){if(!f.fits)c.push(`ทรงใหม่ใหญ่เกินพลอยเดิม ขนาดใหญ่สุดที่ได้ประมาณ ${fmt(f.maxW)}×${fmt(f.maxL)} มม.`);if(!f.depthOk)c.push('ความลึกใหม่มากกว่าพลอยเดิม');}return c.join(' · ')}
+
+function detailPage(i,pg,total){
+  const s=job.stones[i],g=sg(s),f=fitInfo(s,g),n=job.stones.length;
+  let o=header();
+  o+=`<rect x="24" y="124" width="752" height="396" fill="url(#grid)"/><line x1="430" y1="124" x2="430" y2="520" stroke="${INK}" stroke-width=".8" stroke-dasharray="4 4"/>
+  <text x="44" y="150" font-size="15" font-weight="600" fill="${INK}">มุมบน · Top View${g.recut?' (ก่อน → หลังเจีย)':''}</text>
+  <text x="450" y="150" font-size="15" font-weight="600" fill="${INK}">มุมข้าง · Side View</text>`;
+  if(n>1)o+=`<rect x="664" y="134" width="100" height="24" rx="12" fill="#23479E"/><text x="714" y="151" text-anchor="middle" font-size="13" font-weight="600" fill="#fff">เม็ดที่ ${i+1} / ${n}</text>`;
+  o+=views(s,g,{x:44,y:162,w:366,h:300},{x:450,y:162,w:306,h:300},true);
+  if(g.recut){o+=`<text x="44" y="486" font-size="13" fill="${INK}">เดิม ${esc(SH[s.from.shape].en)} ${fmt(g.W0)}×${fmt(g.L0)}×${fmt(g.D0)} มม. → ใหม่ ${esc(SH[s.shape].en)} · ${esc(fitShort(f))}</text>
+    <rect x="44" y="496" width="22" height="14" fill="url(#hatch)" stroke="${GRAY}" stroke-dasharray="3 2"/><text x="72" y="508" font-size="12" fill="${SOFT}">เส้นประ = พลอยเดิม · ลายเฉียง = เนื้อที่เจียออก</text>`}
+  o+=`<text x="756" y="508" text-anchor="end" font-size="12" fill="${SOFT}">${esc(CUTS[s.cut].tip)}</text><line x1="24" y1="520" x2="776" y2="520" stroke="${INK}" stroke-width="1.5"/>`;
+  const it=specRows(s,g,f);
+  it.forEach((r,k)=>{const col=k%2,row=Math.floor(k/2),x=col?412:44,y=532+row*40;
+    o+=`<text x="${x}" y="${y+13}" font-size="11.5" fill="${SOFT}">${esc(r[0])}</text><text x="${x}" y="${y+32}" font-size="15.5" font-weight="600" fill="${INK}">${esc(clip1(r[1]||'—',40))}</text>`;
+    if(col===0)o+=`<line x1="44" y1="${y+39}" x2="756" y2="${y+39}" stroke="#DCE2EA" stroke-width="1"/>`});
+  let y=532+Math.ceil(it.length/2)*40+4;
+  const cau=cautionText(s,g,f);
+  if(cau){o+=`<rect x="44" y="${y}" width="712" height="44" rx="4" fill="#FBF0DC"/><text x="56" y="${y+17}" font-size="11.5" fill="${WARN}">ข้อควรระวัง · Caution</text>`;
+    o+=`<text x="56" y="${y+36}" font-size="13.5" font-weight="600" fill="${WARN}">${esc(clip1(cau,92))}</text>`;y+=52}
+  const note=[n===1?job.notes:'',s.note].filter(Boolean).join('\n');
+  const ny=y+22,nh=Math.max(70,990-ny);
+  o+=notesBox(note,s.photo,44,ny,712,nh);
+  o+=titleBlock(pg,total);return o;
+}
+function summaryPage(start,pg,total,last){
+  const n=job.stones.length,rows=job.stones.slice(start,start+6),qty=job.stones.reduce((a,s)=>a+(parseInt(s.qty)||0),0);
+  let o=header();
+  const info=[['ลูกค้า · Customer',job.customer||'—'],['กำหนดส่ง · Due',thDate(job.deadline)],[isSet()?'ตัวเรือน · Metal':'ประเภทงาน · Job',isSet()?(job.metal||'—'):MODES[job.mode].th],['รวม · Total',`${n} รายการ · ${qty} เม็ด`]];
+  info.forEach(([a,b],i)=>{const x=44+i*180;o+=`<text x="${x}" y="146" font-size="11.5" fill="${SOFT}">${a}</text><text x="${x}" y="170" font-size="15.5" font-weight="600" fill="${INK}">${esc(clip1(b,20))}</text>`});
+  o+=`<line x1="24" y1="186" x2="776" y2="186" stroke="${INK}" stroke-width="1.2"/><rect x="24" y="186" width="752" height="28" fill="#EEF2F8"/>`;
+  [['#',34],['มุมบน · Top',84],['มุมข้าง · Side',198],['รายละเอียด · Specification',306],['รูปจริง · Photo',652]].forEach(([t,x])=>o+=`<text x="${x}" y="205" font-size="12" font-weight="600" fill="${INK}">${t}</text>`);
+  o+=`<line x1="24" y1="214" x2="776" y2="214" stroke="${INK}" stroke-width=".8"/>`;
+  rows.forEach((s,r)=>{const i=start+r,y=214+r*118,g=sg(s),f=fitInfo(s,g);
+    o+=`<text x="38" y="${y+30}" text-anchor="middle" font-family="${MONOF}" font-size="16" font-weight="600" fill="${INK}">${i+1}</text>`;
+    o+=`<rect x="76" y="${y+8}" width="110" height="102" fill="url(#grid)" stroke="#E1E6EE"/><rect x="190" y="${y+8}" width="106" height="102" fill="url(#grid)" stroke="#E1E6EE"/>`;
+    o+=views(s,g,{x:76,y:y+8,w:110,h:102},{x:190,y:y+8,w:106,h:102},false);
+    const L=[`${s.stoneId||'—'} · ${s.material||'—'}`,`${SH[s.shape].th} ${SH[s.shape].en}${s.shape==='trillion'?(s.curved?' โค้ง':' ตรง'):''} · ${CUTS[s.cut].th}${s.profile==='low'?' · เตี้ย':''}`,
+      g.ok?`W ${fmt(g.W)} × L ${fmt(g.L)} × ลึก ${fmt(g.D)} mm${tolStr(s)}`:'ยังไม่ใส่ขนาด',
+      `จำนวน ${s.qty||1} เม็ด${s.carat?` · ${fmt(s.carat)} ct`:''}${isSet()?` · ${s.setting}`:''}`];
+    if(g.recut)L.push(`เจียจาก ${SH[s.from.shape].en} ${fmt(g.W0)}×${fmt(g.L0)}×${fmt(g.D0)} · ${fitShort(f)}`);
+    const cau=SH[s.shape].warn;if(cau&&L.length<5)L.push('⚠ '+cau);
+    L.forEach((t,k)=>{const isW=t.startsWith('⚠');o+=`<text x="306" y="${y+26+k*20}" font-size="${k?13:14.5}" font-weight="${k?400:600}" ${k===2?`font-family="${MONOF}"`:''} fill="${isW?WARN:INK}">${esc(clip1(t,k===2?40:46))}</text>`});
+    if(s.photo)o+=img(s.photo,652,y+8,104,102);else o+=`<rect x="652" y="${y+8}" width="104" height="102" fill="none" stroke="#E1E6EE" stroke-dasharray="4 3"/><text x="704" y="${y+64}" text-anchor="middle" font-size="11" fill="${GRAY}">ไม่มีรูป</text>`;
+    o+=`<line x1="44" y1="${y+118}" x2="756" y2="${y+118}" stroke="#DCE2EA"/>`;});
+  const endY=214+rows.length*118;
+  if(last&&990-(endY+34)>=60)o+=notesBox(job.notes,'',44,endY+34,712,990-(endY+34));
+  if(job.detailAll)o+=`<text x="756" y="${Math.min(988,endY+18)}" text-anchor="end" font-size="11.5" fill="${SOFT}">แบบละเอียดพร้อมขนาดของแต่ละเม็ด อยู่ในแผ่นถัดไป</text>`;
+  o+=titleBlock(pg,total);return o;
+}
+function pageList(){
+  const n=job.stones.length;if(n===1)return [{t:'d',i:0}];
+  const P=[];for(let i=0;i<n;i+=6)P.push({t:'s',i,last:i+6>=n});if(job.detailAll)job.stones.forEach((_,i)=>P.push({t:'d',i}));return P;
+}
+function buildPages(exp){const L=pageList();return L.map((p,k)=>pageSvg(p.t==='d'?detailPage(p.i,k+1,L.length):summaryPage(p.i,k+1,L.length,p.last),exp))}
+
+/* ---------- small icons ---------- */
+function mini(shape,cut,curved,box=44,fill='#5b7fd6',sw=1.1){const r=ratioOf(shape,curved),a=1,b=r,o=outline(shape,a,b,curved),k=box*.42/Math.max(a,b),tf=p=>[box/2+p[0]*k,box/2+p[1]*k];
+  return `<svg viewBox="0 0 ${box} ${box}" aria-hidden="true">${drawTop(topGeom(o,cut),tf,fill,sw,sw*.45).replaceAll(INK,'currentColor')}</svg>`}
+
+/* ---------- form ---------- */
+function segBtns(el,items,val,onPick){el.innerHTML='';items.forEach(([v,label,sub])=>{const b=document.createElement('button');b.type='button';b.setAttribute('aria-pressed',v===val);b.innerHTML=esc(label)+(sub?`<small>${esc(sub)}</small>`:'');b.onclick=()=>onPick(v);el.appendChild(b)})}
+function drawStatic(){
+  segBtns($('modeSeg'),Object.entries(MODES).map(([k,m])=>[k,m.th,m.en]),job.mode,v=>{job.mode=v;touch();render(true)});
+  const sl=$('stoneList');sl.innerHTML='';
+  job.stones.forEach((s,i)=>{const b=document.createElement('button');b.type='button';b.className='stone';b.setAttribute('aria-pressed',i===job.sel);
+    b.innerHTML=mini(s.shape,s.cut,s.curved,32)+`<span>${i+1}${s.stoneId?' · '+esc(s.stoneId):''}</span>`;b.onclick=()=>{job.sel=i;job.tab='';render(true)};sl.appendChild(b)});
+  const add=document.createElement('button');add.type='button';add.className='stone add';add.textContent='+ เพิ่มพลอย';
+  add.onclick=()=>{const p=cur();job.stones.push(newStone({material:p.material,color:p.color,setting:p.setting,cut:p.cut,tol:p.tol,from:{...p.from}}));job.sel=job.stones.length-1;job.tab='';touch();render(true)};sl.appendChild(add);
+  $('delBtn').disabled=job.stones.length<2;$('edNo').textContent=job.sel+1;
+  const s=cur(),tab=job.tab||(job.recent.includes(s.shape)?'recent':SH[s.shape].g);
+  const tabs=$('grpTabs');tabs.innerHTML='';
+  GROUPS.forEach(([k,label])=>{if(k==='recent'&&!job.recent.length)return;const b=document.createElement('button');b.type='button';b.className='tab';b.setAttribute('role','tab');b.setAttribute('aria-selected',k===tab);b.textContent=label;b.onclick=()=>{job.tab=k;drawStatic()};tabs.appendChild(b)});
+  const keys=tab==='recent'?job.recent:Object.keys(SH).filter(k=>SH[k].g===tab);
+  const ch=$('shapeChips');ch.innerHTML='';
+  keys.forEach(k=>{const b=document.createElement('button');b.type='button';b.className='chip';b.setAttribute('aria-pressed',s.shape===k);b.innerHTML=mini(k,'brilliant',s.curved)+`<span>${esc(SH[k].th)}</span><small>${esc(SH[k].en)}</small>`;
+    b.onclick=()=>{s.shape=k;if(SH[k].nat)s.lock=true;job.recent=[k,...job.recent.filter(x=>x!==k)].slice(0,4);job.tab=tab;touch();render(true)};ch.appendChild(b)});
+  $('trilSeg').hidden=s.shape!=='trillion';
+  segBtns($('trilSeg'),[[true,'ขอบโค้ง','Curved'],[false,'ขอบตรง','Straight']],!!s.curved,v=>{s.curved=v;touch();render(true)});
+  const cc=$('cutChips');cc.innerHTML='';
+  Object.entries(CUTS).forEach(([k,c])=>{const b=document.createElement('button');b.type='button';b.className='chip';b.setAttribute('aria-pressed',s.cut===k);b.innerHTML=mini(s.shape,k,s.curved)+`<span>${esc(c.th)}</span><small>${esc(c.en)}</small>`;b.onclick=()=>{s.cut=k;touch();render(true)};cc.appendChild(b)});
+  segBtns($('profSeg'),Object.entries(PROF).map(([k,v])=>[k,v[0],v[1]]),s.profile,v=>{s.profile=v;touch();render(true)});
+  const w=[SH[s.shape].warn,SH[s.shape].note].filter(Boolean).join(' · ');$('shapeWarn').hidden=!w;$('shapeWarn').textContent=(SH[s.shape].warn?'⚠ ':'')+w;
+  $('setBox').hidden=!isSet();$('recutBox').hidden=!isRecut();$('metalBox').hidden=!isSet();$('detailRow').hidden=job.stones.length<2;
+  $('lockRow').hidden=!SH[s.shape].nat;
+  $('photoPrev').hidden=!s.photo;if(s.photo)$('photoPrev').src=s.photo;$('photoDel').hidden=!s.photo;
+  $('logoPrev').hidden=!job.logo;if(job.logo)$('logoPrev').src=job.logo;$('logoDel').hidden=!job.logo;
+  $('sampleNote').hidden=!job.sample;
+}
+function fillFields(){
+  const s=cur();
+  document.querySelectorAll('[data-s]').forEach(el=>{const v=s[el.dataset.s];if(el.type==='checkbox')el.checked=!!v;else el.value=v??''});
+  document.querySelectorAll('[data-f]').forEach(el=>el.value=s.from[el.dataset.f]??'');
+  document.querySelectorAll('[data-j]').forEach(el=>{const v=job[el.dataset.j];if(el.type==='checkbox')el.checked=!!v;else el.value=v??''});
+}
+function syncLive(){
+  const s=cur(),locked=SH[s.shape].nat&&s.lock;
+  $('sl').disabled=locked;if(locked)$('sl').value=num(s.w)?fmt(effL(s)):'';
+  const fnat=SH[s.from.shape].nat;$('fl').disabled=!!fnat;if(fnat)$('fl').value=num(s.from.w)?fmt(fromL(s)):'';
+  const g=sg(s),f=fitInfo(s,g),m=$('fitMsg');
+  if(isRecut()&&f){m.hidden=false;const bad=!f.fits||!f.depthOk;m.className='note '+(bad?'warn':'ok');
+    m.textContent=(f.fits?`✓ ทรงใหม่อยู่ในพลอยเดิมได้ · เหลือเนื้อหน้าพลอยประมาณ ${f.keep}%`:'⚠ ทรงใหม่ใหญ่เกินพลอยเดิม')+` · ขนาดใหญ่สุดที่ได้ประมาณ W ${fmt(f.maxW)} × L ${fmt(f.maxL)} มม.`+(f.depthOk?'':' · ⚠ ความลึกใหม่มากกว่าพลอยเดิม');}
+  else if(isRecut()){m.hidden=false;m.className='note info';m.textContent='ใส่ขนาดพลอยเดิมและขนาดใหม่ให้ครบ ระบบจะตรวจว่าเจียได้ไหม';}
+  else m.hidden=true;
+}
+function render(full){
+  if(full){drawStatic();fillFields()}
+  syncLive();
+  $('pages').innerHTML=buildPages(false).map(s=>`<div class="sheet">${s}</div>`).join('');
+  $('exportBox').hidden=true;save();
+}
+const touch=()=>{job.sample=false};
+$('f').addEventListener('input',e=>{const t=e.target,v=t.type==='checkbox'?t.checked:t.value;
+  if(t.dataset.s){cur()[t.dataset.s]=v;touch();if(t.dataset.s==='lock'||t.dataset.s==='stoneId'){render(true);return}}
+  else if(t.dataset.f){cur().from[t.dataset.f]=v;touch();if(t.dataset.f==='shape'){render(true);return}}
+  else if(t.dataset.j){job[t.dataset.j]=v;touch();if(t.dataset.j==='detailAll'){render(false);return}}
+  else return;
+  render(false);});
+$('f').addEventListener('submit',e=>e.preventDefault());
+$('sset').innerHTML=SETTINGS.map(x=>`<option>${esc(x)}</option>`).join('');
+$('fshape').innerHTML=Object.entries(SH).map(([k,v])=>`<option value="${k}">${esc(v.th)} · ${esc(v.en)}</option>`).join('');
+$('dupBtn').onclick=()=>{const c=JSON.parse(JSON.stringify(cur()));c.stoneId='';job.stones.splice(job.sel+1,0,newStone(c));job.sel++;touch();render(true)};
+let delArmed=false;
+$('delBtn').onclick=()=>{const b=$('delBtn');if(job.stones.length<2)return;if(!delArmed){delArmed=true;b.textContent='แตะอีกครั้งเพื่อลบ';setTimeout(()=>{delArmed=false;b.textContent='ลบเม็ดนี้'},4000);return}
+  delArmed=false;b.textContent='ลบเม็ดนี้';job.stones.splice(job.sel,1);job.sel=Math.max(0,job.sel-1);touch();render(true)};
+function readImg(file,max,type,cb){const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const x=c.getContext('2d');if(type==='image/jpeg'){x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height)}x.drawImage(im,0,0,c.width,c.height);cb(c.toDataURL(type,.82))};im.onerror=()=>$('status').textContent='เปิดรูปนี้ไม่ได้ ลองเลือกรูปอื่น';im.src=fr.result};fr.readAsDataURL(file)}
+$('photoIn').onchange=e=>{const f=e.target.files[0];if(!f)return;readImg(f,520,'image/jpeg',d=>{cur().photo=d;touch();render(true)});e.target.value=''};
+$('photoDel').onclick=()=>{cur().photo='';render(true)};
+$('logoIn').onchange=e=>{const f=e.target.files[0];if(!f)return;readImg(f,320,'image/png',d=>{job.logo=d;touch();render(true)});e.target.value=''};
+$('logoDel').onclick=()=>{job.logo='';render(true)};
+$('sampleSet').onclick=()=>{job=sampleSet();render(true)};
+$('sampleRecut').onclick=()=>{job=sampleRecut();render(true)};
 let resetArmed=false;
-$('resetBtn').onclick=()=>{const b=$('resetBtn');if(!resetArmed){resetArmed=true;b.textContent='แตะอีกครั้งเพื่อยืนยันล้างข้อมูล';setTimeout(()=>{resetArmed=false;b.textContent='เริ่มใบใหม่ (ล้างข้อมูล)'},4000);return}
-  resetArmed=false;b.textContent='เริ่มใบใหม่ (ล้างข้อมูล)';const keep={shop:st.shop,setting:st.setting,metal:st.metal};
-  const n=(st.jobNo||'').match(/^(.*-)(\d+)$/);st=Object.assign({},DEFAULTS,keep,{stoneId:'',material:'',w:'',l:'',d:'',notes:'',customer:'',sample:false,date:iso(new Date()),jobNo:n?n[1]+pad(+n[2]+1):DEFAULTS.jobNo});
-  load();render(true);$('status').textContent='เริ่มใบใหม่แล้ว เลขที่งานขยับให้อัตโนมัติ';};
-$('pngBtn').onclick=()=>{const svg=buildSheet(true),img=new Image();$('status').textContent='กำลังทำรูป...';
-  img.onload=()=>{const c=document.createElement('canvas');c.width=1600;c.height=2262;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);
-    try{const u=c.toDataURL('image/png');$('pngOut').src=u;$('dlLink').href=u;$('dlLink').download=(st.jobNo||'ใบสั่งงานช่าง')+'.png';$('exportBox').hidden=false;$('status').textContent='รูปพร้อมแล้ว เลื่อนลงไปบันทึกรูปได้เลย';$('exportBox').scrollIntoView({behavior:'smooth',block:'start'})}
-    catch(e){$('status').textContent='ทำรูปไม่สำเร็จ ลองแคปหน้าจอภาพใบงานแทนได้ครับ'}};
-  img.onerror=()=>{$('status').textContent='ทำรูปไม่สำเร็จ ลองแคปหน้าจอภาพใบงานแทนได้ครับ'};
-  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);};
-$('copyBtn').onclick=()=>{const L=st.shape==='round'?st.w:st.l;
-  const t=`📋 ใบสั่งงานช่าง (${st.shop||''}) เลขที่ ${st.jobNo}\nพลอย: ${st.stoneId||'-'} ${st.material||''}\nรูปทรง: ${SHAPES[st.shape]}\nเจียระไน: ${CUTS[st.cut]}\nขนาด: กว้าง ${fmt(st.w)} × ยาว ${fmt(L)} มม. ลึก ${fmt(st.d)} มม.\nน้ำหนัก: ${st.carat?fmt(st.carat)+' กะรัต':'-'} | จำนวน ${st.qty||1} เม็ด\nแบบฝัง: ${st.setting}\nตัวเรือน: ${st.metal||'-'}\nกำหนดส่ง: ${thDate(st.deadline)}\nหมายเหตุ: ${st.notes||'-'}`;
-  const done=()=>$('status').textContent='คัดลอกแล้ว ไปวางในแชท LINE ได้เลย';
-  if(navigator.clipboard?.writeText){navigator.clipboard.writeText(t).then(done).catch(()=>fallback(t))}else fallback(t);
-  function fallback(t){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done()}catch(e){$('status').textContent='คัดลอกไม่ได้ ลองกดค้างที่ข้อความแล้วคัดลอกเอง'}ta.remove()}};
-$('printBtn').onclick=()=>window.print();
-load();cards();render(true);
+$('resetBtn').onclick=()=>{const b=$('resetBtn');if(!resetArmed){resetArmed=true;b.textContent='แตะอีกครั้งเพื่อยืนยันล้างข้อมูล';setTimeout(()=>{resetArmed=false;b.textContent='เริ่มใบใหม่ (ล้างข้อมูลพลอย)'},4000);return}
+  resetArmed=false;b.textContent='เริ่มใบใหม่ (ล้างข้อมูลพลอย)';const m=(job.jobNo||'').match(/^(.*-)(\d+)$/);
+  job=baseJob({mode:job.mode,shop:job.shop,logo:job.logo,metal:job.metal,drawnBy:job.drawnBy,checkedBy:job.checkedBy,recent:job.recent,detailAll:job.detailAll,sample:false,jobNo:m?m[1]+pad(+m[2]+1):jobNoFor(),stones:[newStone()]});
+  render(true);$('status').textContent='เริ่มใบใหม่แล้ว เลขที่งานขยับให้อัตโนมัติ';};
+
+/* ---------- export ---------- */
+function toPng(svg){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=1600;c.height=2262;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);try{res(c.toDataURL('image/png'))}catch(e){rej(e)}};im.onerror=rej;im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)})}
+$('pngBtn').onclick=async()=>{const st=$('status');st.textContent='กำลังทำรูป...';const pages=buildPages(true),outs=$('outs');outs.innerHTML='';
+  try{for(let i=0;i<pages.length;i++){const u=await toPng(pages[i]);const fig=document.createElement('figure');const name=`${job.jobNo||'ใบสั่งงาน'}${pages.length>1?'-'+(i+1):''}.png`;
+      fig.innerHTML=`<img src="${u}" alt="ใบสั่งงานแผ่นที่ ${i+1}"><figcaption>แผ่นที่ ${i+1} / ${pages.length}</figcaption>`+(IS_FILE?`<a class="btn small primary" href="${u}" download="${esc(name)}">ดาวน์โหลดแผ่นที่ ${i+1}</a>`:'');outs.appendChild(fig)}
+    $('exportBox').hidden=false;st.textContent=`รูปพร้อมแล้ว ${pages.length} แผ่น เลื่อนลงไปบันทึกรูปได้เลย`;$('exportBox').scrollIntoView({behavior:'smooth',block:'start'})}
+  catch(e){st.textContent='ทำรูปไม่สำเร็จ ลองแคปหน้าจอภาพใบงานแทนได้'}};
+$('copyBtn').onclick=()=>{
+  const lines=[`📋 ใบสั่งงานช่าง (${MODES[job.mode].th}) ${job.shop||''} เลขที่ ${job.jobNo}${job.rev?' Rev.'+job.rev:''}`];
+  job.stones.forEach((s,i)=>{const g=sg(s),f=fitInfo(s,g);lines.push('',`${i+1}) ${s.stoneId||'-'} ${s.material||''}`,`   ทรง: ${shapeName(s.shape,s.curved)} · เจีย: ${CUTS[s.cut].th}${s.profile==='low'?' (เตี้ย)':''}`,
+    `   ขนาด: ${fmt(g.W)} × ${fmt(g.L)} มม. ลึก ${fmt(g.D)} มม.${tolStr(s)} · ${s.qty||1} เม็ด${s.carat?' · '+fmt(s.carat)+' ct':''}`);
+    if(isSet())lines.push(`   ฝัง: ${s.setting}`);if(g.recut)lines.push(`   เจียจาก: ${SH[s.from.shape].th} ${fmt(g.W0)}×${fmt(g.L0)}×${fmt(g.D0)} มม. (${fitShort(f)})`);if(s.note)lines.push(`   หมายเหตุ: ${s.note}`)});
+  lines.push('');if(isSet())lines.push(`ตัวเรือน: ${job.metal||'-'}`);lines.push(`กำหนดส่ง: ${thDate(job.deadline)}`);if(job.notes)lines.push(`หมายเหตุ: ${job.notes}`);
+  const t=lines.join('\n'),done=()=>$('status').textContent='คัดลอกแล้ว ไปวางในแชท LINE ได้เลย';
+  const fb=()=>{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done()}catch(e){$('status').textContent='คัดลอกไม่ได้ ลองกดค้างที่ข้อความแล้วคัดลอกเอง'}ta.remove()};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done).catch(fb);else fb();};
+if(IS_FILE){$('printBtn').hidden=false;$('printBtn').onclick=()=>window.print();$('exportHint').innerHTML='กดปุ่ม <b>ดาวน์โหลด</b> ใต้แต่ละแผ่น หรือคลิกขวาที่รูปแล้วเลือก “บันทึกรูปภาพ” จากนั้นส่งให้ช่างทาง LINE'}
+
+/* ---------- guide ---------- */
+$('shapeGuide').innerHTML=Object.entries(SH).map(([k,v])=>`<article class="shapecard">${mini(k,'brilliant',true,64,'#5b7fd6',1.2).replace('currentColor','#18202C')}<div><p class="en">${esc(v.en)}</p><h3>${esc(v.th)}</h3>${v.note?`<p>${esc(v.note)}</p>`:''}${v.warn?`<p class="w">⚠ ${esc(v.warn)}</p>`:''}</div></article>`).join('');
+$('cards').innerHTML=Object.entries(CUTS).map(([cut,c])=>{const shape=cut==='step'?'emerald':cut==='brilliant'?'cushion':'oval',o=outline(shape,.72,.6,true),tfT=p=>[60+p[0]*62,60+p[1]*62];
+  const D=cut==='rose'||cut==='cab'||cut==='hybrid'?.55:1.05,tfS=p=>[60+p[0]*44,60-D*22+p[1]*44];
+  return `<article class="card"><div class="pics"><svg viewBox="0 0 120 120">${drawTop(topGeom(o,cut),tfT,'#5b7fd6',1.4,.7)}</svg><svg viewBox="0 0 120 120">${drawSide(cut,1,D,'std',tfS,'#5b7fd6',1.4,.7)}</svg></div><div><p class="en">${esc(c.en)}</p><h3>${esc(c.th)}</h3></div><ul>${c.pts.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></article>`}).join('');
+
+render(true);
 </script>
 
 </body>
