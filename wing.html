@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mewtoy Quest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --win:#05060c; --edge:#f4f4f0; --ink:#f4f4f0; --dim:#9aa0b4; --gold:#ffd84a; --hp:#7cf08a; --mp:#6fb7ff;
+  --sky1:#0b1033; --sky2:#1b1f5a; --sky3:#3a2a6a; --hill:#0a0d22;
+  --pix:"DotGothic16","Chakra Petch",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  min-height:100vh;color:var(--ink);font-family:var(--pix);font-size:17px;letter-spacing:.02em;
+  background:var(--sky1);
+  background-image:linear-gradient(180deg,var(--sky1) 0%,var(--sky2) 55%,var(--sky3) 100%);
+  background-attachment:fixed;-webkit-font-smoothing:none;
+}
+a{color:inherit;text-decoration:none}
+
+/* ---- night scene ---- */
+.scene{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.star{position:absolute;width:2px;height:2px;background:#fff;animation:tw 3s steps(2) infinite}
+@keyframes tw{50%{opacity:.25}}
+.moon{position:absolute;top:9%;left:52%;width:56px;height:56px;border-radius:50%;background:#fff6c8;
+  box-shadow:0 0 0 6px rgba(255,246,200,.08),0 0 40px rgba(255,246,200,.35)}
+.moon::after{content:"";position:absolute;width:12px;height:12px;border-radius:50%;background:#e9dc9e;top:16px;left:14px;
+  box-shadow:18px 14px 0 -3px #e9dc9e}
+.land{position:absolute;left:0;right:0;bottom:0;width:100%;height:38vh;min-height:220px}
+
+/* ---- layout ---- */
+.wrap{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:24px 16px 190px}
+
+/* ---- the classic window ---- */
+.win{
+  position:relative;background:var(--win);
+  border:4px solid var(--edge);border-radius:10px;
+  box-shadow:0 0 0 3px var(--win),0 0 0 4px rgba(255,255,255,.12),0 10px 0 0 rgba(0,0,0,.35);
+  padding:16px 18px 14px;
+}
+.win::before{ /* inner hairline */
+  content:"";position:absolute;inset:4px;border:1px solid rgba(255,255,255,.18);border-radius:5px;pointer-events:none
+}
+.win .lbl{ /* title sitting on the top border */
+  position:absolute;top:-14px;left:18px;background:var(--win);padding:0 8px;font-size:15px;color:var(--ink);
+  font-family:"Chakra Petch",var(--pix);font-weight:600;letter-spacing:.04em;line-height:22px
+}
+
+/* top bar */
+.top{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:stretch;margin-bottom:34px}
+.title{display:flex;align-items:center;gap:16px}
+.crest{width:56px;height:56px;flex:none}
+.title h1{margin:0;font-size:34px;line-height:1;color:var(--gold);text-shadow:3px 3px 0 #6b3b00;letter-spacing:.06em}
+.title p{margin:6px 0 0;color:var(--dim);font-size:15px;font-family:"Chakra Petch",var(--pix)}
+.status{min-width:250px;font-size:16px;padding-top:20px}
+.status .row{display:flex;justify-content:space-between;gap:18px;line-height:1.75}
+.status .k{color:var(--dim)}
+.status .clock{font-size:22px;color:var(--gold)}
+.bar{height:6px;background:#22263a;margin:2px 0 4px;border:1px solid #444a66}
+.bar i{display:block;height:100%;background:var(--hp)}
+
+/* command windows */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:34px 22px;align-items:start}
+.cmd{padding-top:22px}
+.cmd ul{list-style:none;margin:0;padding:0}
+.cmd li a{
+  display:grid;grid-template-columns:22px 1fr auto;align-items:baseline;gap:4px;
+  padding:7px 6px 7px 0;border-radius:4px;outline:none
+}
+.cur{color:var(--ink);visibility:hidden;font-size:14px;animation:blink .8s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.cmd li a.on .cur{visibility:visible}
+.cmd li a.on .nm{color:var(--gold)}
+.nm{font-family:"Chakra Petch",var(--pix);font-weight:600;font-size:18px}
+.fn{display:block;color:var(--dim);font-size:13px;margin-top:1px}
+.no{color:var(--dim);font-size:13px}
+.ext{color:var(--mp);font-size:12px;margin-left:6px}
+
+/* message window */
+.msg{
+  position:fixed;z-index:5;left:50%;transform:translateX(-50%);bottom:16px;
+  width:min(1068px,calc(100% - 32px));min-height:118px;padding:18px 22px 16px;
+  font-family:"Chakra Petch",var(--pix);font-size:19px;line-height:1.6
+}
+.msg .who{color:var(--gold);margin-right:6px}
+.msg .more{position:absolute;right:18px;bottom:10px;font-size:14px;animation:bob .7s steps(1) infinite}
+@keyframes bob{50%{transform:translateY(3px)}}
+.msg .keys{display:block;margin-top:6px;color:var(--dim);font-size:13px;font-family:var(--pix)}
+
+/* toggles */
+.tools{display:flex;gap:10px;justify-content:flex-end;margin:-18px 0 26px}
+.btn{font:inherit;font-size:14px;color:var(--ink);background:var(--win);border:3px solid var(--edge);border-radius:7px;
+  padding:5px 12px;cursor:pointer}
+.btn:hover{color:var(--gold)}
+
+@media (max-width:640px){
+  body{font-size:15px}
+  .top{grid-template-columns:1fr;gap:28px}
+  .title h1{font-size:26px}
+  .status{min-width:0}
+  .grid{grid-template-columns:1fr}
+  .wrap{padding-bottom:170px}
+  .msg{font-size:16px;min-height:96px;bottom:10px;width:calc(100% - 20px)}
+  .msg .keys{display:none}
+  .moon{display:none}
+  .status{display:grid;grid-template-columns:1fr 1fr;column-gap:18px;padding-top:18px}
+  .status .bar{grid-column:1/-1}
+  .no{display:none}
+  .tools{margin-top:0}
+}
+@media (prefers-reduced-motion:reduce){ .star,.cur,.msg .more{animation:none} }
+</style>
+</head>
+<body>
+
+<div class="scene" aria-hidden="true" id="scene">
+  <div class="moon"></div>
+  <svg class="land" viewBox="0 0 1200 300" preserveAspectRatio="xMidYMax slice" shape-rendering="crispEdges">
+    <!-- far hills -->
+    <path fill="#151a44" d="M0 170 L80 150 L160 160 L260 120 L360 150 L470 130 L560 150 L680 110 L800 145 L900 125 L1020 150 L1120 128 L1200 140 V300 H0Z"/>
+    <!-- castle -->
+    <g fill="#0d1136">
+      <rect x="760" y="120" width="160" height="80"/>
+      <rect x="740" y="80" width="36" height="120"/><rect x="904" y="80" width="36" height="120"/>
+      <rect x="815" y="55" width="50" height="145"/>
+      <polygon points="740,80 758,52 776,80"/><polygon points="904,80 922,52 940,80"/><polygon points="815,55 840,18 865,55"/>
+      <rect x="836" y="6" width="3" height="14"/><rect x="839" y="6" width="14" height="8" fill="#c0392b"/>
+      <rect x="760" y="112" width="8" height="8"/><rect x="776" y="112" width="8" height="8"/><rect x="792" y="112" width="8" height="8"/>
+      <rect x="880" y="112" width="8" height="8"/><rect x="896" y="112" width="8" height="8"/>
+    </g>
+    <g fill="#ffd84a">
+      <rect x="754" y="100" width="6" height="9"/><rect x="918" y="100" width="6" height="9"/>
+      <rect x="836" y="80" width="8" height="12"/><rect x="800" y="150" width="6" height="9"/><rect x="872" y="150" width="6" height="9"/>
+    </g>
+    <!-- near hills + trees -->
+    <path fill="#0a0d22" d="M0 220 L120 200 L240 215 L380 190 L520 215 L660 200 L760 210 L900 195 L1040 214 L1200 198 V300 H0Z"/>
+    <g fill="#070917">
+      <polygon points="90,215 110,165 130,215"/><polygon points="120,215 145,150 170,215"/>
+      <polygon points="300,205 322,150 344,205"/><polygon points="1060,212 1082,160 1104,212"/>
+      <polygon points="1100,210 1125,150 1150,210"/><polygon points="560,212 578,170 596,212"/>
+    </g>
+  </svg>
+</div>
+
+<div class="wrap">
+  <div class="top">
+    <div class="title">
+      <svg class="crest" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+        <path fill="#ffd84a" d="M2 2h12v7l-1 2-2 2-3 2-3-2-2-2-1-2z"/>
+        <path fill="#b8860b" d="M3 3h10v6l-1 2-2 1-2 2-2-2-2-1-1-2z"/>
+        <path fill="#05060c" d="M5 5h1v1h4V5h1v3h-1v1H6V8H5z"/>
+        <path fill="#ffd84a" d="M6 6h1v1H6zM9 6h1v1H9z"/>
+      </svg>
+      <div>
+        <h1>MEWTOY QUEST</h1>
+        <p>ห้องโถงส่วนตัวของเจ้าของร้าน — เลือกเส้นทางที่จะออกเดินทาง</p>
+      </div>
+    </div>
+    <div class="win status">
+      <span class="lbl">สถานะ</span>
+      <div class="row"><span class="k">เวลา</span><span class="clock" id="clk">--:--</span></div>
+      <div class="row"><span class="k">วัน</span><span id="day">-</span></div>
+      <div class="row"><span class="k">HP</span><span id="hpTxt">-</span></div>
+      <div class="bar"><i id="hp" style="width:100%"></i></div>
+      <div class="row"><span class="k">EXP</span><span id="exp">0</span></div>
+    </div>
+  </div>
+
+  <div class="tools">
+    <button class="btn" id="snd" type="button">♪ เสียง: ปิด</button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="win msg" id="msg" aria-live="polite">
+  <span id="msgText"></span>
+  <span class="keys">↑↓ เลือก · ←→ เปลี่ยนหมวด · Enter ออกเดินทาง · 1–9 วาร์ป</span>
+  <span class="more">▼</span>
+</div>
+
+<script>
+/* ===== แก้ไข/เพิ่มเมนูตรงนี้ =====
+   url: ชื่อไฟล์ใน GitHub (โฟลเดอร์เดียวกับไฟล์นี้) หรือลิงก์เต็ม https://...
+   newTab: true = เปิดแท็บใหม่ */
+const GROUPS = [
+  { title:"ตลาด · หน้าร้าน", items:[
+    { name:"POS หน้าร้าน", url:"index.html", desc:"ขายหน้าร้าน, WS ขายส่ง, Pre/Rec พรีออเดอร์ และรายงานยอดขาย" },
+    { name:"POS มือถือ", url:"mobile.html", desc:"หน้าจอ POS ฉบับพกพา สำหรับใช้บนมือถือ" },
+  ]},
+  { title:"คลังเสบียง · Store", items:[
+    { name:"ยิงบาร์โค้ดเบิกของ", url:"wd_scan.html", desc:"Store หยิบของตามรายการเบิก แล้วยิงบาร์โค้ดตรวจของ" },
+  ]},
+  { title:"โรงตีเหล็ก · สินค้า", items:[
+    { name:"PI เพิ่ม/แก้สินค้า", url:"pi_Editor.html", desc:"เพิ่มและแก้ไขข้อมูลใน Product_ID — เข้าด้วย PIN และบันทึกประวัติทุกครั้ง" },
+    { name:"PD ฐานข้อมูลสินค้า", url:"pd.html", desc:"ฐานข้อมูลสินค้าหลัก รวมข้อมูลจากไฟล์ซัพ (Dreamtoy ฯลฯ)" },
+  ]},
+  { title:"กิลด์พ่อค้า · สั่งของ", items:[
+    { name:"PM Product Manager", url:"pm.html", desc:"รอบสั่ง Quarter, ยอด WS, บิลของเข้า, แบ่งของ WS และใบแจ้งหนี้" },
+  ]},
+  { title:"หอจดหมายเหตุ · ชีต", items:[
+    { name:"Sales_History (M1)", url:"https://docs.google.com/spreadsheets/d/1gufnFwdTYUEFfE21jN5moudJ21mezNAbVVwBXhYfq6c/edit", newTab:true,
+      desc:"ม้วนบันทึกการขาย, WS Invoices, PreOrders และ Staff/PIN" },
+    { name:"Store_Withdrawal", url:"https://docs.google.com/spreadsheets/d/1PqRbtlKepXiBnQL9Wqms4Y_lpGTO4_ul2I2AJEzj1bw/edit", newTab:true,
+      desc:"บันทึกการเบิกของ, สรุปเมื่อวาน และปฏิทินย้อนหลัง" },
+  ]},
+  { title:"ห้องลับ · งานส่วนตัว", items:[
+    { name:"ใบสั่งงานช่างฝังพลอย", url:"SThana.html", desc:"กรอกข้อมูลพลอยและงานฝัง/เจียทรงใหม่ แล้วสร้างแบบร่างเป็นรูปส่งให้ช่าง" },
+    { name:"สร้างรูปโพสต์ Shopee", url:"picture_Edit.html", desc:"อัปโหลดรูปสินค้า JPG ระบบจัดลงเทมเพลตให้ แล้วดาวน์โหลดไปลง Shopee" },
+  ]},
+];
+
+const GREET = "ยินดีต้อนรับกลับมา ผู้กล้า! วันนี้ท่านจะออกเดินทางไปที่ใด?";
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const store = {
+  get(k,d){ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v); }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+};
+
+/* build menus */
+const flat = [];
+document.getElementById("grid").innerHTML = GROUPS.map((g,gi) =>
+  `<div class="win cmd"><span class="lbl">${esc(g.title)}</span><ul>` +
+  g.items.map(it => { const i = flat.push(Object.assign({g:gi}, it)) - 1; return `
+    <li><a href="${esc(it.url)}" data-i="${i}" ${it.newTab?'target="_blank" rel="noopener"':''}>
+      <span class="cur">▶</span>
+      <span><span class="nm">${esc(it.name)}</span><span class="fn">${it.url.startsWith("http")?"Google Sheets":esc(it.url)}${it.newTab?'<span class="ext">↗</span>':""}</span></span>
+      <span class="no">${i<9?i+1:""}</span>
+    </a></li>`; }).join("") + `</ul></div>`
+).join("");
+const links = [...document.querySelectorAll("[data-i]")];
+
+/* message window typewriter */
+const msgEl = document.getElementById("msgText");
+let typeTimer = null;
+function say(text, who){
+  clearInterval(typeTimer);
+  const head = who ? `<span class="who">${esc(who)}:</span>` : "";
+  const chars = [...text]; let n = 0;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches){ msgEl.innerHTML = head + esc(text); return; }
+  msgEl.innerHTML = head;
+  typeTimer = setInterval(() => {
+    n += 2; msgEl.innerHTML = head + esc(chars.slice(0,n).join(""));
+    if (n >= chars.length) clearInterval(typeTimer);
+  }, 22);
+}
+
+/* sound (off by default) */
+let soundOn = store.get("mq_sound", false), ac = null;
+const sndBtn = document.getElementById("snd");
+const paintSnd = () => sndBtn.textContent = "♪ เสียง: " + (soundOn ? "เปิด" : "ปิด");
+paintSnd();
+sndBtn.onclick = () => { soundOn = !soundOn; store.set("mq_sound", soundOn); paintSnd(); beep(880,.05); };
+function beep(f, d){
+  if (!soundOn) return;
+  try{
+    ac = ac || new (window.AudioContext||window.webkitAudioContext)();
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = "square"; o.frequency.value = f; g.gain.value = .04;
+    o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + d);
+  }catch(e){}
+}
+
+/* cursor */
+let sel = -1;
+function select(i, quiet){
+  if (i < 0 || i >= links.length) return;
+  if (sel >= 0) links[sel].classList.remove("on");
+  sel = i; links[i].classList.add("on");
+  if (!quiet){ beep(660,.035); }
+  const it = flat[i];
+  say(`「${it.name}」 — ${it.desc}`);
+}
+function go(i){
+  const it = flat[i]; if (!it) return;
+  beep(990,.08);
+  const exp = store.get("mq_exp",0) + 1; store.set("mq_exp", exp);
+  say(`ท่านออกเดินทางไปยัง ${it.name}…`);
+  setTimeout(() => { if (it.newTab) window.open(it.url,"_blank","noopener"); else location.href = it.url; }, soundOn ? 220 : 60);
+}
+
+links.forEach((a,i) => {
+  a.addEventListener("mouseenter", () => { if (sel !== i) select(i); });
+  a.addEventListener("focus", () => { if (sel !== i) select(i); });
+  a.addEventListener("click", e => {
+    if (e.ctrlKey || e.metaKey || e.shiftKey || e.button) return;
+    e.preventDefault(); go(i);
+  });
+});
+
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key;
+  if (k === "ArrowDown"){ e.preventDefault(); select(sel < 0 ? 0 : (sel + 1) % links.length); }
+  else if (k === "ArrowUp"){ e.preventDefault(); select(sel <= 0 ? links.length - 1 : sel - 1); }
+  else if (k === "ArrowRight" || k === "ArrowLeft"){
+    e.preventDefault();
+    const g = sel < 0 ? -1 : flat[sel].g;
+    const ng = k === "ArrowRight" ? (g + 1) % GROUPS.length : (g <= 0 ? GROUPS.length - 1 : g - 1);
+    select(flat.findIndex(x => x.g === ng));
+  }
+  else if (k === "Enter" && sel >= 0 && document.activeElement === document.body){ e.preventDefault(); go(sel); }
+  else if (/^[1-9]$/.test(k)){ const i = +k - 1; if (flat[i]){ select(i, true); go(i); } }
+  else if (k === "Escape"){ if (sel >= 0) links[sel].classList.remove("on"); sel = -1; say(GREET, "ราชา"); }
+});
+
+/* status window: clock, day, HP = time left in the work day (10:00–20:00) */
+function tick(){
+  const now = new Date();
+  document.getElementById("clk").textContent = now.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"});
+  document.getElementById("day").textContent = now.toLocaleDateString("th-TH",{weekday:"short",day:"numeric",month:"short"});
+  const h = now.getHours() + now.getMinutes()/60;
+  const left = Math.max(0, Math.min(1, (20 - h) / 10));
+  const hp = Math.round(left * 999);
+  document.getElementById("hpTxt").textContent = hp + "/999";
+  const bar = document.getElementById("hp");
+  bar.style.width = (left*100) + "%";
+  bar.style.background = left > .5 ? "var(--hp)" : left > .2 ? "var(--gold)" : "#ff6b5f";
+  document.getElementById("exp").textContent = store.get("mq_exp",0);
+}
+tick(); setInterval(tick, 20000);
+
+/* stars */
+(function(){
+  const sc = document.getElementById("scene"); let html = "";
+  for (let i = 0; i < 70; i++){
+    const x = Math.random()*100, y = Math.random()*55, s = Math.random() < .15 ? 3 : 2;
+    html += `<i class="star" style="left:${x}%;top:${y}%;width:${s}px;height:${s}px;animation-delay:${(Math.random()*3).toFixed(2)}s"></i>`;
+  }
+  sc.insertAdjacentHTML("afterbegin", html);
+})();
+
+say(GREET, "ราชา");
+</script>
+</body>
+</html>

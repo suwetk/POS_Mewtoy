@@ -261,9 +261,10 @@ textarea{min-height:80px;resize:vertical}
 
     <div class="sheetcol">
       <div class="actions">
-        <button type="button" class="btn primary" id="pngBtn">ทำเป็นรูปส่งช่าง</button>
+        <button type="button" class="btn primary" id="pngBtn">บันทึกเป็นรูป</button>
+        <button type="button" class="btn primary" id="printBtn">พิมพ์ / PDF</button>
+        <button type="button" class="btn" id="xlsxBtn">ส่งออก Excel</button>
         <button type="button" class="btn" id="copyBtn">คัดลอกข้อความ (ส่ง LINE)</button>
-        <button type="button" class="btn" id="printBtn" hidden>พิมพ์ / บันทึก PDF</button>
       </div>
       <p class="status" id="status" role="status"></p>
       <div class="export" id="exportBox" hidden>
@@ -704,10 +705,10 @@ $('resetBtn').onclick=()=>{const b=$('resetBtn');if(!resetArmed){resetArmed=true
   render(true);$('status').textContent='เริ่มใบใหม่แล้ว เลขที่งานขยับให้อัตโนมัติ';};
 
 /* ---------- export ---------- */
-function toPng(svg){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=1600;c.height=2262;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);try{res(c.toDataURL('image/png'))}catch(e){rej(e)}};im.onerror=rej;im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)})}
+function toPng(svg,type='image/png'){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=1600;c.height=2262;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);try{res(c.toDataURL(type,.88))}catch(e){rej(e)}};im.onerror=rej;im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)})}
 $('pngBtn').onclick=async()=>{const st=$('status');st.textContent='กำลังทำรูป...';const pages=buildPages(true),outs=$('outs');outs.innerHTML='';
   try{for(let i=0;i<pages.length;i++){const u=await toPng(pages[i]);const fig=document.createElement('figure');const name=`${job.jobNo||'ใบสั่งงาน'}${pages.length>1?'-'+(i+1):''}.png`;
-      fig.innerHTML=`<img src="${u}" alt="ใบสั่งงานแผ่นที่ ${i+1}"><figcaption>แผ่นที่ ${i+1} / ${pages.length}</figcaption>`+(IS_FILE?`<a class="btn small primary" href="${u}" download="${esc(name)}">ดาวน์โหลดแผ่นที่ ${i+1}</a>`:'');outs.appendChild(fig)}
+      fig.innerHTML=`<img src="${u}" alt="ใบสั่งงานแผ่นที่ ${i+1}"><figcaption>แผ่นที่ ${i+1} / ${pages.length}</figcaption>`+`<button type="button" class="btn small primary">บันทึกแผ่นที่ ${i+1}</button>`;fig.querySelector('button').onclick=()=>saveFile(name,dataUrlBlob(u),'บันทึกรูปแผ่นที่ '+(i+1));outs.appendChild(fig)}
     $('exportBox').hidden=false;st.textContent=`รูปพร้อมแล้ว ${pages.length} แผ่น เลื่อนลงไปบันทึกรูปได้เลย`;$('exportBox').scrollIntoView({behavior:'smooth',block:'start'})}
   catch(e){st.textContent='ทำรูปไม่สำเร็จ ลองแคปหน้าจอภาพใบงานแทนได้'}};
 $('copyBtn').onclick=()=>{
@@ -719,7 +720,48 @@ $('copyBtn').onclick=()=>{
   const t=lines.join('\n'),done=()=>$('status').textContent='คัดลอกแล้ว ไปวางในแชท LINE ได้เลย';
   const fb=()=>{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done()}catch(e){$('status').textContent='คัดลอกไม่ได้ ลองกดค้างที่ข้อความแล้วคัดลอกเอง'}ta.remove()};
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done).catch(fb);else fb();};
-if(IS_FILE){$('printBtn').hidden=false;$('printBtn').onclick=()=>window.print();$('exportHint').innerHTML='กดปุ่ม <b>ดาวน์โหลด</b> ใต้แต่ละแผ่น หรือคลิกขวาที่รูปแล้วเลือก “บันทึกรูปภาพ” จากนั้นส่งให้ช่างทาง LINE'}
+/* ---------- file saving: PNG, PDF, Excel ---------- */
+const dataUrlBlob=u=>{const [h,b]=u.split(','),bin=atob(b),a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:h.slice(5,h.indexOf(';'))})};
+let DL;const dl=async()=>{if(IS_FILE||!window.claude||!window.claude.use)return null;if(DL===undefined){try{DL=await window.claude.use('downloads')}catch(e){DL=null}}return DL};
+async function saveFile(name,blob,what,after=''){const st=$('status');
+  const d=await dl();
+  if(d){try{await d.save({filename:name,data:blob});st.textContent=`${what}แล้ว: ${name}${after}`}catch(e){st.textContent=e&&e.code==='declined'?'ยกเลิกการบันทึก':'บันทึกไฟล์ไม่สำเร็จ ลองใช้ไฟล์ HTML บนคอมแทน'}return}
+  if(!IS_FILE&&!d){st.textContent='หน้านี้บันทึกไฟล์ไม่ได้ ให้ใช้ไฟล์ HTML บนคอม หรือกดค้างที่รูปเพื่อบันทึก';return}
+  const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000);st.textContent=`${what}แล้ว: ${name}${after}`}
+function loadLib(src,test){return new Promise((res,rej)=>{if(test())return res();const sc=document.createElement('script');sc.src=src;sc.onload=()=>test()?res():rej();sc.onerror=rej;document.head.appendChild(sc)})}
+const baseName=()=>(job.jobNo||'ใบสั่งงาน').replace(/[\\/:*?"<>|]/g,'-');
+$('printBtn').onclick=async()=>{const st=$('status');
+  if(IS_FILE){window.print();return}
+  st.textContent='กำลังทำไฟล์ PDF สำหรับพิมพ์...';
+  try{await loadLib('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',()=>window.jspdf&&window.jspdf.jsPDF);
+    const pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4',orientation:'portrait'}),pages=buildPages(true);
+    for(let i=0;i<pages.length;i++){if(i)pdf.addPage();pdf.addImage(await toPng(pages[i],'image/jpeg'),'JPEG',0,0,210,297)}
+    await saveFile(baseName()+'.pdf',pdf.output('blob'),'บันทึก PDF',' · เปิดไฟล์แล้วสั่งพิมพ์ได้เลย (ขนาด A4)')}
+  catch(e){st.textContent='ทำ PDF ไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่'}};
+const xd=v=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(v||'');if(!m)return v||'';return {t:'n',v:(Date.UTC(+m[1],m[2]-1,+m[3])-Date.UTC(1899,11,30))/864e5,z:'d mmm yyyy'}};
+const xn=v=>{const n=parseFloat(v);return isFinite(n)?n:''};
+const JOBTYPE={set:'สั่งฝัง',recut:'สั่งเจีย',both:'เจีย + ฝัง'};
+$('xlsxBtn').onclick=async()=>{const st=$('status');st.textContent='กำลังทำไฟล์ Excel...';
+  try{await loadLib('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',()=>window.XLSX);
+    const X=window.XLSX,wb=X.utils.book_new();
+    const jobRows=[['เลขที่งาน','วันที่รับงาน','ลูกค้า','ประเภทงาน','สถานะ','ทีมช่าง','กำหนดส่ง','วันที่ส่งลูกค้า'],
+      [job.jobNo,xd(job.date),job.customer,JOBTYPE[job.mode],'ขอราคา','',xd(job.deadline),'']];
+    const itemRows=[['เลขที่งาน','เม็ดที่','รหัสพลอย','ชนิด / สี','รูปทรง','แบบเจีย','กว้าง (มม.)','ยาว (มม.)','ลึก (มม.)','จำนวน (เม็ด)','น้ำหนักรวม (กะรัต)','คิดราคา','ต้นทุนพลอย / หน่วย','ค่าเจีย / หน่วย','ค่าฝัง / หน่วย','ค่าอื่น (เหมา)']];
+    const detRows=[['เลขที่งาน','Rev.','เม็ดที่','รหัสพลอย','ชนิด / สี','รูปทรง','แบบเจีย','ทรงด้านข้าง','กว้าง (มม.)','ยาว (มม.)','ลึก (มม.)','ค่าคลาดเคลื่อน ±','จำนวน','กะรัต','แบบการฝัง','ตัวเรือน','เจียจาก ทรง','เจียจาก ขนาด (มม.)','เหลือเนื้อ ≈ %','ข้อควรระวัง','หมายเหตุเม็ดนี้','ลูกค้า','กำหนดส่ง','ผู้เขียนแบบ','ผู้ตรวจ','หมายเหตุรวม']];
+    job.stones.forEach((s,i)=>{const g=sg(s),f=fitInfo(s,g),shape=SH[s.shape].th+(s.shape==='trillion'?(s.curved?' ขอบโค้ง':' ขอบตรง'):'')+' · '+SH[s.shape].en,cut=CUTS[s.cut].th+' · '+CUTS[s.cut].en;
+      itemRows.push([job.jobNo,i+1,s.stoneId,s.material,shape,cut,xn(g.W),g.L?+g.L.toFixed(2):'',xn(g.D),xn(s.qty),xn(s.carat),s.carat?'ต่อกะรัต':'ต่อเม็ด','','','','']);
+      detRows.push([job.jobNo,job.rev,i+1,s.stoneId,s.material,shape,cut,PROF[s.profile][0],xn(g.W),g.L?+g.L.toFixed(2):'',xn(g.D),xn(s.tol),xn(s.qty),xn(s.carat),isSet()?s.setting:'',isSet()?job.metal:'',
+        g.recut?SH[s.from.shape].th:'',g.recut?`${fmt(g.W0)}×${fmt(g.L0)}×${fmt(g.D0)}`:'',f?f.keep:'',cautionText(s,g,f),s.note,job.customer,xd(job.deadline),job.drawnBy,job.checkedBy,i===0?job.notes:''])});
+    const add=(rows,name,widths)=>{const ws=X.utils.aoa_to_sheet(rows);ws['!cols']=widths.map(w=>({wch:w}));X.utils.book_append_sheet(wb,ws,name)};
+    add(jobRows,'งาน',[14,13,20,13,14,16,13,13]);
+    add(itemRows,'รายการพลอย',[14,7,12,20,22,20,9,9,9,9,11,10,12,11,11,11]);
+    add(detRows,'รายละเอียดใบงาน',[14,6,7,12,20,22,20,12,9,9,9,10,8,8,22,14,14,16,10,40,30,18,13,14,14,40]);
+    add([['วิธีรวมกับไฟล์ ระบบงานเจ้ปู'],['1. แท็บ "งาน": คัดลอกคอลัมน์ A–E และ G ไปวางต่อท้ายแท็บ "งาน" ในไฟล์เดิม (คอลัมน์ F ทีมช่าง ระบบคำนวณเอง)'],['2. แท็บ "รายการพลอย": คัดลอกคอลัมน์ A–P ไปวางต่อท้ายแท็บ "รายการพลอย" ในไฟล์เดิม แล้วใส่ต้นทุน (M–P)'],['3. แท็บ "รายละเอียดใบงาน": เก็บไว้ดูหรือรวมเป็นประวัติได้ ไม่ต้องวางในไฟล์เดิม'],['ห้ามวางทับคอลัมน์สีเทาในไฟล์เดิม เพราะเป็นสูตรคำนวณ']],'วิธีรวมไฟล์',[90]);
+    const out=X.write(wb,{bookType:'xlsx',type:'array'});
+    await saveFile(baseName()+'.xlsx',new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),'บันทึก Excel')}
+  catch(e){st.textContent='ทำ Excel ไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่'}};
+if(IS_FILE){$('exportHint').innerHTML='กดปุ่ม <b>บันทึกแผ่นที่…</b> ใต้แต่ละรูป แล้วส่งให้ช่างทาง LINE'}
+else{$('exportHint').innerHTML='กดปุ่ม <b>บันทึกแผ่นที่…</b> ใต้แต่ละรูป หรือมือถือ <b>กดค้างที่รูป</b> แล้วเลือก “บันทึกรูป”'}
 
 /* ---------- guide ---------- */
 $('shapeGuide').innerHTML=Object.entries(SH).map(([k,v])=>`<article class="shapecard">${mini(k,'brilliant',true,64,'#5b7fd6',1.2).replace('currentColor','#18202C')}<div><p class="en">${esc(v.en)}</p><h3>${esc(v.th)}</h3>${v.note?`<p>${esc(v.note)}</p>`:''}${v.warn?`<p class="w">⚠ ${esc(v.warn)}</p>`:''}</div></article>`).join('');
