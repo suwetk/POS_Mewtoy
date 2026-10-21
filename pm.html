@@ -198,7 +198,7 @@ function renderNav() {
   const pages = isStore() ? [{ id: "bills", icon: "fa-dolly", label: "จัดของ" }] : PAGES;
   document.getElementById("nav").innerHTML = pages.map(p => `<div class="nav ${S.page === p.id || (p.id === "orders" && ["rounds", "sup"].includes(S.page)) ? "on" : ""}" onclick="go('${p.id}')"><i class="fa-solid ${p.icon}"></i><span class="hidden sm:inline">${p.label}</span></div>`).join("");
 }
-function hasDraft() { return Object.keys(S.draft || {}).some(k => Object.keys(S.draft[k] || {}).length) || Object.keys(S.alloc || {}).length || Object.keys(S.dd || {}).length; }
+function hasDraft() { const bd = S.billDraft || {}; return Object.keys(S.draft || {}).some(k => Object.keys(S.draft[k] || {}).length) || Object.keys(S.alloc || {}).length || Object.keys(S.dd || {}).length || ["actual", "reserve", "addConf", "send"].some(k => Object.keys(bd[k] || {}).length); }
 // กันหน้าเก่าที่โหลดช้าวาดทับหน้าใหม่: ทุกครั้งที่เปลี่ยนหน้าได้เลขใหม่ — งานที่โหลดเสร็จทีหลังเช็กว่าเลขยังตรงก่อนวาด
 function navStart() { S.nav = (S.nav || 0) + 1; return S.nav; }
 function stale(t) { return t !== S.nav; }
@@ -2852,10 +2852,22 @@ function pendRows() {
     return r;
   });
 }
+/** พ่อค้าส่ง = รหัสขึ้นต้น CWS (v3.13) */
+function isWsCode(code) { return /^CWS/i.test(String(code || "")); }
+/** ตัวเลือกลูกค้า: ค่าตั้งต้นเฉพาะร้านเรา + พ่อค้าส่ง (CWS) · เลือก "แสดงลูกค้าทั้งหมด" = ทุกคน (จำไว้จนรีเฟรช) */
 function custOptions(sel, withShop, noneLabel) {
+  const all = S.custAll, list = (S.boot.customers || []).filter(c => all || isWsCode(c.code) || c.code === sel);
   return `<option value="">${esc(noneLabel || "— ไม่นำเข้า —")}</option>` + (withShop ? `<option value="${SHOP_CODE}" ${sel === SHOP_CODE ? "selected" : ""}>${esc(SHOP_NAME)} (ร้านเรา)</option>` : "")
-    + (S.boot.customers || []).map(c => `<option value="${esc(c.code)}" ${c.code === sel ? "selected" : ""}>${esc(custLabel(c))}</option>`).join("");
+    + list.map(c => `<option value="${esc(c.code)}" ${c.code === sel ? "selected" : ""}>${esc(custLabel(c))}</option>`).join("")
+    + (all ? "" : `<option value="__ALL__">… แสดงลูกค้าทั้งหมด</option>`);
 }
+// เลือก "แสดงลูกค้าทั้งหมด" → เติมรายชื่อทุกคนในช่องนั้น (ไม่ส่งค่าไปที่ onchange เดิม)
+window.addEventListener("change", e => {
+  const t = e.target; if (!t || t.tagName !== "SELECT" || t.value !== "__ALL__") return;
+  e.stopImmediatePropagation(); S.custAll = true;
+  const withShop = [...t.options].some(o => o.value === SHOP_CODE), none = t.options[0] ? t.options[0].text : "";
+  t.innerHTML = custOptions("", withShop, none); t.value = ""; t.focus();
+}, true);
 function renderBillPend() {
   const p = S.billPend, rows = pendRows();
   const take = rows.filter(r => r.qty > 0 || r.hasDem || (p.allRows && /^\d{8,14}$/.test(String(r.barcode)))), pos = take.filter(r => r.qty > 0), zeroDem = take.filter(r => !(r.qty > 0) && r.hasDem);
@@ -3049,7 +3061,7 @@ function btAlloc(body) {
       <button class="btn btn-w btn-s mt-2" onclick="run(reloadBill)"><i class="fa-solid fa-rotate"></i> ดึงใบจองใหม่</button></details>` : ""}
     ${Object.keys(S.dd || {}).length ? `<div class="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 text-sm mb-3">มียอด F/G ที่แก้ในแท็บ 1 ยังไม่บันทึก — ตัวเลขด้านล่างใช้ยอดที่แก้แล้ว แต่ควรกลับไปกดบันทึก</div>` : ""}
     ${hasInv ? `<div class="bg-blue-50 border border-blue-200 text-blue-800 rounded-xl p-3 text-sm mb-3">บิลนี้ออกใบแจ้งหนี้แล้ว — แก้การแบ่งของไม่ได้ (ยกเลิกใบแจ้งหนี้ก่อนถ้าจำเป็น)</div>` : ""}
-    ${!X.hasSaved && !hasInv ? `<div class="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 text-sm mb-3">ตัวเลขในช่องคือ "แนะนำ" (กันให้ลูกค้าร้านตามใบจองก่อน → ${esc(ALLOC_METHODS[S.allocMethod])}) — แก้เองได้ทุกช่อง แล้วกดบันทึก</div>` : ""}
+    ${!X.hasSaved && !hasInv ? `<div class="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 text-sm mb-3">ตัวเลขในช่องคือ "แนะนำ" (${pre.off ? "" : "กันให้ลูกค้าร้านตามใบจองก่อน → "}${esc(ALLOC_METHODS[S.allocMethod])}) — แก้เองได้ทุกช่อง แล้วกดบันทึก</div>` : ""}
     <div class="card mb-3">
       <div class="flex flex-wrap gap-x-6 gap-y-2 mb-3">
         <div><div class="kpi">ของมาจริง${anyAdd ? " (รวมได้เพิ่ม)" : ""}</div><b>${fmt(tAct)}</b></div><div><div class="kpi">กันให้ลูกค้าร้าน</div><b>${fmt(tRes)}</b></div>
@@ -3249,7 +3261,7 @@ function btAddon(body) {
   const pf = isPF(), dirty = Object.keys(S.dd).length + Object.keys(S.billDraft.addConf).length + Object.keys(S.billDraft.send || {}).length;
   const tot = c => B.items.reduce((s, i) => { s.f += X.fx(i.key, c); s.g += X.gx(i.key, c); return s; }, { f: 0, g: 0 });
   const totG = B.items.reduce((s, i) => s + fgSum(i.key), 0), totAdd = B.items.reduce((s, i) => s + X.addConf(i.key), 0);
-  const others = (S.boot.customers || []).filter(c => !codes.includes(c.code));
+  const others = (S.boot.customers || []).filter(c => !codes.includes(c.code) && (S.custAll || isWsCode(c.code)));
   body.innerHTML = `${pfPanel(X)}
     <div class="card mb-3">
       <p class="text-sm mb-2"><b>ขั้นตอน:</b> ${pf ? `บิลเสนอ (ได้แน่) → ส่งไฟล์ให้ WS กรอกสั่งเพิ่ม → นำเข้าไฟล์ที่ WS ส่งกลับ + ใส่ยอด MT (ร้านเรา) → แก้ช่อง "ส่ง DT" ถ้าจำเป็น → เติมยอดลงไฟล์ DT → Invoice จริงมา → แท็บ 2 กรอกยอด Invoice + แบ่งของ` : `บิลมา → ส่งไฟล์/ข้อความให้ WS สั่งเพิ่ม → ใส่ยอดสั่งเพิ่ม (G) หรือนำเข้าไฟล์ที่ WS ส่งกลับ → ส่งยอดรวมให้ DT → DT ตอบว่าได้เพิ่มเท่าไหร่ ใส่ช่อง "DT ได้เพิ่ม" → ไปแท็บ 2 แบ่งของ`}</p>
@@ -3417,6 +3429,8 @@ function addonSheet(wb, keySet) {
   if (act && filled(act)) return act;
   return wb.SheetNames.find(n => filled(n)) || pickSheet(wb, keySet);
 }
+/** คำท้ายชื่อไฟล์ร้าน: "… (OCT 4) - phon.xlsx" → "phon" (ใช้จำว่าไฟล์นี้เป็นของร้านไหน) */
+function fileTag(name) { const m = /\s-\s*([^-()]+?)\s*\.[a-z]+$/i.exec(String(name || "")); const t = m ? m[1].trim() : ""; return t && !/^(mew\s*toy|สั่งเพิ่ม|final)$/i.test(t) && t.length <= 30 ? t : ""; }
 function importAddon() {
   pickFiles(".xlsx,.xlsm,.xls", true, fs => run(async () => {
     const B = S.bill, keySet = new Set(B.items.map(i => i.key)), entries = [];
@@ -3438,8 +3452,10 @@ function importAddon() {
           if (!keySet.has(k)) { if (pf && /^\d{8,14}$/.test(String(r.barcode))) { extra[k] = { barcode: r.barcode, itemCode: r.itemCode, name: r.name, pcsCtn: r.pcsCtn, price1: r.price1, price2: r.price2, cut: r.cut, note: "List of Stock · " + file.name }; rows[k] = (rows[k] || 0) + v; } else out++; return; }
           rows[k] = (rows[k] || 0) + v; });
         let code = ""; grid.slice(0, 4).forEach(r => (r || []).forEach(v => { const m = /ร้าน\s*:.*\(([^()]+)\)\s*$/.exec(hdr(v)); if (m && !code) code = m[1].trim(); }));
+        const tag = fileTag(file.name);
+        if (!code && tag) code = aliasOf(tag);   // จำไว้จากครั้งก่อน เช่น "- phon" = CWS01
         if (!code) { const gc2 = guessCustomer(file.name); code = gc2 ? gc2.code : ""; }
-        entries.push({ src: file.name, code, rows, out, extra });
+        entries.push({ src: file.name, code, rows, out, extra, tag });
       }
     }
     S.addPend = entries;
@@ -3454,10 +3470,11 @@ function importAddon() {
 async function saveAddonImport() {
   const B = S.bill, E = S.addPend.filter(e => e.code), rows = [], aliases = {};
   if (!E.length) return toast("เลือกลูกค้าก่อน", true);
-  E.forEach(e => { if (e.label) aliases[e.label] = e.code; Object.entries(e.rows).forEach(([key, add]) => rows.push({ key, code: e.code, customer: custName(e.code), add })); });
+  E.forEach(e => { if (e.label) aliases[e.label] = e.code; if (e.tag && e.code) aliases[e.tag] = e.code; Object.entries(e.rows).forEach(([key, add]) => rows.push({ key, code: e.code, customer: custName(e.code), add })); });
   const extra = {}; E.forEach(e => Object.assign(extra, e.extra || {}));
   if (Object.keys(extra).length) await api("addBillItems", { billId: B.bill.billId, source: "สั่งเพิ่มจาก List of Stock", items: Object.values(extra) });
   await api("saveBillDemand", { billId: B.bill.billId, rows, replaceAddFor: [...new Set(E.map(e => e.code))], aliases });
+  Object.keys(aliases).forEach(l => S.boot.settings["Alias:" + l.trim().toUpperCase()] = aliases[l]);
   closeModal(); toast(`นำเข้ายอดสั่งเพิ่ม ${rows.length} ช่องแล้ว`); await reloadBill();
 }
 
@@ -3695,8 +3712,10 @@ function showInvoice(inv) {
       <button class="btn btn-p btn-s" onclick="run(()=>invoicePDF(S.inv))"><i class="fa-solid fa-file-pdf"></i> PDF</button>
       <button class="btn btn-w btn-s" onclick="invoiceXLSX(S.inv)"><i class="fa-solid fa-file-excel text-green-600"></i> Excel</button>
       ${inv.status !== "ยกเลิก" && left > 0 ? `<button class="btn btn-w btn-s" onclick="payForm()"><i class="fa-solid fa-money-bill-transfer"></i> รับชำระ</button>` : ""}
-      ${isAdmin() && inv.status !== "ยกเลิก" && !inv.paid ? `<button class="btn btn-d btn-s" onclick="voidInv()">ยกเลิกบิล</button>` : ""}
+      ${isAdmin() && inv.status !== "ยกเลิก" && !inv.paid && inv.source !== "POS" ? `<button class="btn btn-d btn-s" onclick="voidInv()">ยกเลิกบิล</button>` : ""}
       <button class="btn btn-w btn-s" onclick="closeModal()">ปิด</button></div>
+    ${inv.source === "POS" ? `<div class="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm mb-3 flex flex-wrap items-center gap-2"><span class="mr-auto"><i class="fa-solid fa-cash-register text-violet-700"></i> บิลขายหน้าร้านจาก POS (${esc(inv.sourceRef)}) · ${esc(inv.note || "")}${inv.posPaid ? ` · POS บันทึกรับเงิน ${money(inv.posPaid)}` : ""} — แก้/ยกเลิกที่ POS แล้วกด "ดึงบิลจาก POS" อีกครั้ง</span>
+      ${inv.status !== "ยกเลิก" && inv.posPaid > 0 ? (inv.posUnpaid ? `<button class="btn btn-w btn-s" onclick="posUnpaid(false)">รับเงินที่หน้าร้านแล้ว</button>` : `<button class="btn btn-w btn-s" onclick="posUnpaid(true)" title="ใช้เมื่อพ่อค้าส่งเอาของไปก่อน ยังไม่จ่าย">ยังไม่ได้รับเงิน (ค้างชำระ)</button>`) : ""}</div>` : ""}
     <div class="overflow-auto border rounded-lg bg-gray-50 p-2"><div style="transform-origin:top left" class="mx-auto w-fit shadow">${invoiceHTML(inv)}</div></div>
     ${inv.payments && inv.payments.length ? `<div class="mt-3 text-sm"><b>การรับชำระ</b>${inv.payments.map(p => `<div>${esc(String(p.paidAt).slice(0, 16))} · ${money(p.amount)} · ${esc(p.method)} · ${esc(p.by)}${p.note ? " · " + esc(p.note) : ""}</div>`).join("")}</div>` : ""}`);
 }
@@ -3712,6 +3731,16 @@ function payForm() {
     <div class="flex justify-end gap-2 mt-4"><button class="btn btn-w" onclick="showInvoice(S.inv)">กลับ</button>
       <button class="btn btn-p" onclick="run(async()=>{S.inv=await api('addPayment',{invoiceNo:S.inv.invoiceNo,amount:n0(pAmt.value),method:pMethod.value,bankId:pBank.value,paidAt:pDate.value,note:pNote.value}); toast('บันทึกรับชำระแล้ว'); showInvoice(S.inv); if(S.page==='invoices') renderInvoices(document.getElementById('view'), true);})">บันทึก</button></div>`);
 }
+async function posUnpaid(on) {
+  if (on && !confirm("ตั้งบิลนี้เป็น \"ยังไม่ได้รับเงิน\"?\nยอดจะขึ้นเป็นค้างชำระของร้านนี้ — รับเงินทีหลังกด \"รับชำระ\" ตามปกติ")) return;
+  await run(async () => { S.inv = await api("posWsUnpaid", { invoiceNo: S.inv.invoiceNo, unpaid: on }); showInvoice(S.inv); toast(on ? "ตั้งเป็นค้างชำระแล้ว" : "บันทึกรับเงินหน้าร้านแล้ว");
+    if (S.page === "invoices") renderInvoices(document.getElementById("view"), true); });
+}
+async function posWsSync() {
+  await run(async () => { const r = await api("posWsSync", {}); S.boot.settings.POS_WS_LAST = r.last;
+    toast(`ดึงบิลพ่อค้าส่งจาก POS: ใหม่ ${r.added} · แก้ ${r.updated} · ยกเลิก ${r.voided}` + (r.warn.length ? ` · ⚠ ${r.warn.join(" / ")}` : ""), !!r.warn.length);
+    renderInvoices(document.getElementById("view"), true); });
+}
 async function voidInv() {
   const reason = prompt("เหตุผลที่ยกเลิกใบแจ้งหนี้"); if (reason === null) return;
   await run(async () => { await api("voidInvoice", { invoiceNo: S.inv.invoiceNo, reason }); S.inv = await api("getInvoice", { invoiceNo: S.inv.invoiceNo }); showInvoice(S.inv); toast("ยกเลิกแล้ว");
@@ -3724,7 +3753,11 @@ async function renderInvoices(v, reload) {
   const st = ss("pm_invst") || "ค้าง", q = (ss("pm_invq") || "").toLowerCase();
   const list = S.invList.filter(i => (st === "ทั้งหมด" || (st === "ค้าง" ? ["ค้างชำระ", "ชำระบางส่วน"].includes(i.status) : i.status === st)) && (!q || (i.customer + i.code + i.invoiceNo).toLowerCase().includes(q)));
   const owe = {}; S.invList.filter(i => ["ค้างชำระ", "ชำระบางส่วน"].includes(i.status)).forEach(i => { const o = owe[i.code] = owe[i.code] || { name: i.customer, amt: 0, n: 0 }; o.amt += i.total - i.paid; o.n++; });
+  const stt = S.boot.settings || {};
   v.innerHTML = `
+    <div class="card mb-3 flex flex-wrap items-center gap-2"><div class="mr-auto text-sm"><b><i class="fa-solid fa-cash-register text-violet-700"></i> บิลพ่อค้าส่งซื้อหน้าร้าน (POS)</b>
+        <div class="text-xs muted">ดึงบิลขายของลูกค้ารหัส CWS จาก POS (อ่านอย่างเดียว) ตั้งแต่ ${esc(fmtDate(stt.POS_WS_FROM || "2026-11-01"))} · ดึงล่าสุด ${esc(stt.POS_WS_LAST ? String(stt.POS_WS_LAST).slice(0, 16) : "ยังไม่เคย")} · จ่ายที่หน้าร้าน = ชำระแล้วอัตโนมัติ · เอาของไปก่อน → เปิดบิล กด "ยังไม่ได้รับเงิน"</div></div>
+      <button class="btn btn-p" onclick="posWsSync()"><i class="fa-solid fa-rotate"></i> ดึงบิลจาก POS</button></div>
     <div class="card mb-3"><h3 class="font-bold mb-2">ยอดค้างชำระตามร้าน</h3>
       ${Object.keys(owe).length ? `<div class="flex flex-wrap gap-2">${Object.entries(owe).sort((a, b) => b[1].amt - a[1].amt).map(([c, o]) => `<div class="border rounded-xl px-3 py-2 cursor-pointer" onclick="ss('pm_invq', ${jsq(c)}); renderInvoices(document.getElementById('view'), false)"><div class="text-sm font-semibold">${esc(o.name)}</div><div class="text-red-600 font-bold">${money(o.amt)}</div><div class="text-xs muted">${o.n} ใบ</div></div>`).join("")}</div>` : `<div class="muted text-sm">ไม่มียอดค้าง 🎉</div>`}</div>
     <div class="card">
@@ -3732,8 +3765,8 @@ async function renderInvoices(v, reload) {
         <select class="sel" onchange="ss('pm_invst', this.value); renderInvoices(document.getElementById('view'), false)">${["ค้าง", "ชำระแล้ว", "ยกเลิก", "ทั้งหมด"].map(s => `<option ${s === st ? "selected" : ""}>${s}</option>`).join("")}</select>
         <input class="inp w-56" placeholder="ค้นหาร้าน/เลขบิล" value="${esc(ss("pm_invq") || "")}" onchange="ss('pm_invq', this.value||null); renderInvoices(document.getElementById('view'), false)">
         <span class="text-sm muted ml-auto">${list.length} ใบ · ${money(list.reduce((s, i) => s + i.total, 0))}</span></div>
-      <div class="overflow-auto"><table class="g"><thead><tr><th>เลขที่</th><th>วันที่</th><th>ร้าน</th><th>บิลเข้า</th><th class="num">ยอด</th><th class="num">ชำระแล้ว</th><th>สถานะ</th></tr></thead><tbody>
-        ${list.map(i => `<tr class="cursor-pointer" onclick="viewInvoice(${jsq(i.invoiceNo)})"><td class="font-semibold text-teal-700">${esc(i.invoiceNo)}</td><td>${fmtDate(i.date)}</td><td>${esc(i.customer)}</td><td class="muted text-xs">${esc(i.billId)}</td><td class="num">${fmt2(i.total)}</td><td class="num">${fmt2(i.paid)}</td><td>${chip(i.status)}</td></tr>`).join("") || `<tr><td colspan="7" class="text-center muted py-6">ไม่มีรายการ</td></tr>`}
+      <div class="overflow-auto"><table class="g"><thead><tr><th>เลขที่</th><th>วันที่</th><th>ร้าน</th><th>ที่มา</th><th class="num">ยอด</th><th class="num">ชำระแล้ว</th><th>สถานะ</th></tr></thead><tbody>
+        ${list.map(i => `<tr class="cursor-pointer" onclick="viewInvoice(${jsq(i.invoiceNo)})"><td class="font-semibold text-teal-700">${esc(i.invoiceNo)}</td><td>${fmtDate(i.date)}</td><td>${esc(i.customer)}</td><td class="text-xs">${i.source === "POS" ? `<span class="chip bg-violet-100 text-violet-800">หน้าร้าน POS</span>${i.posUnpaid ? ` <span class="chip bg-amber-100 text-amber-800">เอาของไปก่อน</span>` : ""}` : `<span class="muted">${esc(i.billId)}</span>`}</td><td class="num">${fmt2(i.total)}</td><td class="num">${fmt2(i.paid)}</td><td>${chip(i.status)}</td></tr>`).join("") || `<tr><td colspan="7" class="text-center muted py-6">ไม่มีรายการ</td></tr>`}
       </tbody></table></div></div>`;
 }
 
@@ -3753,6 +3786,8 @@ function renderSettings(v) {
         ${[["ShopName", "ชื่อร้าน"], ["ShopAddress", "ที่อยู่"], ["ShopPhone", "โทร"], ["ShopTaxId", "เลขผู้เสียภาษี"], ["DefaultVat", "VAT % เริ่มต้น"], ["InvoiceFooter", "ข้อความท้ายบิล"]].map(([k, l]) =>
           `<label class="block text-sm mb-2">${l}<input class="inp w-full mt-1" data-k="${k}" value="${esc(st[k] || "")}" ${A ? "" : "disabled"}></label>`).join("")}
         <label class="block text-sm mb-2">แบบใบแจ้งหนี้<select class="sel w-full mt-1" data-k="InvoiceStyle" ${A ? "" : "disabled"}>${Object.entries(INVOICE_STYLES).map(([k, l]) => `<option value="${k}" ${(st.InvoiceStyle || "modern") === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+        <label class="block text-sm mb-2">ดึงบิลพ่อค้าส่ง (CWS) จาก POS ตั้งแต่วันที่<input type="date" class="inp w-full mt-1" data-k="POS_WS_FROM" value="${esc(st.POS_WS_FROM || "2026-11-01")}" ${A ? "" : "disabled"}></label>
+        <label class="block text-sm mb-2">อ่านใบจองลูกค้าร้านจาก POS (ช่อง "กันให้ร้าน" ในบิลสินค้าเข้า)<select class="sel w-full mt-1" data-k="PREORDER_READ" ${A ? "" : "disabled"}><option value="" ${st.PREORDER_READ !== "Y" ? "selected" : ""}>ปิด (ใส่เองถ้าต้องกัน)</option><option value="Y" ${st.PREORDER_READ === "Y" ? "selected" : ""}>เปิด</option></select></label>
         <div class="flex gap-2">${A ? `<button class="btn btn-p" onclick="saveShopSettings()">บันทึก</button>` : `<p class="text-xs muted">แก้ได้เฉพาะ Admin</p>`}
         <button class="btn btn-w" onclick="previewStyles()"><i class="fa-regular fa-eye"></i> ดูตัวอย่าง 3 แบบ</button></div></div>
       <div class="card"><h3 class="font-bold mb-2">บัญชีรับโอน</h3><div id="bankBox"></div>
