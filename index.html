@@ -235,7 +235,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.22-c</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.22-d</span>
       </div>
       <div class="flex-1"></div>
 
@@ -8399,7 +8399,7 @@ function preRowCardHtml_(pre, showBranch) {
     qty > 1
       ? "justify-self-center bg-orange-600 text-white text-base font-bold px-3.5 py-1 rounded-full"
       : "justify-self-center bg-gray-100 text-gray-500 text-base font-bold px-3.5 py-1 rounded-full";
-  const methodLabel = pre.depositMethod === "transfer" ? "โอน" : pre.depositMethod === "cash" ? "เงินสด" : String(pre.depositMethod || "");
+  const methodLabel = pre.noDeposit ? "ยังไม่มัดจำ" : pre.depositMethod === "transfer" ? "โอน" : pre.depositMethod === "cash" ? "เงินสด" : String(pre.depositMethod || "");
 
   return `
     <div class="border border-amber-200 rounded-xl overflow-hidden ring-1 ring-amber-100">
@@ -8417,13 +8417,13 @@ function preRowCardHtml_(pre, showBranch) {
           <span>${escapeHtml(pre.cashier || "")}</span>
           <span class="bg-white border border-amber-200 text-amber-700 text-[11px] font-semibold px-2.5 py-0.5 rounded-full">${methodLabel}</span>
         </div>
-        <span class="ml-auto font-bold text-amber-700">+${formatMoney(pre.depositAmount)}</span>
+        <span class="ml-auto font-bold ${pre.noDeposit ? "text-red-600" : "text-amber-700"}">${pre.noDeposit ? "ยังไม่มัดจำ" : "+" + formatMoney(pre.depositAmount)}</span>
       </div>
       <div class="px-4">
         <div class="grid grid-cols-[1fr_80px_110px_110px] items-center gap-2.5 py-2.5 text-[13.5px]">
           <div class="text-gray-700 leading-snug">${escapeHtml(pre.itemName || "")}</div>
           <div class="${qtyClass}">${qty}</div>
-          <div class="col-span-2 text-right text-amber-700 text-xs">มัดจำที่รับวันนี้</div>
+          <div class="col-span-2 text-right text-amber-700 text-xs">${pre.noDeposit ? "จองวันนี้ (ยังไม่รับมัดจำ)" : "มัดจำที่รับวันนี้"}</div>
         </div>
       </div>
     </div>`;
@@ -9527,8 +9527,10 @@ function renderReportPreList_() {
   section.classList.remove("hidden");
   const sum = preRows.reduce((s, p) => s + (Number(p.depositAmount) || 0), 0);
   const groups = groupPreRowsByPo_(preRows);
+  const noDepCount = preRows.filter((p) => p.noDeposit).length;
   document.getElementById("reportPreCountLabel").textContent =
-    `${groups.length.toLocaleString()} ใบจอง (${preRows.length.toLocaleString()} รายการ) · รวมมัดจำ ${formatMoney(sum)}`;
+    `${groups.length.toLocaleString()} ใบจอง (${preRows.length.toLocaleString()} รายการ) · รวมมัดจำ ${formatMoney(sum)}` +
+    (noDepCount ? ` · ยังไม่มัดจำ ${noDepCount.toLocaleString()} รายการ` : "");
 
   const totals = { cash: 0, transfer: 0, card: 0, copay: 0 };
   const body = groups.map((g, gi) => {
@@ -9564,7 +9566,7 @@ function renderReportPreList_() {
             <span class="flex-shrink-0 text-gray-800 font-semibold text-right" style="font-size:.85em;width:4em">${formatMoneySmart_(agreedTotal)}</span>
           </div>
           <div class="text-amber-800 leading-tight" style="font-size:.72em;padding-left:2.4em">
-            ราคาตกลง ${formatMoneySmart_(agreedTotal)} · <b>มัดจำวันนี้ ${formatMoneySmart_(it.depositAmount)}</b> · ค้าง ${formatMoneySmart_(remaining)}${withBillHtml}
+            ราคาตกลง ${formatMoneySmart_(agreedTotal)} · ${it.noDeposit ? '<b class="text-red-600">ยังไม่มัดจำ</b>' : `<b>มัดจำวันนี้ ${formatMoneySmart_(it.depositAmount)}</b>`} · ค้าง ${formatMoneySmart_(remaining)}${withBillHtml}
             ${it.status !== PO_STATUS_DONE_LABEL && it.status !== PO_STATUS_CANCELLED_LABEL
               ? `<button type="button" class="pre-edit-item-btn ml-1.5 text-amber-700 hover:text-amber-900 hover:underline font-semibold" data-line-id="${escapeHtml(it.lineId)}"><i class="fa-solid fa-pen-to-square"></i> แก้สินค้า</button>`
               : ""}
@@ -9590,8 +9592,9 @@ function renderReportPreList_() {
           ${itemCell}
           ${payCells}
           <td rowspan="${n}" class="px-1.5 py-1.5 text-right align-top" style="font-size:.85em">
-            <div class="text-amber-700 font-semibold" style="font-size:.8em">มัดจำ</div>
-            <div class="font-bold text-amber-800">${formatMoneySmart_(depTotal)}</div>
+            ${depTotal > 0
+              ? `<div class="text-amber-700 font-semibold" style="font-size:.8em">มัดจำ</div><div class="font-bold text-amber-800">${formatMoneySmart_(depTotal)}</div>`
+              : `<div class="text-red-600 font-bold leading-tight" style="font-size:.8em">ยังไม่<br>มัดจำ</div>`}
           </td>
         </tr>`;
     }).join("");
