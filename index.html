@@ -235,7 +235,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.22-b</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.22-c</span>
       </div>
       <div class="flex-1"></div>
 
@@ -9025,6 +9025,7 @@ function openPoBarcodeFillModal() {
       checked: c.kind === "exact" || (c.kind === "code")
     };
   });
+  poBarcodeFillRows.forEach((r) => { if (r.kind !== "code") poBcSyncRename_(r); });
   renderPoBarcodeFillList_();
   document.getElementById("poBarcodeFillError").classList.add("hidden");
   document.getElementById("poBarcodeFillModal").classList.remove("hidden");
@@ -9032,6 +9033,16 @@ function openPoBarcodeFillModal() {
 
 function closePoBarcodeFillModal() {
   document.getElementById("poBarcodeFillModal").classList.add("hidden");
+}
+
+// ชื่อในใบจองไม่ตรงกับชื่อใน Product_ID (พิมพ์ผิด / ย่อ / เป็นรหัส) → เสนอเปลี่ยน
+// ชื่อตามสินค้าของบาร์โค้ดที่เลือก (2026-10-22, per Wing). ชื่อที่ต่างแค่ตัวพิมพ์
+// เล็ก/ใหญ่ หรือช่องว่าง/เครื่องหมาย ถือว่าตรงแล้ว ไม่เสนอ
+function poBcSyncRename_(r) {
+  const p = r.barcode ? findByBarcodeExact(r.barcode) : null;
+  const differs = p && p.name && poBcNormTokens_(p.name).join("") !== poBcNormTokens_(r.name).join("");
+  const next = differs ? p.name : "";
+  if (next !== r.renameTo) { r.renameTo = next; r.rename = !!next; }
 }
 
 function poBcRowReady_(r) {
@@ -9082,10 +9093,10 @@ function renderPoBarcodeFillList_() {
     poBarcodeFillRows[Number(el.dataset.i)].checked = el.checked; renderPoBarcodeFillList_();
   }));
   box.querySelectorAll(".po-bcf-select").forEach((el) => el.addEventListener("change", () => {
-    const r = poBarcodeFillRows[Number(el.dataset.i)]; r.barcode = el.value; r.checked = poBcRowReady_(r); renderPoBarcodeFillList_();
+    const r = poBarcodeFillRows[Number(el.dataset.i)]; r.barcode = el.value; poBcSyncRename_(r); r.checked = poBcRowReady_(r); renderPoBarcodeFillList_();
   }));
   box.querySelectorAll(".po-bcf-input").forEach((el) => el.addEventListener("change", () => {
-    const r = poBarcodeFillRows[Number(el.dataset.i)]; r.barcode = el.value.trim(); r.checked = poBcRowReady_(r); renderPoBarcodeFillList_();
+    const r = poBarcodeFillRows[Number(el.dataset.i)]; r.barcode = el.value.trim(); poBcSyncRename_(r); r.checked = poBcRowReady_(r); renderPoBarcodeFillList_();
   }));
   box.querySelectorAll(".po-bcf-rename").forEach((el) => el.addEventListener("change", () => {
     const r = poBarcodeFillRows[Number(el.dataset.i)]; r.rename = el.checked; r.checked = poBcRowReady_(r); renderPoBarcodeFillList_();
