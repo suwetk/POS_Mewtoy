@@ -235,7 +235,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.20-e</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.22-a</span>
       </div>
       <div class="flex-1"></div>
 
@@ -2307,7 +2307,7 @@
     <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl p-5 flex flex-wrap gap-5 items-start max-h-[92vh] overflow-y-auto">
       <div id="preCustImgCard"></div>
       <div class="flex flex-col gap-2 min-w-[200px] flex-1">
-        <h3 class="font-semibold text-gray-800 text-lg flex items-center gap-2"><i class="fa-solid fa-camera text-sky-500"></i> รูปใบจองให้ลูกค้า</h3>
+        <h3 class="font-semibold text-gray-800 text-lg flex items-center gap-2"><i class="fa-solid fa-camera text-sky-500"></i> <span id="preCustImgTitle">รูปใบจองให้ลูกค้า</span></h3>
         <button id="preCustImgCopyBtn" type="button" class="bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg px-4 py-2.5 font-bold text-left"><i class="fa-solid fa-copy mr-1"></i> คัดลอกรูป</button>
         <button id="preCustImgSaveBtn" type="button" class="bg-sky-100 hover:bg-sky-200 text-sky-800 rounded-lg px-4 py-2.5 font-bold text-left"><i class="fa-solid fa-download mr-1"></i> บันทึกรูป (PNG)</button>
         <button id="preCustImgCloseBtn" type="button" class="bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg px-4 py-2.5 font-semibold text-left">ปิด</button>
@@ -8627,14 +8627,20 @@ function openPreCustImgFromPreOrders_(poId) {
 }
 
 function openPreCustImgCard_(card) {
-  const poId = card.poId;
+  showPreCustImgCanvas_(drawPreCustImgCanvas_(card), card.poId, "รูปใบจองให้ลูกค้า", "รูปใบจอง " + card.poId);
+}
+
+// แสดง canvas ที่วาดแล้วในหน้าต่างเดียวกัน (ใช้ทั้งรูปใบจอง และการ์ดสรุปลูกค้า)
+function showPreCustImgCanvas_(canvas, fileBase, title, alt) {
+  const poId = fileBase;
   preCustImgPoId = poId;
-  preCustImgCanvas = drawPreCustImgCanvas_(card);
+  preCustImgCanvas = canvas;
+  document.getElementById("preCustImgTitle").textContent = title;
   const box = document.getElementById("preCustImgCard");
   box.innerHTML = "";
   const img = document.createElement("img");
   img.src = preCustImgCanvas.toDataURL("image/png");
-  img.alt = "รูปใบจอง " + poId;
+  img.alt = alt || poId;
   img.style.width = "340px";
   img.style.display = "block";
   box.appendChild(img);
@@ -8670,6 +8676,230 @@ function savePreCustImg() {
   link.href = preCustImgCanvas.toDataURL("image/png");
   link.click();
   status.textContent = "บันทึกรูปแล้ว";
+}
+
+/* -----------------------------------------------------------------
+   การ์ดสรุปลูกค้า (2026-10-22, per Wing — mockup แบบ 3 กะทัดรัด)
+   ปุ่ม 📇 ในแท็บ Pre-Order มุมมอง "ตามลูกค้า" → ดึงทุกใบจองของลูกค้าคนนี้
+   จากทุกสาขา (action getCustomerPreOrderSummary) → วาดการ์ด: จัดกลุ่มตาม
+   วันที่จอง, 1 ชิ้นต่อแถว (🟡 รอของ / 🔵 ของมาแล้ว = แจ้งยอดแล้ว รอโอน),
+   ไม่มีของที่รับไปแล้ว, รายการยกเลิก (ภายใน 14 วัน) ขีดฆ่า + บอกวันที่และ
+   คืน/ริบมัดจำ, ไม่มีป้ายสาขาที่หัว (รวมทุกสาขา — บอกสาขาที่หัวกลุ่มแทน)
+   ----------------------------------------------------------------- */
+function drawCustomerCardCanvas_(data) {
+  const W = 340, PAD = 16, SCALE = 2;
+  const FONT = "'Segoe UI', Tahoma, 'Noto Sans Thai', 'Leelawadee UI', sans-serif";
+  const C = { ink: "#1f2937", mute: "#6b7280", amber: "#92400e", hd: "#fbbf24", hdInk: "#451a03", line: "#f3f4f6", grpBg: "#fafaf9",
+              soft: "#fffbeb", dash: "#fcd34d", qty: "#ea580c", wait: "#f59e0b", ready: "#3b82f6", cancel: "#9ca3af", red: "#b91c1c",
+              chipWaitBg: "#fef3c7", chipWait: "#92400e", chipReadyBg: "#dbeafe", chipReady: "#1e40af", chipRedBg: "#fee2e2", chipGrayBg: "#f3f4f6" };
+  const WAIT = PO_STATUS_WAITING_LABEL, READY = PO_STATUS_INVOICED_LABEL, CANCEL = PO_STATUS_CANCELLED_LABEL;
+  const lines = data.lines || [];
+  const active = lines.filter((l) => l.status !== CANCEL);
+  const cnt = {
+    wait: active.filter((l) => l.status === WAIT).length,
+    ready: active.filter((l) => l.status === READY).length,
+    noDep: active.filter((l) => !(Number(l.depositTotal) > 0)).length,
+    cancel: lines.length - active.length
+  };
+  const pieces = active.reduce((s, l) => s + (Number(l.qty) || 1), 0);
+  const total = active.reduce((s, l) => s + (Number(l.depositTotal) || 0), 0);
+
+  // จัดกลุ่มตามใบจอง (เรียงตามวันที่จองแล้วจาก backend)
+  const groups = [];
+  const gmap = {};
+  lines.forEach((l) => {
+    if (!gmap[l.poId]) { gmap[l.poId] = { poId: l.poId, branch: l.branch, openedAt: l.openedAt, lines: [] }; groups.push(gmap[l.poId]); }
+    gmap[l.poId].lines.push(l);
+  });
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const font = (size, weight) => (weight || "400") + " " + size + "px " + FONT;
+
+  function layout(draw) {
+    let y = 0;
+    const text = (str, x, yy, size, weight, color, align) => {
+      if (!draw) return;
+      ctx.font = font(size, weight); ctx.fillStyle = color; ctx.textAlign = align || "left"; ctx.textBaseline = "middle";
+      ctx.fillText(str, x, yy);
+    };
+    const rect = (x, yy, w, h, color) => { if (draw) { ctx.fillStyle = color; ctx.fillRect(x, yy, w, h); } };
+    const pill = (x, yy, w, h, color) => {
+      if (!draw) return;
+      ctx.fillStyle = color; ctx.beginPath();
+      const r = h / 2; ctx.moveTo(x + r, yy); ctx.arcTo(x + w, yy, x + w, yy + h, r); ctx.arcTo(x + w, yy + h, x, yy + h, r);
+      ctx.arcTo(x, yy + h, x, yy, r); ctx.arcTo(x, yy, x + w, yy, r); ctx.closePath(); ctx.fill();
+    };
+    const dot = (x, yy, color) => { if (draw) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, yy, 5, 0, Math.PI * 2); ctx.fill(); } };
+
+    // หัว (ไม่มีป้ายสาขา — รวมทุกสาขา)
+    rect(0, 0, W, 46, C.hd);
+    text("Mewtoy Pre-Order · สรุปการจอง", PAD, 23, 15, "800", C.hdInk);
+    y = 46;
+
+    // ลูกค้า + ป้ายสรุป
+    y += 10;
+    text("ข้อมูล ณ " + preCustImgDate_(data.generatedAt || new Date().toISOString(), true), PAD, y + 8, 12, "400", C.mute);
+    y += 18;
+    ctx.font = font(16, "700");
+    preCustImgWrap_(ctx, data.customerName || "ลูกค้า", W - PAD * 2).forEach((ln) => { text(ln, PAD, y + 11, 16, "700", C.ink); y += 22; });
+    y += 6;
+    const chips = [];
+    if (cnt.wait) chips.push(["รอของ " + cnt.wait, C.chipWaitBg, C.chipWait]);
+    if (cnt.ready) chips.push(["ของมาแล้ว " + cnt.ready, C.chipReadyBg, C.chipReady]);
+    if (cnt.noDep) chips.push(["ยังไม่มัดจำ " + cnt.noDep, C.chipRedBg, C.red]);
+    if (cnt.cancel) chips.push(["ยกเลิก " + cnt.cancel, C.chipGrayBg, C.mute]);
+    let cx = PAD;
+    ctx.font = font(11.5, "700");
+    chips.forEach(([label, bg, fg]) => {
+      const w = ctx.measureText(label).width + 18;
+      if (cx + w > W - PAD) { cx = PAD; y += 26; }
+      pill(cx, y, w, 20, bg);
+      text(label, cx + w / 2, y + 10, 11.5, "700", fg, "center");
+      ctx.font = font(11.5, "700");
+      cx += w + 6;
+    });
+    if (chips.length) y += 20;
+    y += 10;
+    rect(0, y, W, 1, C.line); y += 1;
+
+    // กลุ่มตามวันที่จอง
+    if (groups.length === 0) {
+      y += 14; text("ไม่มีรายการจองที่ค้างอยู่", PAD, y + 8, 13, "400", C.mute); y += 30;
+    }
+    groups.forEach((g) => {
+      const act = g.lines.filter((l) => l.status !== CANCEL);
+      const gDep = act.reduce((s, l) => s + (Number(l.depositTotal) || 0), 0);
+      rect(0, y, W, 30, C.grpBg);
+      ctx.font = font(12, "400");
+      const leftLabel = "จองวันที่ ";
+      text(leftLabel, PAD, y + 15, 12, "400", C.mute);
+      let gx = PAD + ctx.measureText(leftLabel).width;
+      const dStr = preCustImgDate_(g.openedAt, false);
+      text(dStr, gx, y + 15, 12.5, "700", C.ink);
+      ctx.font = font(12.5, "700"); gx += ctx.measureText(dStr).width;
+      if (g.branch) text(" · " + g.branch, gx, y + 15, 12, "400", C.mute);
+      if (act.length === 0) text("ยกเลิก", W - PAD, y + 15, 12, "700", C.mute, "right");
+      else if (gDep > 0) text("มัดจำ " + preCustImgMoney_(gDep), W - PAD, y + 15, 12, "400", C.mute, "right");
+      else text("ยังไม่มัดจำ", W - PAD, y + 15, 12, "700", C.red, "right");
+      y += 30;
+      rect(0, y, W, 1, C.line); y += 1;
+
+      g.lines.forEach((l) => {
+        const isCancel = l.status === CANCEL;
+        const qty = Number(l.qty) || 1;
+        const dep = Number(l.depositTotal) || 0;
+        const amountW = 52;
+        ctx.font = font(12, "700");
+        const qtyW = qty > 1 ? Math.max(20, ctx.measureText(String(qty)).width + 14) + 6 : 0;
+        const nameX = PAD + 16;
+        const nameMax = W - PAD - amountW - qtyW - nameX;
+        ctx.font = font(13, isCancel ? "400" : "500");
+        let nameLines = preCustImgWrap_(ctx, l.itemName || "-", nameMax);
+        if (nameLines.length > 2) {
+          let second = nameLines.slice(1).join(" ");
+          while (second && ctx.measureText(second + "…").width > nameMax) second = second.slice(0, -1);
+          nameLines = [nameLines[0], second.trimEnd() + "…"];
+        }
+        y += 7;
+        const firstMid = y + 9;
+        dot(PAD + 5, firstMid, isCancel ? C.cancel : (l.status === READY ? C.ready : C.wait));
+        nameLines.forEach((ln, i) => {
+          const ly = y + 9 + i * 18;
+          text(ln, nameX, ly, 13, isCancel ? "400" : "500", isCancel ? C.cancel : C.ink);
+          if (isCancel && draw) {
+            ctx.font = font(13, "400");
+            const lw = ctx.measureText(ln).width;
+            ctx.fillStyle = C.cancel; ctx.fillRect(nameX, ly, lw, 1.2);
+          }
+        });
+        if (qty > 1) {
+          ctx.font = font(12, "700");
+          const qw = qtyW - 6;
+          const qx = W - PAD - amountW - qtyW + 6;
+          pill(qx, firstMid - 9, qw, 18, isCancel ? C.cancel : C.qty);
+          text(String(qty), qx + qw / 2, firstMid, 12, "700", "#ffffff", "center");
+        }
+        if (!isCancel) {
+          text(preCustImgMoney_(dep), W - PAD, firstMid, 13, "700", dep > 0 ? C.ink : C.red, "right");
+        }
+        y += nameLines.length * 18;
+        if (isCancel) {
+          const parts = ["ยกเลิก " + preCustImgDate_(l.cancelledAt, false)];
+          if (dep > 0) parts.push((l.refundOrForfeit || "คืนมัดจำ") + " " + preCustImgMoney_(dep));
+          else parts.push("ยังไม่ได้มัดจำ");
+          if (l.cancelReason) parts.push(l.cancelReason);
+          ctx.font = font(11.5, "400");
+          preCustImgWrap_(ctx, parts.join(" · "), W - PAD - nameX).forEach((ln) => { text(ln, nameX, y + 8, 11.5, "400", C.red); y += 16; });
+        }
+        y += 7;
+        rect(PAD, y, W - PAD * 2, 1, C.line); y += 1;
+      });
+    });
+
+    // ท้ายการ์ด: คำอธิบายสี + มัดจำรวม
+    const footTop = y;
+    const footH = 66;
+    rect(0, footTop, W, footH, C.soft);
+    if (draw) { ctx.strokeStyle = C.dash; ctx.setLineDash([4, 3]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, footTop + 0.5); ctx.lineTo(W, footTop + 0.5); ctx.stroke(); ctx.setLineDash([]); }
+    let lx = PAD;
+    const legend = [[C.wait, "รอของ"], [C.ready, "ของมาแล้ว"]];
+    if (cnt.cancel) legend.push([C.cancel, "ยกเลิก"]);
+    legend.forEach(([color, label]) => {
+      dot(lx + 5, footTop + 16, color);
+      text(label, lx + 14, footTop + 16, 11.5, "400", C.amber);
+      ctx.font = font(11.5, "400");
+      lx += 14 + ctx.measureText(label).width + 14;
+    });
+    text("มัดจำรวม (" + pieces + " ชิ้น)", PAD, footTop + 44, 13.5, "800", C.amber);
+    text(preCustImgMoney_(total), W - PAD, footTop + 44, 21, "800", C.amber, "right");
+    y += footH;
+    return y;
+  }
+
+  const H = Math.ceil(layout(false));
+  canvas.width = W * SCALE; canvas.height = H * SCALE;
+  ctx.scale(SCALE, SCALE);
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.beginPath(); const R = 14;
+  ctx.moveTo(R, 0); ctx.arcTo(W, 0, W, H, R); ctx.arcTo(W, H, 0, H, R); ctx.arcTo(0, H, 0, 0, R); ctx.arcTo(0, 0, W, 0, R); ctx.closePath();
+  ctx.clip();
+  layout(true);
+  ctx.restore();
+  return canvas;
+}
+
+async function openCustomerCardForGroup_(lines, btn) {
+  const first = lines[0] || {};
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl === "YOUR_URL_HERE") { showToast("กรุณาวางลิงก์ Apps Script Web App ที่แท็บ Settings ก่อน", "error"); return; }
+  const original = btn ? btn.innerHTML : "";
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังสร้าง...'; }
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        action: "getCustomerPreOrderSummary",
+        pin: currentStaff ? currentStaff.pin : "",
+        branch: getBranchCode(),
+        customerCode: first.customerCode || "",
+        customerName: first.customerName || "",
+        customerPhone: first.customerPhone || ""
+      })
+    });
+    const result = await response.json();
+    if (!result || result.status !== "success") throw new Error((result && result.message) || "ดึงข้อมูลการจองของลูกค้าไม่สำเร็จ");
+    if (!result.customerName) result.customerName = first.customerName || "ลูกค้า";
+    const safeName = String(result.customerName).replace(/[^a-zA-Z0-9ก-๙]+/g, "-").replace(/^-|-$/g, "") || "customer";
+    showPreCustImgCanvas_(drawCustomerCardCanvas_(result), "สรุปการจอง-" + safeName, "การ์ดสรุปลูกค้า", "การ์ดสรุปการจอง " + result.customerName);
+  } catch (err) {
+    console.error(err);
+    showToast(err.message, "error");
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = original; }
+  }
 }
 
 function setupPreCustImgModal() {
@@ -11467,6 +11697,7 @@ function renderPreOrderCustomerView() {
             <div class="ml-auto text-right text-xs text-emerald-700">
               ค้างจอง ${outstanding.length} ชิ้น<br>ยอดคงค้างรวม ${formatMoney(outstandingTotal)} บาท
               <br>${notifyBtn} ${bulkFulfillBtn}
+              <button type="button" class="po-customer-card-btn text-xs bg-sky-500 hover:bg-sky-600 text-white font-semibold px-2.5 py-1 rounded-lg mt-1" data-group-idx="${groupIdx}">📇 การ์ดสรุปลูกค้า</button>
             </div>
           </div>
           <div class="overflow-x-auto">
@@ -11486,6 +11717,9 @@ function renderPreOrderCustomerView() {
       const lines = poCustomerViewGroups[Number(btn.getAttribute("data-group-idx"))];
       openPoBulkFulfillModal(lines);
     });
+  });
+  container.querySelectorAll(".po-customer-card-btn").forEach((btn) => {
+    btn.addEventListener("click", () => openCustomerCardForGroup_(poCustomerViewGroups[Number(btn.getAttribute("data-group-idx"))], btn));
   });
   container.querySelectorAll(".po-customer-notify-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
