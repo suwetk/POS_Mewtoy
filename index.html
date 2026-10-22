@@ -235,7 +235,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.22-d</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.22-e</span>
       </div>
       <div class="flex-1"></div>
 
@@ -652,6 +652,13 @@
           <button id="oneBillOpenPickupBtn" type="button"
                   class="w-full border-2 border-pink-300 text-pink-700 hover:bg-pink-50 rounded-lg py-2 text-xs font-semibold transition">
             📥 ดึงรายการจองของลูกค้านี้ใส่ตะกร้า (Rec)
+          </button>
+          <!-- 📦 ลูกค้ามารับของ (2026-10-22, mockup_pickup_flag.html): ดูทุกใบจอง
+               ทุกสาขาของรหัสนี้ — ชำระแล้วรอรับอยู่บนสุด ติ๊กแล้วยืนยันรับของ;
+               ของมาแล้วแต่ยังไม่ชำระ ติ๊กได้ → ใส่ตะกร้าเป็น Rec ไปชำระ -->
+          <button id="pickupDeskOpenBtn" type="button"
+                  class="w-full mt-1.5 border-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 rounded-lg py-2 text-xs font-semibold transition">
+            📦 ลูกค้ามารับของ (ดูของที่ชำระแล้ว รอรับ)
           </button>
         </div>
 
@@ -1105,6 +1112,7 @@
       <button data-po-view="arrival" class="po-view-btn text-sm font-semibold px-4 py-2 rounded-lg transition">🚚 ของเข้ารอบนี้</button>
       <button data-po-view="import" class="po-view-btn text-sm font-semibold px-4 py-2 rounded-lg transition">📥 นำเข้าไฟล์เก่า</button>
       <button data-po-view="draftitems" class="po-view-btn text-sm font-semibold px-4 py-2 rounded-lg transition">🏷️ สินค้ายังไม่มีบาร์โค้ด</button>
+      <button data-po-view="pickup" class="po-view-btn text-sm font-semibold px-4 py-2 rounded-lg transition">⏳ ค้างรับ <span id="poPickupNavCount" class="hidden ml-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full"></span></button>
       <div class="ml-auto flex items-center gap-2">
         <!-- Populated by populatePreOrderBranchSelect() — mirrors
              populateReportBranchSelect() exactly: own branch (always first,
@@ -1256,6 +1264,7 @@
           <button data-po-status="รอสินค้า" class="po-status-filter-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">⏳ รอสินค้า</button>
           <button data-po-status="แจ้งยอดแล้ว รอโอน" class="po-status-filter-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">💬 แจ้งยอด/รอโอน</button>
           <button data-po-status="เสร็จสิ้น" class="po-status-filter-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">🏁 เสร็จสิ้น</button>
+          <button data-po-status="__awaitPickup" class="po-status-filter-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">📦 ชำระแล้ว รอรับ</button>
           <button data-po-status="ยกเลิก" class="po-status-filter-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">❌ ยกเลิก</button>
         </div>
         <div id="poListEmptyState" class="text-center text-gray-400 py-10">
@@ -1472,6 +1481,51 @@
          (any "preorder"-permission staff), per Wing, 2026-09 — not
          Master-only. Ported from the approved mockup
          (draft_items_mockup/mockup.html). ============ -->
+    <!-- ============ ⏳ ค้างรับ (2026-10-22, per Wing — mockup_pickup_overdue.html) ============
+         รายการที่ชำระครบแล้ว (เสร็จสิ้น) แต่ยังไม่ได้รับของ — ทุกสาขา, ดูย้อนหลังได้
+         (action getPreOrderPickupOverview), สลับ "รายการ / สรุปตามลูกค้า" -->
+    <div id="poView-pickup" class="po-view hidden flex flex-col gap-4">
+      <div class="bg-white rounded-xl shadow overflow-hidden">
+        <div class="flex flex-wrap items-end gap-3 p-4 border-b border-gray-100">
+          <div>
+            <label class="block text-[11px] font-bold text-gray-500 mb-1">ดู ณ วันที่ (ย้อนหลังได้)</label>
+            <input id="poPickupAsOf" type="date" class="border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-gray-500 mb-1">สาขาที่จอง</label>
+            <select id="poPickupBranch" class="border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-white"><option value="">ทุกสาขา</option></select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-gray-500 mb-1">ค้างรับ</label>
+            <select id="poPickupMinDays" class="border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-white">
+              <option value="0">ทั้งหมด</option><option value="7" selected>7 วันขึ้นไป</option><option value="14">14 วันขึ้นไป</option><option value="30">30 วันขึ้นไป</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-gray-500 mb-1">วิธีรับ</label>
+            <select id="poPickupMethod" class="border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-white">
+              <option value="">ทั้งหมด</option><option value="pickup">มารับเอง</option><option value="delivery">จัดส่ง</option>
+            </select>
+          </div>
+          <div class="flex-1 min-w-[160px]">
+            <label class="block text-[11px] font-bold text-gray-500 mb-1">ค้นหา</label>
+            <input id="poPickupSearch" type="text" placeholder="ชื่อ / รหัส / เบอร์ / สินค้า" class="w-full border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-gray-500 mb-1">มุมมอง</label>
+            <div class="inline-flex border-2 border-gray-200 rounded-lg overflow-hidden">
+              <button type="button" data-pk-mode="line" class="po-pk-mode-btn text-sm px-3 py-1.5">รายการ</button>
+              <button type="button" data-pk-mode="customer" class="po-pk-mode-btn text-sm px-3 py-1.5">สรุปตามลูกค้า</button>
+            </div>
+          </div>
+        </div>
+        <div id="poPickupTiles" class="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 border-b border-gray-100"></div>
+        <p id="poPickupHistoryNote" class="hidden text-xs text-sky-700 bg-sky-50 px-4 py-2 border-b border-sky-100"></p>
+        <div id="poPickupResults" class="overflow-x-auto"></div>
+        <p class="text-[11px] text-gray-400 px-4 py-2 bg-gray-50">เรียงค้างนานสุดก่อน · มูลค่า = ราคาตกลง + ค่าส่ง ที่ลูกค้าชำระแล้ว · กด ☑ เมื่อลูกค้ามารับ (เอาติ๊กออกได้ที่แท็บ ตามใบจอง) · ถ้าลูกค้าอยู่หน้าร้าน ใช้ปุ่ม "📦 ลูกค้ามารับของ" ที่หน้าขายได้เลย</p>
+      </div>
+    </div>
+
     <div id="poView-draftitems" class="po-view hidden flex flex-col gap-4">
       <div class="bg-white rounded-xl shadow p-5">
         <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
@@ -2061,6 +2115,12 @@
         </div>
       </div>
 
+      <!-- ติ๊กรับของ (2026-10-22): ปิดบิลจากหน้า Pre-Order = ปกติลูกค้าโอนมา ยังไม่มารับ
+           → ค่าเริ่มต้นไม่ติ๊ก; ติ๊กเฉพาะตอนลูกค้ามาจ่ายและรับของพร้อมกันที่หน้าร้าน -->
+      <label class="flex items-center gap-2 text-sm bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 cursor-pointer">
+        <input id="poFulfillPickedUpChk" type="checkbox" class="w-4 h-4 accent-emerald-600">
+        <span>📦 ลูกค้ารับของไปแล้ว <span class="text-gray-500 text-xs">(ไม่ติ๊ก = ชำระแล้ว รอมารับ)</span></span>
+      </label>
       <p id="poFulfillModalError" class="text-sm text-red-500 hidden"></p>
 
       <div class="flex gap-2 justify-end mt-1">
@@ -2129,6 +2189,12 @@
         </div>
       </div>
 
+      <!-- ติ๊กรับของ (2026-10-22): ปิดบิลจากหน้า Pre-Order = ปกติลูกค้าโอนมา ยังไม่มารับ
+           → ค่าเริ่มต้นไม่ติ๊ก; ติ๊กเฉพาะตอนลูกค้ามาจ่ายและรับของพร้อมกันที่หน้าร้าน -->
+      <label class="flex items-center gap-2 text-sm bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 cursor-pointer">
+        <input id="poBulkFulfillPickedUpChk" type="checkbox" class="w-4 h-4 accent-emerald-600">
+        <span>📦 ลูกค้ารับของไปแล้ว <span class="text-gray-500 text-xs">(ไม่ติ๊ก = ชำระแล้ว รอมารับ)</span></span>
+      </label>
       <p id="poBulkFulfillModalError" class="text-sm text-red-500 hidden"></p>
 
       <div class="flex gap-2 justify-end mt-1">
@@ -2205,6 +2271,28 @@
        "รอสินค้า" and "แจ้งยอดแล้ว รอโอน" lines (poBulkFulfillModal only
        shows the latter) since the backend (handleSaveOneBillTransaction_)
        accepts either. -->
+  <!-- 📦 ลูกค้ามารับของ (2026-10-22) — ดู openPickupDeskModal_() -->
+  <div id="pickupDeskModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden">
+      <div class="bg-slate-800 text-slate-100 px-4 py-2.5 font-bold text-sm flex items-center justify-between">
+        <span>📦 ลูกค้ามารับของ</span><span id="pickupDeskBranch" class="bg-amber-400 text-amber-950 rounded-full px-2.5 text-xs"></span>
+      </div>
+      <div class="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2">
+        <div><div id="pickupDeskName" class="font-bold text-gray-800"></div><div id="pickupDeskSub" class="text-xs text-gray-500"></div></div>
+        <span id="pickupDeskPaidPill" class="hidden bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-full px-2 py-0.5"></span>
+      </div>
+      <div id="pickupDeskList" class="overflow-y-auto flex-1"></div>
+      <p id="pickupDeskError" class="text-sm text-red-500 hidden px-4 pt-2"></p>
+      <div class="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2 flex-wrap">
+        <span id="pickupDeskSum" class="text-sm text-slate-600"></span>
+        <div class="flex gap-2">
+          <button id="pickupDeskCancelBtn" type="button" class="px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium text-sm">ปิด</button>
+          <button id="pickupDeskConfirmBtn" type="button" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm disabled:bg-gray-300 disabled:text-gray-500">ยืนยันรับของ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="oneBillPickupModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 flex flex-col gap-3 max-h-[90vh] overflow-y-auto">
       <h3 class="font-semibold text-gray-800 text-lg flex items-center gap-2">
@@ -3371,6 +3459,21 @@
             <span id="reportPreCountLabel" class="text-xs text-gray-400"></span>
           </div>
           <div id="reportPreList" class="flex flex-col gap-3"></div>
+        </div>
+      </div>
+
+      <!-- 📦 รับของ Pre-Order (2026-10-22): รับของที่สาขานี้วันนี้ + ใบจองสาขานี้ที่ชำระแล้วค้างรับ ≥ 7 วัน -->
+      <div id="reportPickupCard" class="hidden bg-white rounded-xl shadow p-4">
+        <div class="flex items-baseline justify-between mb-2 gap-2 flex-wrap">
+          <h3 class="font-semibold text-gray-700">📦 รับของจองวันนี้ <span id="reportPickupCount" class="text-xs text-gray-400 font-normal"></span></h3>
+        </div>
+        <div id="reportPickupList" class="text-sm"></div>
+        <div id="reportPickupOverdueWrap" class="hidden mt-4">
+          <div class="flex items-baseline justify-between mb-2 gap-2 flex-wrap">
+            <h4 class="font-semibold text-red-700 text-sm">⏳ ชำระแล้วแต่ค้างรับ <span id="reportPickupOverdueDays">7</span> วันขึ้นไป <span id="reportPickupOverdueCount" class="text-xs text-gray-400 font-normal"></span></h4>
+            <button id="reportPickupOpenBtn" type="button" class="text-xs bg-red-50 hover:bg-red-100 text-red-700 font-semibold px-3 py-1.5 rounded-lg">เปิดหน้า ⏳ ค้างรับ →</button>
+          </div>
+          <div id="reportPickupOverdueList" class="text-sm"></div>
         </div>
       </div>
 
@@ -4818,7 +4921,7 @@ function setupScanInput() {
   // (that click happened to blur this input): every keystroke was landing
   // here instead of reaching the overlay's own input.
   function isAnyOverlayVisible() {
-    return ["loginOverlay", "voidModal", "editApprovalModal", "poReceiveModal", "poFulfillModal", "poBulkFulfillModal", "poBulkDepositModal", "oneBillPickupModal", "poAddDepositModal", "poCancelModal", "wsPaymentModal", "wsVoidModal"].some((id) => {
+    return ["loginOverlay", "voidModal", "editApprovalModal", "poReceiveModal", "poFulfillModal", "poBulkFulfillModal", "poBulkDepositModal", "oneBillPickupModal", "pickupDeskModal", "poAddDepositModal", "poCancelModal", "wsPaymentModal", "wsVoidModal"].some((id) => {
       const el = document.getElementById(id);
       return !!el && !el.classList.contains("hidden");
     });
@@ -6039,8 +6142,230 @@ function setupOneBillPickupModal() {
   });
 }
 
+/* =================================================================
+   📦 ลูกค้ามารับของ (2026-10-22, per Wing — mockup_pickup_flag.html)
+   เรียกรหัสลูกค้า → ดึงทุกใบจองทุกสาขา (getCustomerPreOrderSummary — ตอนนี้
+   ส่งรายการ "เสร็จสิ้นแต่ยังไม่รับ" มาด้วย) → 3 กลุ่ม:
+     🟢 ชำระแล้ว รอรับ    — ติ๊กให้ก่อนเฉพาะใบจองสาขานี้ → setPreOrderPickup
+     🟡 ของมาแล้ว ยังไม่ชำระ — ติ๊กได้ (เฉพาะใบจองสาขานี้) → ใส่ตะกร้าเป็น Rec
+                              ไปชำระตามปกติ (บันทึกบิลแล้วติ๊กรับให้อัตโนมัติ)
+     ⚪ ยังไม่มีของ       — แสดงอย่างเดียว
+   ================================================================= */
+let pickupDeskState = null; // { lines, checked:Set, barcodes:Map }
+
+async function openPickupDeskModal_() {
+  const code = document.getElementById("customerCodeInput").value.trim();
+  const phone = (document.getElementById("customerPhoneInput").value || "").trim();
+  if (!code && !phone) { showToast("กรุณาพิมพ์/สแกนรหัสลูกค้า (หรือเบอร์โทร) ก่อน", "error"); return; }
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl === "YOUR_URL_HERE") { showToast("กรุณาวางลิงก์ Apps Script Web App ที่แท็บ Settings ก่อน", "error"); return; }
+  if (!currentStaff) return;
+  const btn = document.getElementById("pickupDeskOpenBtn");
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "getCustomerPreOrderSummary", pin: currentStaff.pin, branch: getBranchCode(),
+        customerCode: code, customerPhone: code ? "" : phone })
+    });
+    const result = await response.json();
+    if (!result || result.status !== "success") throw new Error((result && result.message) || "ดึงข้อมูลไม่สำเร็จ");
+    const inCart = new Set(cart.filter((i) => i.type === "rec").map((i) => i.lineId));
+    const lines = (result.lines || []).filter((l) => l.status !== PO_STATUS_CANCELLED_LABEL && !inCart.has(l.lineId));
+    if (lines.length === 0) { showToast("ลูกค้านี้ไม่มีรายการจองที่ค้างรับ", "error"); return; }
+    const rank = (l) => (l.status === PO_STATUS_DONE_LABEL ? 0 : l.status === PO_STATUS_INVOICED_LABEL ? 1 : 2);
+    lines.sort((a, b) => rank(a) - rank(b));
+    const here = getBranchCode();
+    pickupDeskState = {
+      lines: lines,
+      checked: new Set(lines.filter((l) => l.status === PO_STATUS_DONE_LABEL && l.branch === here).map((l) => l.lineId)),
+      barcodes: new Map(lines.filter((l) => l.itemBarcode).map((l) => [l.lineId, l.itemBarcode]))
+    };
+    const poCount = new Set(lines.map((l) => l.poId)).size;
+    const paidN = lines.filter((l) => l.status === PO_STATUS_DONE_LABEL).length;
+    document.getElementById("pickupDeskBranch").textContent = here;
+    document.getElementById("pickupDeskName").textContent = result.customerName || lines[0].customerName || "ลูกค้า";
+    document.getElementById("pickupDeskSub").textContent = [lines[0].customerCode || code, lines[0].customerPhone, "จอง " + poCount + " ใบ (ทุกสาขา)"].filter(Boolean).join(" · ");
+    const pill = document.getElementById("pickupDeskPaidPill");
+    pill.textContent = "ชำระแล้ว " + paidN + " รายการ";
+    pill.classList.toggle("hidden", paidN === 0);
+    hidePickupDeskError_();
+    renderPickupDeskList_();
+    document.getElementById("pickupDeskModal").classList.remove("hidden");
+  } catch (err) {
+    console.error(err);
+    showToast("ดึงรายการไม่สำเร็จ: " + err.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = original;
+  }
+}
+
+function closePickupDeskModal_() {
+  pickupDeskState = null;
+  document.getElementById("pickupDeskModal").classList.add("hidden");
+}
+function showPickupDeskError_(msg) { const el = document.getElementById("pickupDeskError"); el.textContent = msg; el.classList.remove("hidden"); }
+function hidePickupDeskError_() { const el = document.getElementById("pickupDeskError"); el.textContent = ""; el.classList.add("hidden"); }
+
+function pickupDeskRemain_(l) {
+  return l.status === PO_STATUS_INVOICED_LABEL && l.amountDue > 0 ? l.amountDue : Math.max((l.agreedTotal || 0) - (l.depositTotal || 0), 0);
+}
+
+function renderPickupDeskList_() {
+  const st = pickupDeskState;
+  if (!st) return;
+  const here = getBranchCode();
+  const groupHead = {
+    [PO_STATUS_DONE_LABEL]: ['bg-emerald-50 text-emerald-700', "🟢 ชำระแล้ว รอรับของ", "ติ๊กได้เลย"],
+    [PO_STATUS_INVOICED_LABEL]: ['bg-amber-50 text-amber-800', "🟡 ของมาแล้ว ยังไม่ชำระ", "ติ๊กแล้วต้องชำระก่อน"],
+    [PO_STATUS_WAITING_LABEL]: ['bg-slate-50 text-slate-500', "⚪ ยังไม่มีของ", "ดูอย่างเดียว"]
+  };
+  let last = null;
+  document.getElementById("pickupDeskList").innerHTML = st.lines.map((l) => {
+    let head = "";
+    if (l.status !== last) {
+      last = l.status;
+      const g = groupHead[l.status] || groupHead[PO_STATUS_WAITING_LABEL];
+      head = `<div class="px-4 py-1.5 text-xs font-extrabold flex justify-between ${g[0]}"><span>${g[1]}</span><span class="font-semibold">${g[2]}</span></div>`;
+    }
+    const isPaid = l.status === PO_STATUS_DONE_LABEL;
+    const isDue = l.status === PO_STATUS_INVOICED_LABEL;
+    const otherBranch = l.branch && l.branch !== here;
+    const canTick = isPaid || (isDue && !otherBranch);
+    const checked = canTick && st.checked.has(l.lineId);
+    const isShip = l.deliveryMethod === "delivery";
+    let sub = escapeHtml(l.poId);
+    if (otherBranch) sub += ' · <span class="text-amber-700 font-semibold">จองที่ ' + escapeHtml(l.branch) + "</span>";
+    if (isPaid) sub += " · ชำระครบ " + escapeHtml(poShortDate_(l.fulfilledAt));
+    else if (isDue) sub += " · มัดจำ " + formatMoney(l.depositTotal || 0);
+    else sub += " · มัดจำ " + formatMoney(l.depositTotal || 0);
+    let right = "";
+    if (isPaid) {
+      const d = poDaysSince_(l.fulfilledAt);
+      right = `<span class="bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2 py-0.5 rounded-full">${isShip ? "ชำระแล้ว · จัดส่ง" : "ชำระแล้ว"}</span>${d >= PICKUP_OVERDUE_DAYS_UI ? `<div class="text-[11px] text-red-600 mt-0.5">ค้างรับ ${d} วัน</div>` : ""}`;
+    } else if (isDue) {
+      right = `<span class="bg-amber-100 text-amber-800 text-[11px] font-bold px-2 py-0.5 rounded-full">ค้าง ${formatMoney(pickupDeskRemain_(l))}</span>${otherBranch ? `<div class="text-[11px] text-gray-500 mt-0.5">ปิดบิลที่ ${escapeHtml(l.branch)}</div>` : ""}`;
+    } else {
+      right = '<span class="bg-slate-200 text-slate-600 text-[11px] font-bold px-2 py-0.5 rounded-full">รอสินค้า</span>';
+    }
+    const bc = checked && isDue
+      ? `<input type="text" autocomplete="off" class="pickup-desk-bc mt-1.5 w-full border-2 border-gray-200 rounded-lg px-2.5 py-1 text-xs font-mono focus:outline-none focus:border-amber-500" data-line-id="${escapeHtml(l.lineId)}" placeholder="สแกน/พิมพ์บาร์โค้ดจริงของชิ้นนี้..." value="${escapeHtml(st.barcodes.get(l.lineId) || "")}">`
+      : "";
+    return `${head}
+      <div class="px-4 py-2.5 border-b border-slate-100 ${canTick ? "" : "opacity-60"}">
+        <label class="flex items-center gap-3 ${canTick ? "cursor-pointer" : ""}">
+          <input type="checkbox" class="pickup-desk-chk w-5 h-5 accent-emerald-600 flex-none" data-line-id="${escapeHtml(l.lineId)}" ${checked ? "checked" : ""} ${canTick ? "" : "disabled"}>
+          <span class="flex-1 min-w-0"><b class="block font-semibold text-gray-800">${escapeHtml(l.itemName)} ×${l.qty}</b><span class="text-[11px] text-gray-500">${sub}</span></span>
+          <span class="text-right flex-none">${right}</span>
+        </label>${bc}
+      </div>`;
+  }).join("");
+
+  const box = document.getElementById("pickupDeskList");
+  box.querySelectorAll(".pickup-desk-chk").forEach((cb) => cb.addEventListener("change", () => {
+    const id = cb.getAttribute("data-line-id");
+    if (cb.checked) st.checked.add(id); else st.checked.delete(id);
+    renderPickupDeskList_();
+  }));
+  box.querySelectorAll(".pickup-desk-bc").forEach((inp) => inp.addEventListener("input", () => st.barcodes.set(inp.getAttribute("data-line-id"), inp.value)));
+  updatePickupDeskFooter_();
+}
+
+function updatePickupDeskFooter_() {
+  const st = pickupDeskState;
+  const sel = st.lines.filter((l) => st.checked.has(l.lineId));
+  const paid = sel.filter((l) => l.status === PO_STATUS_DONE_LABEL);
+  const due = sel.filter((l) => l.status === PO_STATUS_INVOICED_LABEL);
+  const btn = document.getElementById("pickupDeskConfirmBtn");
+  const sum = document.getElementById("pickupDeskSum");
+  btn.disabled = sel.length === 0;
+  btn.classList.toggle("bg-emerald-600", due.length === 0);
+  btn.classList.toggle("hover:bg-emerald-700", due.length === 0);
+  btn.classList.toggle("bg-amber-600", due.length > 0);
+  btn.classList.toggle("hover:bg-amber-700", due.length > 0);
+  if (sel.length === 0) { sum.textContent = "ยังไม่ได้เลือกรายการ"; btn.textContent = "ยืนยันรับของ"; return; }
+  if (due.length) {
+    const amt = due.reduce((s2, l) => s2 + pickupDeskRemain_(l), 0);
+    sum.innerHTML = "เลือก " + sel.length + " รายการ · ต้องชำระ <b>" + formatMoney(amt) + "</b>";
+    btn.textContent = "💰 ชำระ + รับของ " + sel.length + " รายการ";
+  } else {
+    sum.textContent = "เลือก " + paid.length + " รายการ (ชำระครบแล้ว)";
+    btn.textContent = "✅ ยืนยันรับของ " + paid.length + " รายการ";
+  }
+}
+
+async function confirmPickupDesk_() {
+  const st = pickupDeskState;
+  if (!st) return;
+  hidePickupDeskError_();
+  const sel = st.lines.filter((l) => st.checked.has(l.lineId));
+  const paid = sel.filter((l) => l.status === PO_STATUS_DONE_LABEL);
+  const due = sel.filter((l) => l.status === PO_STATUS_INVOICED_LABEL);
+  if (sel.length === 0) return;
+  for (const l of due) {
+    if (!(st.barcodes.get(l.lineId) || "").trim()) {
+      showPickupDeskError_('กรุณาสแกน/พิมพ์บาร์โค้ดจริงของ "' + l.itemName + '" ก่อน');
+      return;
+    }
+  }
+  const btn = document.getElementById("pickupDeskConfirmBtn");
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+  try {
+    let msg = [];
+    if (paid.length) {
+      await setPreOrderPickup_(paid.map((l) => l.lineId), true, "pos-pickup");
+      msg.push("บันทึกรับของแล้ว " + paid.length + " รายการ");
+    }
+    if (due.length) {
+      due.forEach((l) => {
+        const remain = pickupDeskRemain_(l);
+        cart.push({
+          id: nextCartRowId++,
+          barcode: (st.barcodes.get(l.lineId) || "").trim(),
+          name: l.itemName,
+          price: 0,
+          qty: l.qty,
+          type: "rec",
+          agreed: l.agreedTotal,
+          deposit: l.agreedTotal - remain,
+          wsPrice: l.agreedTotal,
+          spPrice: l.agreedTotal,
+          lineId: l.lineId,
+          remarkOn: false,
+          remark: ""
+        });
+      });
+      renderCart();
+      msg.push("ใส่ตะกร้า " + due.length + " รายการ — ชำระแล้วระบบติ๊กรับของให้เอง");
+    }
+    closePickupDeskModal_();
+    showToast(msg.join(" · "), "success");
+  } catch (err) {
+    console.error(err);
+    showPickupDeskError_(err.message);
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+function setupPickupDeskModal_() {
+  document.getElementById("pickupDeskOpenBtn").addEventListener("click", openPickupDeskModal_);
+  document.getElementById("pickupDeskCancelBtn").addEventListener("click", closePickupDeskModal_);
+  document.getElementById("pickupDeskConfirmBtn").addEventListener("click", confirmPickupDesk_);
+  document.getElementById("pickupDeskModal").addEventListener("click", (e) => {
+    if (e.target.id === "pickupDeskModal") closePickupDeskModal_();
+  });
+}
+
 function setupCustomerSection() {
   setupDeliveryButtons();
+  setupPickupDeskModal_();
   setupOneBillPickupModal();
 
   const codeInput = document.getElementById("customerCodeInput");
@@ -8314,6 +8639,7 @@ function renderDailySummary(summary) {
   document.getElementById("wsAdvanceSalesStatusLabel").textContent = wsAdv.available ? "" : "ยังไม่เชื่อมไฟล์ PM";
 
   reportPrePoCards = summary.prePoCards || {}; // รูปใบจองให้ลูกค้า (2026-10-20)
+  renderReportPickupCard_(summary);
   renderReportBillsList(summary.bills || [], summary.billCount || 0, summary.itemCount || 0, summary.preRows || []);
 
   const crossCheckLine = document.getElementById("crossCheckLine");
@@ -8324,6 +8650,52 @@ function renderDailySummary(summary) {
     crossCheckLine.className = "flex items-center gap-2 text-sm font-semibold px-1 text-red-500";
     crossCheckLine.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> พบยอดไม่ตรง — กรุณาตรวจสอบบิลที่คีย์ผิดในวันนี้';
   }
+}
+
+// 📦 รับของจองวันนี้ + ค้างรับ (2026-10-22) — จาก summary.pickups / pickupOverdue
+function renderReportPickupCard_(summary) {
+  const card = document.getElementById("reportPickupCard");
+  if (!card) return;
+  const picks = summary.pickups || [];
+  const overdue = summary.pickupOverdue || [];
+  if (!Array.isArray(summary.pickups)) { card.classList.add("hidden"); return; } // backend เก่า
+  card.classList.remove("hidden");
+  document.getElementById("reportPickupCount").textContent = picks.length ? "— " + picks.length + " รายการ" : "";
+  // รวมรายการรับของตามลูกค้า+เวลา (ลูกค้าคนเดียวรับหลายชิ้นพร้อมกัน = 1 แถว)
+  const rows = [];
+  picks.forEach((p) => {
+    const t = poShortDateTime_(p.pickedUpAt).split(" ")[1] || "";
+    const lastRow = rows[rows.length - 1];
+    const key = (p.customerCode || p.customerName) + "|" + t;
+    if (lastRow && lastRow.key === key) lastRow.items.push(p);
+    else rows.push({ key: key, time: t, p: p, items: [p] });
+  });
+  document.getElementById("reportPickupList").innerHTML = rows.length
+    ? `<table class="w-full"><tbody>${rows.map((r) => `
+        <tr class="border-t border-gray-100 align-top">
+          <td class="py-1.5 pr-3 text-gray-500 tabular-nums whitespace-nowrap">${escapeHtml(r.time)}</td>
+          <td class="py-1.5 pr-3 whitespace-nowrap">${escapeHtml(r.p.customerName)}${r.p.bookBranch && r.p.bookBranch !== summary.branch ? ` <span class="bg-amber-200 text-amber-900 text-[10px] font-bold px-1.5 rounded-full">จอง ${escapeHtml(r.p.bookBranch)}</span>` : ""}</td>
+          <td class="py-1.5 pr-3 text-gray-700">${r.items.map((i) => escapeHtml(i.itemName) + " ×" + i.qty).join(", ")}</td>
+          <td class="py-1.5 text-xs text-gray-400 whitespace-nowrap">${escapeHtml(r.p.pickedUpBy || "")}</td>
+        </tr>`).join("")}</tbody></table>`
+    : '<p class="text-gray-400 text-sm">ยังไม่มีการรับของจองวันนี้</p>';
+  const ow = document.getElementById("reportPickupOverdueWrap");
+  ow.classList.toggle("hidden", overdue.length === 0);
+  document.getElementById("reportPickupOverdueDays").textContent = String(summary.pickupOverdueDays || 7);
+  document.getElementById("reportPickupOverdueCount").textContent = "— " + overdue.length + " รายการ";
+  const show = overdue.slice(0, 10);
+  document.getElementById("reportPickupOverdueList").innerHTML = `<table class="w-full"><tbody>${show.map((o) => `
+      <tr class="border-t border-gray-100 align-top">
+        <td class="py-1.5 pr-3 font-extrabold whitespace-nowrap ${o.daysWaiting >= 30 ? "text-red-700" : "text-amber-700"}">${o.daysWaiting} วัน</td>
+        <td class="py-1.5 pr-3 whitespace-nowrap">${escapeHtml(o.customerName)}</td>
+        <td class="py-1.5 text-gray-700">${escapeHtml(o.itemName)} ×${o.qty}</td>
+      </tr>`).join("")}</tbody></table>${overdue.length > show.length ? `<p class="text-xs text-gray-400 mt-1">และอีก ${overdue.length - show.length} รายการ — ดูทั้งหมดที่หน้า ⏳ ค้างรับ</p>` : ""}`;
+}
+
+function openPickupOverdueFromReport_() {
+  const tabBtn = document.querySelector('.tab-btn[data-tab="preorder"]');
+  if (tabBtn) tabBtn.click();
+  switchPreOrderView("pickup");
 }
 
 // One receipt-style card for an ordinary sale bill (mockup approved
@@ -8721,18 +9093,22 @@ function drawCustomerCardCanvas_(data) {
   const FONT = "'Segoe UI', Tahoma, 'Noto Sans Thai', 'Leelawadee UI', sans-serif";
   const C = { ink: "#1f2937", mute: "#6b7280", amber: "#92400e", hd: "#fbbf24", hdInk: "#451a03", line: "#f3f4f6", grpBg: "#fafaf9",
               soft: "#fffbeb", dash: "#fcd34d", qty: "#ea580c", wait: "#f59e0b", ready: "#3b82f6", cancel: "#9ca3af", red: "#b91c1c",
-              chipWaitBg: "#fef3c7", chipWait: "#92400e", chipReadyBg: "#dbeafe", chipReady: "#1e40af", chipRedBg: "#fee2e2", chipGrayBg: "#f3f4f6" };
-  const WAIT = PO_STATUS_WAITING_LABEL, READY = PO_STATUS_INVOICED_LABEL, CANCEL = PO_STATUS_CANCELLED_LABEL;
+              chipWaitBg: "#fef3c7", chipWait: "#92400e", chipReadyBg: "#dbeafe", chipReady: "#1e40af", chipRedBg: "#fee2e2", chipGrayBg: "#f3f4f6",
+              paid: "#059669", chipPaidBg: "#d1fae5", chipPaid: "#065f46" };
+  const WAIT = PO_STATUS_WAITING_LABEL, READY = PO_STATUS_INVOICED_LABEL, CANCEL = PO_STATUS_CANCELLED_LABEL, DONE = PO_STATUS_DONE_LABEL;
   const lines = data.lines || [];
   const active = lines.filter((l) => l.status !== CANCEL);
+  // 2026-10-22: รายการ "เสร็จสิ้น" ที่ backend ส่งมา = ชำระครบแล้วแต่ยังไม่รับของ
+  const open = active.filter((l) => l.status !== DONE);
   const cnt = {
+    paid: active.filter((l) => l.status === DONE).length,
     wait: active.filter((l) => l.status === WAIT).length,
     ready: active.filter((l) => l.status === READY).length,
-    noDep: active.filter((l) => !(Number(l.depositTotal) > 0)).length,
+    noDep: open.filter((l) => !(Number(l.depositTotal) > 0)).length,
     cancel: lines.length - active.length
   };
-  const pieces = active.reduce((s, l) => s + (Number(l.qty) || 1), 0);
-  const total = active.reduce((s, l) => s + (Number(l.depositTotal) || 0), 0);
+  const pieces = open.reduce((s, l) => s + (Number(l.qty) || 1), 0);
+  const total = open.reduce((s, l) => s + (Number(l.depositTotal) || 0), 0);
 
   // จัดกลุ่มตามใบจอง (เรียงตามวันที่จองแล้วจาก backend)
   const groups = [];
@@ -8775,6 +9151,7 @@ function drawCustomerCardCanvas_(data) {
     preCustImgWrap_(ctx, data.customerName || "ลูกค้า", W - PAD * 2).forEach((ln) => { text(ln, PAD, y + 11, 16, "700", C.ink); y += 22; });
     y += 6;
     const chips = [];
+    if (cnt.paid) chips.push(["ชำระแล้ว รอรับ " + cnt.paid, C.chipPaidBg, C.chipPaid]);
     if (cnt.wait) chips.push(["รอของ " + cnt.wait, C.chipWaitBg, C.chipWait]);
     if (cnt.ready) chips.push(["ของมาแล้ว " + cnt.ready, C.chipReadyBg, C.chipReady]);
     if (cnt.noDep) chips.push(["ยังไม่มัดจำ " + cnt.noDep, C.chipRedBg, C.red]);
@@ -8799,7 +9176,8 @@ function drawCustomerCardCanvas_(data) {
     }
     groups.forEach((g) => {
       const act = g.lines.filter((l) => l.status !== CANCEL);
-      const gDep = act.reduce((s, l) => s + (Number(l.depositTotal) || 0), 0);
+      const actOpen = act.filter((l) => l.status !== DONE);
+      const gDep = actOpen.reduce((s, l) => s + (Number(l.depositTotal) || 0), 0);
       rect(0, y, W, 30, C.grpBg);
       ctx.font = font(12, "400");
       const leftLabel = "จองวันที่ ";
@@ -8810,6 +9188,7 @@ function drawCustomerCardCanvas_(data) {
       ctx.font = font(12.5, "700"); gx += ctx.measureText(dStr).width;
       if (g.branch) text(" · " + g.branch, gx, y + 15, 12, "400", C.mute);
       if (act.length === 0) text("ยกเลิก", W - PAD, y + 15, 12, "700", C.mute, "right");
+      else if (actOpen.length === 0) text("ชำระครบแล้ว", W - PAD, y + 15, 12, "700", C.paid, "right");
       else if (gDep > 0) text("มัดจำ " + preCustImgMoney_(gDep), W - PAD, y + 15, 12, "400", C.mute, "right");
       else text("ยังไม่มัดจำ", W - PAD, y + 15, 12, "700", C.red, "right");
       y += 30;
@@ -8833,7 +9212,8 @@ function drawCustomerCardCanvas_(data) {
         }
         y += 7;
         const firstMid = y + 9;
-        dot(PAD + 5, firstMid, isCancel ? C.cancel : (l.status === READY ? C.ready : C.wait));
+        const isPaid = l.status === DONE;
+        dot(PAD + 5, firstMid, isCancel ? C.cancel : isPaid ? C.paid : (l.status === READY ? C.ready : C.wait));
         nameLines.forEach((ln, i) => {
           const ly = y + 9 + i * 18;
           text(ln, nameX, ly, 13, isCancel ? "400" : "500", isCancel ? C.cancel : C.ink);
@@ -8850,7 +9230,9 @@ function drawCustomerCardCanvas_(data) {
           pill(qx, firstMid - 9, qw, 18, isCancel ? C.cancel : C.qty);
           text(String(qty), qx + qw / 2, firstMid, 12, "700", "#ffffff", "center");
         }
-        if (!isCancel) {
+        if (isPaid) {
+          text("ชำระแล้ว", W - PAD, firstMid, 12, "700", C.paid, "right");
+        } else if (!isCancel) {
           text(preCustImgMoney_(dep), W - PAD, firstMid, 13, "700", dep > 0 ? C.ink : C.red, "right");
         }
         y += nameLines.length * 18;
@@ -8873,7 +9255,9 @@ function drawCustomerCardCanvas_(data) {
     rect(0, footTop, W, footH, C.soft);
     if (draw) { ctx.strokeStyle = C.dash; ctx.setLineDash([4, 3]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, footTop + 0.5); ctx.lineTo(W, footTop + 0.5); ctx.stroke(); ctx.setLineDash([]); }
     let lx = PAD;
-    const legend = [[C.wait, "รอของ"], [C.ready, "ของมาแล้ว"]];
+    const legend = [];
+    if (cnt.paid) legend.push([C.paid, "ชำระแล้ว รอรับ"]);
+    legend.push([C.wait, "รอของ"], [C.ready, "ของมาแล้ว"]);
     if (cnt.cancel) legend.push([C.cancel, "ยกเลิก"]);
     legend.forEach(([color, label]) => {
       dot(lx + 5, footTop + 16, color);
@@ -10885,6 +11269,7 @@ async function loadPreOrders() {
     }
     lastLoadedPreOrders = result.lines || [];
     preOrderBankInfoCache = result.bankInfo || "";
+    updatePoPickupNavCount_();
     renderCurrentPreOrderView();
   } catch (err) {
     console.error(err);
@@ -10901,6 +11286,7 @@ function renderCurrentPreOrderView() {
   else if (preOrderViewMode === "product") renderPreOrderProductView();
   else if (preOrderViewMode === "arrival") renderArrivalDeclaredList(); // refresh "(N ใบจอง)" counts on switch-in
   else if (preOrderViewMode === "draftitems") renderDraftItemsList(); // renders from the cache loadDraftItems() already keeps fresh
+  else if (preOrderViewMode === "pickup") loadPoPickupOverview_(); // ⏳ ค้างรับ — ดึงทุกสาขาจาก getPreOrderPickupOverview
   // "import" (นำเข้าไฟล์เก่า) has its own file-driven render path
   // (renderPoImportPreviewRows, called from the file-upload handler) —
   // nothing to (re)render just from switching into the tab.
@@ -11606,14 +11992,14 @@ function preOrderLineActionButtons(line) {
     // so show a plain badge instead of a "view bill" button that would
     // otherwise look broken (blank bill number, toast with nothing in it).
     if (!line.fulfilledTransactionId) {
-      return `<span class="text-[11px] text-gray-400">📋 นำเข้าจากไฟล์เก่า</span>`;
+      return `<div class="flex items-center gap-1.5">${poPickupToggleBtn_(line)}<span class="text-[11px] text-gray-400">📋 นำเข้าจากไฟล์เก่า</span></div>`;
     }
-    return poIconBtn_(
+    return `<div class="flex items-center gap-1.5">${poPickupToggleBtn_(line)}${poIconBtn_(
       "po-view-bill-btn bg-gray-100 hover:bg-gray-200 text-gray-500",
       "fa-magnifying-glass",
       "ดูบิล " + line.fulfilledTransactionId,
       `data-transaction-id="${escapeHtml(line.fulfilledTransactionId)}"`
-    );
+    )}</div>`;
   }
   const fulfillTitle = line.status === PO_STATUS_INVOICED_LABEL ? "ยืนยันรับเงิน + ออกบิล" : "ปิดออเดอร์ทันที";
   // 2026-09, per Wing: a booking opened as a "Pre" row inside a combined
@@ -11640,7 +12026,360 @@ function preOrderLineActionButtons(line) {
     </div>`;
 }
 
+/* ---------------- ติ๊กรับของแล้ว (2026-10-22) ----------------
+   แยก "ชำระครบ" (Status = เสร็จสิ้น) กับ "รับของแล้ว" (Picked Up At) ออกจากกัน
+   ลูกค้าบางคนโอนครบแต่ยังไม่มารับ — ติ๊ก/เอาติ๊กออกได้โดยไม่ต้องขอ PIN เพิ่ม
+   (backend เก็บประวัติใน PreOrderPickupLog). ดู handleSetPreOrderPickup_. */
+const PICKUP_OVERDUE_DAYS_UI = 7;
+
+function poIsAwaitingPickup_(l) {
+  return l && l.status === PO_STATUS_DONE_LABEL && !l.pickedUpAt;
+}
+
+function poDaysSince_(iso) {
+  const t = new Date(iso).getTime();
+  if (!isFinite(t)) return 0;
+  return Math.max(0, Math.floor((Date.now() - t) / 86400000));
+}
+
+function poShortDate_(iso) {
+  const d = new Date(iso);
+  if (!isFinite(d.getTime())) return "";
+  return d.getDate() + "/" + (d.getMonth() + 1);
+}
+
+function poShortDateTime_(iso) {
+  const d = new Date(iso);
+  if (!isFinite(d.getTime())) return "";
+  return poShortDate_(iso) + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+
+// บรรทัดเล็กใต้ป้ายสถานะ (เฉพาะรายการเสร็จสิ้น)
+function poPickupStatusLine_(l) {
+  if (!l || l.status !== PO_STATUS_DONE_LABEL) return "";
+  const isShip = l.deliveryMethod === "delivery";
+  if (l.pickedUpAt) {
+    const who = l.pickedUpBy && l.pickedUpBy !== "ระบบ (ตั้งค่าเริ่มต้น)" ? " · " + l.pickedUpBy : "";
+    return `<div class="text-[10px] text-emerald-700 mt-0.5" title="${escapeHtml((l.pickedUpBy || "") + (l.pickupBranch ? " @" + l.pickupBranch : ""))}">📦 ${isShip ? "ส่งแล้ว" : "รับแล้ว"} ${escapeHtml(poShortDate_(l.pickedUpAt))}${escapeHtml(who)}</div>`;
+  }
+  const days = poDaysSince_(l.fulfilledAt);
+  const late = days >= PICKUP_OVERDUE_DAYS_UI;
+  return `<div class="text-[10px] font-semibold mt-0.5 ${late ? "text-red-600" : "text-amber-600"}">⏳ ${isShip ? "ยังไม่ส่ง" : "ยังไม่รับ"} · ${days} วัน</div>`;
+}
+
+function poPickupToggleBtn_(l) {
+  if (!l || l.status !== PO_STATUS_DONE_LABEL) return "";
+  const isShip = l.deliveryMethod === "delivery";
+  if (l.pickedUpAt) {
+    return poIconBtn_(
+      "po-pickup-toggle-btn bg-emerald-600 hover:bg-emerald-700 text-white",
+      "fa-box",
+      (isShip ? "ส่งแล้ว " : "รับแล้ว ") + poShortDateTime_(l.pickedUpAt) + (l.pickedUpBy ? " โดย " + l.pickedUpBy : "") + " — กดเพื่อเอาติ๊กออก",
+      `data-line-id="${escapeHtml(l.lineId)}" data-picked="1"`
+    );
+  }
+  return poIconBtn_(
+    "po-pickup-toggle-btn bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-300",
+    "fa-box-open",
+    isShip ? "ยังไม่ส่ง — กดเพื่อติ๊ก \"ส่งของแล้ว\"" : "ยังไม่รับของ — กดเพื่อติ๊ก \"รับของแล้ว\"",
+    `data-line-id="${escapeHtml(l.lineId)}" data-picked="0"`
+  );
+}
+
+// เรียก backend ติ๊ก/เอาติ๊กออก แล้วอัปเดตแคชในหน้า (ไม่ต้องโหลดใหม่ทั้งหมด)
+async function setPreOrderPickup_(lineIds, pickedUp, source) {
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl === "YOUR_URL_HERE" || !currentStaff) throw new Error("ยังไม่ได้ล็อกอิน/ตั้งค่าลิงก์");
+  const response = await fetch(scriptUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({
+      action: "setPreOrderPickup",
+      pin: currentStaff.pin,
+      branch: getBranchCode(),
+      lineIds: lineIds,
+      pickedUp: !!pickedUp,
+      source: source || "manual"
+    })
+  });
+  const result = await response.json();
+  if (!result || result.status !== "success") throw new Error((result && result.message) || "บันทึกไม่สำเร็จ");
+  (result.results || []).forEach((r) => {
+    const l = lastLoadedPreOrders.find((x) => x.lineId === r.lineId);
+    if (l) {
+      l.pickedUpAt = r.pickedUpAt ? new Date(r.pickedUpAt.replace(" ", "T")).toISOString() : "";
+      l.pickedUpBy = r.pickedUpBy || "";
+      l.pickupBranch = r.pickupBranch || "";
+    }
+  });
+  return result;
+}
+
+async function onPoPickupToggleClick_(btn) {
+  const lineId = btn.getAttribute("data-line-id");
+  const picked = btn.getAttribute("data-picked") === "1";
+  const line = lastLoadedPreOrders.find((l) => l.lineId === lineId);
+  const name = line ? line.itemName : lineId;
+  if (picked && !confirm('เอาติ๊ก "รับของแล้ว" ของ\n' + name + '\nออก? (รายการจะกลับไปอยู่ใน "ชำระแล้ว รอรับ")')) return;
+  btn.disabled = true;
+  try {
+    const r = await setPreOrderPickup_([lineId], !picked, "preorder-tab");
+    showToast(r.message || "บันทึกแล้ว", "success");
+    renderCurrentPreOrderView();
+  } catch (err) {
+    showToast("บันทึกไม่สำเร็จ: " + err.message, "error");
+    btn.disabled = false;
+  }
+}
+
+/* ---------------- ⏳ ค้างรับ (2026-10-22) ---------------- */
+let poPickupData = null;          // { asOf, isToday, lines } จาก getPreOrderPickupOverview
+let poPickupMode = "line";        // "line" | "customer"
+let poPickupOpenCust = new Set(); // คีย์ลูกค้าที่กาง ▾ อยู่ในมุมมองสรุปตามลูกค้า
+let poPickupReqSeq = 0;
+
+function poTodayStr_() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+// ตัวเลขแดงบนปุ่ม "⏳ ค้างรับ" — นับจากแคชของสาขาที่ดูอยู่ (ชำระแล้ว ค้างรับ ≥ 7 วัน)
+function updatePoPickupNavCount_() {
+  const el = document.getElementById("poPickupNavCount");
+  if (!el) return;
+  const n = (lastLoadedPreOrders || []).filter((l) => poIsAwaitingPickup_(l) && poDaysSince_(l.fulfilledAt) >= PICKUP_OVERDUE_DAYS_UI).length;
+  el.textContent = String(n);
+  el.classList.toggle("hidden", n === 0);
+}
+
+function setupPoPickupView_() {
+  const asOf = document.getElementById("poPickupAsOf");
+  if (!asOf) return;
+  asOf.value = poTodayStr_();
+  asOf.max = poTodayStr_();
+  asOf.addEventListener("change", loadPoPickupOverview_);
+  ["poPickupBranch", "poPickupMinDays", "poPickupMethod"].forEach((id) =>
+    document.getElementById(id).addEventListener("change", renderPoPickupView_));
+  document.getElementById("poPickupSearch").addEventListener("input", renderPoPickupView_);
+  document.querySelectorAll(".po-pk-mode-btn").forEach((b) =>
+    b.addEventListener("click", () => { poPickupMode = b.getAttribute("data-pk-mode"); renderPoPickupView_(); }));
+}
+
+async function loadPoPickupOverview_() {
+  const box = document.getElementById("poPickupResults");
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl === "YOUR_URL_HERE" || !currentStaff) return;
+  const asOf = document.getElementById("poPickupAsOf").value || poTodayStr_();
+  const seq = ++poPickupReqSeq;
+  box.innerHTML = '<p class="text-center text-gray-400 py-10 text-sm"><i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังโหลด...</p>';
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "getPreOrderPickupOverview", pin: currentStaff.pin, branch: getBranchCode(), asOf: asOf })
+    });
+    const result = await response.json();
+    if (seq !== poPickupReqSeq) return; // มีคำขอใหม่กว่าแล้ว
+    if (!result || result.status !== "success") throw new Error((result && result.message) || "โหลดไม่สำเร็จ");
+    poPickupData = { asOf: result.asOf, isToday: !!result.isToday, lines: result.lines || [] };
+    const sel = document.getElementById("poPickupBranch");
+    const cur = sel.value;
+    const branches = Array.from(new Set(poPickupData.lines.map((l) => l.branch).concat([getBranchCode()]).filter(Boolean))).sort();
+    sel.innerHTML = '<option value="">ทุกสาขา</option>' + branches.map((b) => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join("");
+    sel.value = branches.includes(cur) ? cur : "";
+    renderPoPickupView_();
+  } catch (err) {
+    if (seq !== poPickupReqSeq) return;
+    console.error(err);
+    box.innerHTML = `<p class="text-center text-red-500 py-10 text-sm">โหลดรายการค้างรับไม่สำเร็จ: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function poPickupFiltered_() {
+  if (!poPickupData) return [];
+  const br = document.getElementById("poPickupBranch").value;
+  const minDays = Number(document.getElementById("poPickupMinDays").value) || 0;
+  const method = document.getElementById("poPickupMethod").value;
+  const q = document.getElementById("poPickupSearch").value.trim().toLowerCase();
+  return poPickupData.lines.filter((l) => {
+    if (br && l.branch !== br) return false;
+    if (l.daysWaiting < minDays) return false;
+    const isShip = l.deliveryMethod === "delivery";
+    if (method === "delivery" && !isShip) return false;
+    if (method === "pickup" && isShip) return false;
+    if (q) {
+      const hay = [l.customerName, l.customerCode, l.customerPhone, l.itemName, l.poId].join(" ").toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function poPkDaysHtml_(d) {
+  const cls = d >= 30 ? "text-red-700" : d >= PICKUP_OVERDUE_DAYS_UI ? "text-amber-700" : "text-gray-500";
+  return `<span class="font-extrabold ${cls}">${d} วัน</span>`;
+}
+
+function poPkRemindHtml_(l) {
+  return l.lastRemindedAt
+    ? `<span class="inline-block bg-violet-100 text-violet-800 text-[11px] font-bold px-2 py-0.5 rounded-full">${escapeHtml(poShortDate_(l.lastRemindedAt))} · ${escapeHtml(l.reminderChannel || "")}</span>`
+    : '<span class="text-gray-300">—</span>';
+}
+
+function poPkRemindSelect_(lineIds) {
+  return `<select class="po-pk-remind border border-gray-300 rounded-md text-xs px-1 py-1 bg-white" data-line-ids="${escapeHtml(lineIds.join(","))}" title="บันทึกว่าทักลูกค้าแล้ว">
+    <option value="">🔔 เตือนแล้ว</option><option>LINE</option><option>โทร</option><option>Facebook</option><option>อื่นๆ</option></select>`;
+}
+
+function renderPoPickupView_() {
+  const box = document.getElementById("poPickupResults");
+  if (!box) return;
+  document.querySelectorAll(".po-pk-mode-btn").forEach((b) => {
+    const on = b.getAttribute("data-pk-mode") === poPickupMode;
+    b.classList.toggle("bg-emerald-600", on); b.classList.toggle("text-white", on); b.classList.toggle("font-bold", on);
+    b.classList.toggle("bg-white", !on); b.classList.toggle("text-gray-600", !on);
+  });
+  if (!poPickupData) { box.innerHTML = ""; return; }
+  const all = poPickupData.lines;
+  const rows = poPickupFiltered_();
+  const br = document.getElementById("poPickupBranch").value;
+  const scope = all.filter((l) => !br || l.branch === br);
+  const custKey = (l) => l.customerCode || l.customerPhone || l.customerName;
+  const tiles = [
+    ["ชำระแล้ว ยังไม่รับ", scope.length, "รายการ", "text-gray-800"],
+    ["ลูกค้า", new Set(scope.map(custKey)).size, "ราย", "text-gray-800"],
+    [PICKUP_OVERDUE_DAYS_UI + " วันขึ้นไป", scope.filter((l) => l.daysWaiting >= PICKUP_OVERDUE_DAYS_UI).length, "รายการ", "text-amber-700"],
+    ["30 วันขึ้นไป", scope.filter((l) => l.daysWaiting >= 30).length, "รายการ", "text-red-700"]
+  ];
+  document.getElementById("poPickupTiles").innerHTML = tiles.map(([label, n, unit, cls]) =>
+    `<div class="border border-gray-200 rounded-lg px-3 py-2"><div class="text-xs text-gray-500">${label}</div><div><b class="text-2xl tabular-nums ${cls}">${n}</b> <span class="text-sm text-gray-500">${unit}</span></div></div>`).join("");
+  const note = document.getElementById("poPickupHistoryNote");
+  if (poPickupData.isToday) note.classList.add("hidden");
+  else {
+    note.classList.remove("hidden");
+    note.textContent = "ดูย้อนหลัง ณ สิ้นวันที่ " + poPickupData.asOf + " — แสดงคนที่ ณ วันนั้นชำระแล้วแต่ยังไม่ได้รับของ (รายการเก่าที่ระบบตั้งเป็น \"รับแล้ว\" ตอนเริ่มใช้งาน นับว่ารับวันเดียวกับวันชำระ)";
+  }
+
+  if (rows.length === 0) {
+    box.innerHTML = '<p class="text-center text-gray-400 py-10 text-sm">🎉 ไม่มีรายการค้างรับตามเงื่อนไขนี้</p>';
+    return;
+  }
+  const live = poPickupData.isToday;
+  const th = (t, extra) => `<th class="py-2 px-3 text-left text-xs font-semibold text-gray-500 bg-gray-50 whitespace-nowrap ${extra || ""}">${t}</th>`;
+  const val = (l) => (Number(l.agreedTotal) || 0) + (Number(l.deliveryFee) || 0);
+
+  if (poPickupMode === "line") {
+    box.innerHTML = `<table class="w-full text-sm min-w-[860px]"><thead><tr>
+        ${th("ค้าง")}${th("ลูกค้า")}${th("สินค้า")}${th("ใบจอง")}${th("ชำระครบ")}${th("มูลค่า", "text-right")}${th("เตือนล่าสุด")}${th("")}
+      </tr></thead><tbody>${rows.map((l) => `
+        <tr class="border-t border-gray-100 align-top">
+          <td class="py-2 px-3 whitespace-nowrap">${poPkDaysHtml_(l.daysWaiting)}</td>
+          <td class="py-2 px-3"><div class="font-medium text-gray-800">${escapeHtml(l.customerName)}</div><div class="text-[11px] text-gray-400">${escapeHtml([l.customerCode, l.customerPhone].filter(Boolean).join(" · "))}</div></td>
+          <td class="py-2 px-3">${escapeHtml(l.itemName)} <span class="text-gray-400 text-xs">×${l.qty}</span>${l.deliveryMethod === "delivery" ? ' <span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-1.5 py-0.5 rounded-full">จัดส่ง</span>' : ""}</td>
+          <td class="py-2 px-3 whitespace-nowrap"><span class="bg-amber-200 text-amber-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full">${escapeHtml(l.branch)}</span> <span class="text-xs text-gray-500">${escapeHtml(l.poId)}</span></td>
+          <td class="py-2 px-3 whitespace-nowrap text-xs">${escapeHtml(poShortDate_(l.fulfilledAt))}${l.pickedUpAt ? `<div class="text-emerald-700">รับ ${escapeHtml(poShortDate_(l.pickedUpAt))}</div>` : ""}</td>
+          <td class="py-2 px-3 text-right tabular-nums">${formatMoney(val(l))}</td>
+          <td class="py-2 px-3">${poPkRemindHtml_(l)}</td>
+          <td class="py-2 px-3"><div class="flex items-center gap-1.5 whitespace-nowrap">
+            <button type="button" class="po-pk-card text-xs border border-gray-300 rounded-md px-2 py-1 hover:bg-gray-50" data-line-id="${escapeHtml(l.lineId)}">📷 การ์ด</button>
+            ${live ? poPkRemindSelect_([l.lineId]) : ""}
+            ${live ? `<button type="button" class="po-pk-done text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-md px-2 py-1" data-line-ids="${escapeHtml(l.lineId)}">☑ ${l.deliveryMethod === "delivery" ? "ส่งแล้ว" : "รับแล้ว"}</button>` : ""}
+          </div></td>
+        </tr>`).join("")}</tbody></table>`;
+  } else {
+    const groups = new Map();
+    rows.forEach((l) => {
+      const k = custKey(l);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(l);
+    });
+    const list = Array.from(groups.entries()).map(([k, ls]) => ({
+      key: k, lines: ls, first: ls[0],
+      maxDays: Math.max(...ls.map((x) => x.daysWaiting)),
+      total: ls.reduce((s2, x) => s2 + val(x), 0),
+      branches: Array.from(new Set(ls.map((x) => x.branch))),
+      lastRem: ls.map((x) => x.lastRemindedAt ? x : null).filter(Boolean).sort((a, b) => (a.lastRemindedAt < b.lastRemindedAt ? 1 : -1))[0] || null
+    })).sort((a, b) => b.maxDays - a.maxDays);
+    box.innerHTML = `<table class="w-full text-sm min-w-[860px]"><thead><tr>
+        ${th("ลูกค้า")}${th("เบอร์")}${th("ค้างรับ", "text-right")}${th("นานสุด")}${th("มูลค่ารวม", "text-right")}${th("สาขา")}${th("เตือนล่าสุด")}${th("")}
+      </tr></thead><tbody>${list.map((g) => {
+        const open = poPickupOpenCust.has(g.key);
+        const ids = g.lines.map((x) => x.lineId);
+        return `
+        <tr class="border-t border-gray-100 align-top">
+          <td class="py-2 px-3"><b class="text-gray-800">${escapeHtml(g.first.customerName)}</b> <span class="text-xs text-gray-400">${escapeHtml(g.first.customerCode || "")}</span></td>
+          <td class="py-2 px-3 text-xs whitespace-nowrap">${escapeHtml(g.first.customerPhone || "")}</td>
+          <td class="py-2 px-3 text-right whitespace-nowrap">${g.lines.length} รายการ</td>
+          <td class="py-2 px-3 whitespace-nowrap">${poPkDaysHtml_(g.maxDays)}</td>
+          <td class="py-2 px-3 text-right tabular-nums">${formatMoney(g.total)}</td>
+          <td class="py-2 px-3">${g.branches.map((b) => `<span class="bg-amber-200 text-amber-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full mr-1">${escapeHtml(b)}</span>`).join("")}</td>
+          <td class="py-2 px-3">${g.lastRem ? poPkRemindHtml_(g.lastRem) : '<span class="text-gray-300">—</span>'}</td>
+          <td class="py-2 px-3"><div class="flex items-center gap-1.5 whitespace-nowrap">
+            <button type="button" class="po-pk-card text-xs border border-gray-300 rounded-md px-2 py-1 hover:bg-gray-50" data-line-id="${escapeHtml(g.first.lineId)}">📷 การ์ด</button>
+            ${live ? poPkRemindSelect_(ids) : ""}
+            <button type="button" class="po-pk-expand text-xs border border-gray-300 rounded-md px-2 py-1 hover:bg-gray-50" data-key="${escapeHtml(g.key)}">${open ? "▴" : "▾"}</button>
+          </div></td>
+        </tr>
+        ${open ? g.lines.map((x) => `
+        <tr class="bg-gray-50 text-xs text-gray-600">
+          <td colspan="7" class="py-1.5 px-3 pl-6">↳ ${escapeHtml(x.itemName)} ×${x.qty} — ชำระครบ ${escapeHtml(poShortDate_(x.fulfilledAt))} · ${escapeHtml(x.poId)} · ${poPkDaysHtml_(x.daysWaiting)}</td>
+          <td class="py-1.5 px-3">${live ? `<button type="button" class="po-pk-done text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-md px-2 py-1" data-line-ids="${escapeHtml(x.lineId)}">☑ ${x.deliveryMethod === "delivery" ? "ส่งแล้ว" : "รับแล้ว"}</button>` : ""}</td>
+        </tr>`).join("") : ""}`;
+      }).join("")}</tbody></table>`;
+  }
+
+  box.querySelectorAll(".po-pk-card").forEach((b) => b.addEventListener("click", () => {
+    const l = poPickupData.lines.find((x) => x.lineId === b.getAttribute("data-line-id"));
+    if (l) openCustomerCardForGroup_([l], b);
+  }));
+  box.querySelectorAll(".po-pk-expand").forEach((b) => b.addEventListener("click", () => {
+    const k = b.getAttribute("data-key");
+    if (poPickupOpenCust.has(k)) poPickupOpenCust.delete(k); else poPickupOpenCust.add(k);
+    renderPoPickupView_();
+  }));
+  box.querySelectorAll(".po-pk-done").forEach((b) => b.addEventListener("click", async () => {
+    const ids = b.getAttribute("data-line-ids").split(",").filter(Boolean);
+    b.disabled = true;
+    try {
+      const r = await setPreOrderPickup_(ids, true, "pickup-tab");
+      poPickupData.lines = poPickupData.lines.filter((x) => !ids.includes(x.lineId));
+      showToast(r.message || "บันทึกรับของแล้ว", "success");
+      updatePoPickupNavCount_();
+      renderPoPickupView_();
+    } catch (err) {
+      showToast("บันทึกไม่สำเร็จ: " + err.message, "error");
+      b.disabled = false;
+    }
+  }));
+  box.querySelectorAll(".po-pk-remind").forEach((sel) => sel.addEventListener("change", async () => {
+    const channel = sel.value;
+    if (!channel) return;
+    const ids = sel.getAttribute("data-line-ids").split(",").filter(Boolean);
+    sel.disabled = true;
+    try {
+      const response = await fetch(getAppsScriptUrl(), {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "markPreOrderReminded", pin: currentStaff.pin, branch: getBranchCode(), lineIds: ids, channel: channel })
+      });
+      const result = await response.json();
+      if (!result || result.status !== "success") throw new Error((result && result.message) || "บันทึกไม่สำเร็จ");
+      const at = new Date().toISOString();
+      poPickupData.lines.forEach((x) => { if (ids.includes(x.lineId)) { x.lastRemindedAt = at; x.reminderChannel = channel; } });
+      showToast("บันทึกการเตือนแล้ว (" + channel + ")", "success");
+      renderPoPickupView_();
+    } catch (err) {
+      showToast("บันทึกไม่สำเร็จ: " + err.message, "error");
+      sel.disabled = false;
+      sel.value = "";
+    }
+  }));
+}
+
 function wirePreOrderActionButtons(container) {
+  container.querySelectorAll(".po-pickup-toggle-btn").forEach((btn) => {
+    btn.addEventListener("click", () => onPoPickupToggleClick_(btn));
+  });
   container.querySelectorAll(".po-fulfill-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const line = lastLoadedPreOrders.find((l) => l.lineId === btn.getAttribute("data-line-id"));
@@ -11742,7 +12481,9 @@ function renderPreOrderPoList() {
   emptyState.classList.add("hidden");
   wrap.classList.remove("hidden");
 
-  const filtered = lastLoadedPreOrders.filter((l) => preOrderStatusFilter === "all" || l.status === preOrderStatusFilter);
+  const filtered = lastLoadedPreOrders.filter((l) =>
+    preOrderStatusFilter === "all" ||
+    (preOrderStatusFilter === "__awaitPickup" ? poIsAwaitingPickup_(l) : l.status === preOrderStatusFilter));
 
   // Group by PO ID so every item opened together stays visually together,
   // even though each item's own status/actions are independent.
@@ -11828,7 +12569,7 @@ function renderPreOrderPoList() {
                 <div class="text-gray-700 flex items-center flex-wrap gap-x-1.5 gap-y-1">${storewdBarcodeChip_(l.itemBarcode)}<span class="min-w-0">${escapeHtml(l.itemName)}</span><span class="text-gray-400 text-xs">x${l.qty}</span></div>
                 <div class="text-[11px] text-gray-400 mt-0.5">${escapeHtml(preOrderDepositSummaryText(l))}</div>
               </td>
-              <td class="py-2 text-center align-middle">${preOrderStatusBadge(l.status)}</td>
+              <td class="py-2 text-center align-middle">${preOrderStatusBadge(l.status)}${poPickupStatusLine_(l)}</td>
               <td class="py-2 align-middle"><div class="flex justify-center">${preOrderLineActionButtons(l)}</div></td>
             </tr>`;
         })
@@ -11921,7 +12662,7 @@ function renderPreOrderCustomerView() {
                 <div class="text-[11px] text-gray-400 font-normal">${escapeHtml(preOrderDepositSummaryText(line))}</div>
               </td>
               <td class="py-2 text-center">${line.qty}</td>
-              <td class="py-2 text-center">${preOrderStatusBadge(line.status)}</td>
+              <td class="py-2 text-center">${preOrderStatusBadge(line.status)}${poPickupStatusLine_(line)}</td>
               <td class="py-2 text-right font-semibold ${isOpen ? "text-amber-600" : "text-gray-300"}">${isOpen ? formatMoney(remain) : "-"}</td>
               <td class="py-2 text-gray-500 text-xs">${escapeHtml(line.expectedArrivalNote || "-")}</td>
             </tr>`;
@@ -12261,7 +13002,7 @@ function renderPreOrderProductView() {
             <td class="py-1.5">${escapeHtml(l.customerName || "-")}</td>
             <td class="py-1.5 text-center">${l.qty}</td>
             <td class="py-1.5">${escapeHtml((l.openedAt || "").slice(0, 10))}</td>
-            <td class="py-1.5">${preOrderStatusBadge(l.status)}</td>
+            <td class="py-1.5">${preOrderStatusBadge(l.status)}${poPickupStatusLine_(l)}</td>
           </tr>`
         )
         .join("");
@@ -12555,6 +13296,7 @@ function openPreOrderFulfillModal(line) {
   document.getElementById("poFulfillBarcodeHint").textContent = "";
   document.getElementById("poFulfillMethodSelect").value = isInvoiced && line.deliveryMethod === "delivery" ? "transfer" : "cash";
   document.getElementById("poFulfillAmountInput").value = due.toFixed(2);
+  document.getElementById("poFulfillPickedUpChk").checked = false;
   hidePreOrderFulfillModalError();
 
   document.getElementById("poFulfillDeliveryWrap").classList.toggle("hidden", !isUndetermined);
@@ -12646,6 +13388,8 @@ async function submitPreOrderFulfill() {
     branch: getBranchCode(),
     lineId: line.lineId,
     realBarcode: realBarcode,
+    pickedUpNow: document.getElementById("poFulfillPickedUpChk").checked,
+    pickupSource: "preorder-tab",
     cashPaid: payments.cash,
     transferPaid: payments.transfer,
     cardPaid: payments.card,
@@ -12757,6 +13501,7 @@ function openPoBulkFulfillModal(lines) {
   document.getElementById("poBulkFulfillDeliveryFeeInput").value = "0";
   document.getElementById("poBulkFulfillMethodSelect").value = "cash";
   document.getElementById("poBulkFulfillAmountInput").value = "";
+  document.getElementById("poBulkFulfillPickedUpChk").checked = false;
   hidePoBulkFulfillModalError();
   renderPoBulkFulfillChecklist();
   renderPoBulkFulfillDeliveryButtons();
@@ -12921,6 +13666,8 @@ async function submitPoBulkFulfill() {
         lines: linesPayload,
         deliveryMethod: poBulkFulfillDeliveryMethod,
         deliveryFee: Number(document.getElementById("poBulkFulfillDeliveryFeeInput").value) || 0,
+        pickedUpNow: document.getElementById("poBulkFulfillPickedUpChk").checked,
+        pickupSource: "preorder-tab",
         ...payment
       })
     });
@@ -14405,6 +15152,8 @@ function setupArrivalTab() {
 
 function setupPreOrderTab() {
   setupPreOrderViewTabs();
+  setupPoPickupView_();
+  { const b = document.getElementById("reportPickupOpenBtn"); if (b) b.addEventListener("click", openPickupOverdueFromReport_); }
   setupPreOrderStatusFilterPills();
   setupPreOrderSortToggle_();
   setupPreOrderCustomerSearch();
