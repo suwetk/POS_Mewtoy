@@ -235,7 +235,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.22-a</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.22-b</span>
       </div>
       <div class="flex-1"></div>
 
@@ -1242,9 +1242,13 @@
                there's a big backlog of pending pre-orders, an old one can
                get buried and hard to find. Client-side only (no re-fetch)
                since lastLoadedPreOrders already has everything. -->
+          <div class="flex items-center gap-2 flex-wrap">
+          <!-- เติมบาร์โค้ดให้รายการจองที่ยังไม่มี (2026-10-22) — ดู openPoBarcodeFillModal() -->
+          <button type="button" id="poBarcodeFillBtn" class="text-xs font-semibold border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg px-3 py-1.5">🏷️ เติมบาร์โค้ด <span id="poBarcodeFillCount"></span></button>
           <div class="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs">
             <button type="button" data-po-sort="oldest" class="po-sort-btn font-semibold px-3 py-1.5 transition">🕐 เก่าสุดก่อน</button>
             <button type="button" data-po-sort="newest" class="po-sort-btn font-semibold px-3 py-1.5 transition border-l border-gray-200">🕐 ใหม่สุดก่อน</button>
+          </div>
           </div>
         </div>
         <div class="flex flex-wrap gap-1.5 mb-3" id="poStatusFilterPills">
@@ -2313,6 +2317,32 @@
         <button id="preCustImgCloseBtn" type="button" class="bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg px-4 py-2.5 font-semibold text-left">ปิด</button>
         <p class="text-xs text-gray-500 leading-relaxed">คัดลอกแล้วไปที่แชทลูกค้า กด Ctrl+V<br>(Chrome / Edge บนคอมใช้ได้ · ถ้าเครื่องไหนคัดลอกไม่ได้ ใช้ "บันทึกรูป" แทน)</p>
         <p id="preCustImgStatus" class="text-sm text-emerald-700 font-semibold"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- เติมบาร์โค้ดสินค้าที่จอง (2026-10-22, per Wing) -->
+  <div id="poBarcodeFillModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl p-5 flex flex-col gap-3 max-h-[92vh]">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h3 class="font-semibold text-gray-800 text-lg">🏷️ เติมบาร์โค้ดให้สินค้าที่จอง</h3>
+          <p class="text-xs text-gray-500 mt-0.5">รวมตามชื่อสินค้า — เลือกบาร์โค้ด 1 ครั้ง ใส่ให้ทุกใบจองที่ชื่อนี้ (ทุกสาขา, เฉพาะที่ยังไม่รับของ/ไม่ยกเลิก และยังไม่มีบาร์โค้ด) · ไม่เปลี่ยนชื่อ ราคา หรือมัดจำ</p>
+        </div>
+        <div class="flex flex-wrap justify-end gap-1.5 text-[11px] max-w-[45%]">
+          <span class="bg-emerald-100 text-emerald-800 font-semibold rounded-full px-2 py-0.5">✓ ชื่อตรง = ติ๊กให้แล้ว</span>
+          <span class="bg-violet-100 text-violet-800 font-semibold rounded-full px-2 py-0.5">รหัสชั่วคราว = ยิงบาร์โค้ดจริงเอง</span>
+          <span class="bg-amber-100 text-amber-800 font-semibold rounded-full px-2 py-0.5">? ใกล้เคียง = ตรวจก่อน</span>
+        </div>
+      </div>
+      <div id="poBarcodeFillList" class="overflow-y-auto border border-gray-200 rounded-lg divide-y"></div>
+      <p id="poBarcodeFillError" class="text-sm text-red-500 hidden"></p>
+      <div class="flex items-center gap-2 justify-between">
+        <span id="poBarcodeFillSummary" class="text-sm text-gray-600"></span>
+        <div class="flex gap-2">
+          <button id="poBarcodeFillCancelBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ปิด</button>
+          <button id="poBarcodeFillSaveBtn" type="button" class="px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold">✅ บันทึกที่ติ๊กไว้</button>
+        </div>
       </div>
     </div>
   </div>
@@ -8902,6 +8932,204 @@ async function openCustomerCardForGroup_(lines, btn) {
   }
 }
 
+/* -----------------------------------------------------------------
+   เติมบาร์โค้ดให้สินค้าที่จอง (2026-10-22, per Wing — ใบจองเก่าไม่มีบาร์โค้ด
+   ตอนนี้สินค้ามีบาร์โค้ดแล้ว และจองไว้เยอะ). จัดกลุ่มรายการที่ยังไม่มีบาร์โค้ด
+   ตามชื่อสินค้า → หาสินค้าใน Product_ID (productList ในเครื่อง): ชื่อตรงกัน
+   (ไม่สนตัวพิมพ์/ช่องว่าง/เครื่องหมาย) = ติ๊กให้เลย, ชื่อใกล้เคียง = เสนอแต่
+   ไม่ติ๊ก ให้ตรวจก่อน → ส่ง bulkSetPreOrderBarcodes (หลังบ้านใส่ให้ทุกแถวที่
+   ชื่อตรง ทุกสาขา ที่ยังว่าง)
+   ----------------------------------------------------------------- */
+let poBarcodeFillRows = [];
+let poBarcodeProductIndex_ = null;
+
+function poBcNormTokens_(str) {
+  return String(str || "").toLowerCase()
+    .replace(/\(\s*tentative\s*\)/g, " ").replace(/&/g, " and ")
+    .replace(/[^0-9a-z฀-๿]+/g, " ").trim().split(/\s+/).filter(Boolean);
+}
+
+function poBcProductIndex_() {
+  if (poBarcodeProductIndex_ && poBarcodeProductIndex_.size === productList.length) return poBarcodeProductIndex_.list;
+  const list = productList.filter((p) => p && p.barcode && p.name).map((p) => {
+    const tokens = poBcNormTokens_(p.name);
+    return { p: p, key: tokens.join(""), set: new Set(tokens), grade: tokens[0] || "" };
+  });
+  poBarcodeProductIndex_ = { size: productList.length, list: list };
+  return list;
+}
+
+const PO_BC_REAL_RE = /^\d{8,14}$/; // บาร์โค้ดจริง (JAN/EAN) — รหัสอย่าง 2027Q1018 / CD_xxx = รหัสชั่วคราว
+
+function poBcCandidates_(itemName) {
+  const tokens = poBcNormTokens_(itemName);
+  const key = tokens.join("");
+  const set = new Set(tokens);
+  const idx = poBcProductIndex_();
+  const realFirst = (arr) => arr.slice().reverse().sort((a, b) => (PO_BC_REAL_RE.test(String(b.barcode)) ? 1 : 0) - (PO_BC_REAL_RE.test(String(a.barcode)) ? 1 : 0));
+  // ชื่อสินค้าในใบจองเป็น "รหัส/บาร์โค้ด" เอง (เช่น 2027Q1018, 4573102721143)
+  const byCode = findByBarcodeExact(String(itemName).trim());
+  if (byCode) {
+    const same = realFirst(idx.filter((x) => x.key === poBcNormTokens_(byCode.name).join("")).map((x) => x.p));
+    return { kind: "code", list: same.length ? same : [byCode], renameTo: byCode.name };
+  }
+  const exact = realFirst(idx.filter((x) => x.key === key).map((x) => x.p));
+  if (exact.length) return { kind: PO_BC_REAL_RE.test(String(exact[0].barcode)) ? "exact" : "temp", list: exact };
+  const scored = [];
+  idx.forEach((x) => {
+    if (tokens[0] && x.grade !== tokens[0]) return; // เกรด/รุ่นต้องตรง (HG, MG, 30MF, ...)
+    let inter = 0;
+    set.forEach((t) => { if (x.set.has(t)) inter++; });
+    const score = inter / (set.size + x.set.size - inter || 1);
+    if (score >= 0.5) scored.push({ score: score, p: x.p });
+  });
+  scored.sort((a, b) => b.score - a.score);
+  return { kind: scored.length ? "fuzzy" : "none", list: scored.slice(0, 5).map((x) => x.p) };
+}
+
+function poBarcodeFillTargets_() {
+  const map = new Map();
+  lastLoadedPreOrders.forEach((l) => {
+    if (l.status === PO_STATUS_DONE_LABEL || l.status === PO_STATUS_CANCELLED_LABEL) return;
+    if (String(l.itemBarcode || "").trim()) return;
+    const name = String(l.itemName || "").trim();
+    if (!name) return;
+    if (!map.has(name)) map.set(name, { name: name, lines: 0, customers: new Set() });
+    const g = map.get(name);
+    g.lines++;
+    g.customers.add(l.customerName || "-");
+  });
+  return Array.from(map.values()).sort((a, b) => b.lines - a.lines);
+}
+
+function updatePoBarcodeFillCount_() {
+  const el = document.getElementById("poBarcodeFillCount");
+  if (!el) return;
+  const n = poBarcodeFillTargets_().reduce((s, g) => s + g.lines, 0);
+  el.textContent = n ? "(" + n + ")" : "";
+  document.getElementById("poBarcodeFillBtn").classList.toggle("hidden", n === 0);
+}
+
+function openPoBarcodeFillModal() {
+  if (productList.length === 0) { showToast("ยังไม่มีข้อมูลสินค้าในเครื่อง — กดซิงค์ข้อมูลสินค้าที่แท็บ Settings ก่อน", "error"); return; }
+  const targets = poBarcodeFillTargets_();
+  if (targets.length === 0) { showToast("ทุกรายการจองมีบาร์โค้ดแล้ว", "success"); return; }
+  poBarcodeFillRows = targets.map((g) => {
+    const c = poBcCandidates_(g.name);
+    const first = c.list[0];
+    const firstReal = first && PO_BC_REAL_RE.test(String(first.barcode));
+    return {
+      name: g.name, lines: g.lines, customers: g.customers.size, kind: c.kind, candidates: c.list,
+      barcode: first && (c.kind !== "temp" && (c.kind !== "code" || firstReal)) ? String(first.barcode) : "",
+      renameTo: c.renameTo || "", rename: !!c.renameTo,
+      checked: c.kind === "exact" || (c.kind === "code")
+    };
+  });
+  renderPoBarcodeFillList_();
+  document.getElementById("poBarcodeFillError").classList.add("hidden");
+  document.getElementById("poBarcodeFillModal").classList.remove("hidden");
+}
+
+function closePoBarcodeFillModal() {
+  document.getElementById("poBarcodeFillModal").classList.add("hidden");
+}
+
+function poBcRowReady_(r) {
+  return (r.barcode && /^[0-9A-Za-z_.\-]{3,30}$/.test(r.barcode)) || (r.rename && r.renameTo);
+}
+
+function renderPoBarcodeFillList_() {
+  const box = document.getElementById("poBarcodeFillList");
+  const BADGE = {
+    exact: '<span class="bg-emerald-100 text-emerald-800 font-semibold rounded-full px-2 py-0.5 text-[11px]">✓ ชื่อตรง</span>',
+    code: '<span class="bg-sky-100 text-sky-800 font-semibold rounded-full px-2 py-0.5 text-[11px]">ชื่อเป็นรหัส</span>',
+    temp: '<span class="bg-violet-100 text-violet-800 font-semibold rounded-full px-2 py-0.5 text-[11px]">มีแต่รหัสชั่วคราว — ยิงบาร์โค้ดจริง</span>',
+    fuzzy: '<span class="bg-amber-100 text-amber-800 font-semibold rounded-full px-2 py-0.5 text-[11px]">? ใกล้เคียง — ตรวจก่อน</span>',
+    none: '<span class="bg-gray-100 text-gray-500 font-semibold rounded-full px-2 py-0.5 text-[11px]">ไม่พบ — ใส่บาร์โค้ดเอง</span>'
+  };
+  box.innerHTML = poBarcodeFillRows.map((r, i) => {
+    const found = r.barcode ? findByBarcodeExact(r.barcode) : null;
+    const options = ['<option value="">— เลือกจาก Product_ID —</option>'].concat(r.candidates.map((p) => {
+      const temp = !PO_BC_REAL_RE.test(String(p.barcode));
+      return `<option value="${escapeHtml(String(p.barcode))}" ${String(p.barcode) === r.barcode ? "selected" : ""}>${escapeHtml(String(p.barcode))}${temp ? " (รหัสชั่วคราว)" : ""} · ${escapeHtml(p.name)}${Number(p.price2) ? " · P2 " + formatMoney(p.price2) : ""}</option>`;
+    })).join("");
+    const ready = poBcRowReady_(r);
+    return `
+      <div class="p-3 flex flex-col md:flex-row md:items-center gap-2 ${r.checked && ready ? "bg-emerald-50/50" : ""}">
+        <label class="flex items-start gap-2 md:w-[38%] min-w-0 cursor-pointer">
+          <input type="checkbox" class="po-bcf-check mt-1 w-4 h-4" data-i="${i}" ${r.checked && ready ? "checked" : ""} ${ready ? "" : "disabled"}>
+          <span class="min-w-0">
+            <span class="block font-medium text-gray-800 break-words">${escapeHtml(r.name)}</span>
+            <span class="text-[11px] text-gray-500">${r.lines} รายการ · ${r.customers} ลูกค้า</span> ${BADGE[r.kind] || ""}
+          </span>
+        </label>
+        <div class="flex-1 min-w-0 flex flex-col gap-1">
+          ${r.candidates.length ? `<select class="po-bcf-select w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white" data-i="${i}">${options}</select>` : ""}
+          <div class="flex items-center gap-2 flex-wrap">
+            <input type="text" class="po-bcf-input w-44 border-2 border-gray-200 rounded-lg px-2 py-1 text-sm font-mono" data-i="${i}" value="${escapeHtml(r.barcode)}" placeholder="ยิง/พิมพ์บาร์โค้ดจริง">
+            <span class="text-xs ${found ? "text-emerald-700" : "text-amber-600"} min-w-0 truncate">${r.barcode ? (found ? "✓ " + escapeHtml(found.name) : "ยังไม่มีใน Product_ID (ใส่ได้)") : ""}</span>
+          </div>
+          ${r.renameTo ? `<label class="text-xs text-sky-800 flex items-center gap-1.5"><input type="checkbox" class="po-bcf-rename w-3.5 h-3.5" data-i="${i}" ${r.rename ? "checked" : ""}> เปลี่ยนชื่อในใบจองเป็น "${escapeHtml(r.renameTo)}"</label>` : ""}
+        </div>
+      </div>`;
+  }).join("");
+
+  const sel = poBarcodeFillRows.filter((r) => r.checked && poBcRowReady_(r));
+  document.getElementById("poBarcodeFillSummary").textContent =
+    "ติ๊กไว้ " + sel.length + " สินค้า · " + sel.reduce((s, r) => s + r.lines, 0) + " รายการจอง (จากทั้งหมด " + poBarcodeFillRows.length + " สินค้า)";
+
+  box.querySelectorAll(".po-bcf-check").forEach((el) => el.addEventListener("change", () => {
+    poBarcodeFillRows[Number(el.dataset.i)].checked = el.checked; renderPoBarcodeFillList_();
+  }));
+  box.querySelectorAll(".po-bcf-select").forEach((el) => el.addEventListener("change", () => {
+    const r = poBarcodeFillRows[Number(el.dataset.i)]; r.barcode = el.value; r.checked = poBcRowReady_(r); renderPoBarcodeFillList_();
+  }));
+  box.querySelectorAll(".po-bcf-input").forEach((el) => el.addEventListener("change", () => {
+    const r = poBarcodeFillRows[Number(el.dataset.i)]; r.barcode = el.value.trim(); r.checked = poBcRowReady_(r); renderPoBarcodeFillList_();
+  }));
+  box.querySelectorAll(".po-bcf-rename").forEach((el) => el.addEventListener("change", () => {
+    const r = poBarcodeFillRows[Number(el.dataset.i)]; r.rename = el.checked; r.checked = poBcRowReady_(r); renderPoBarcodeFillList_();
+  }));
+}
+
+async function savePoBarcodeFill() {
+  const err = document.getElementById("poBarcodeFillError");
+  const items = poBarcodeFillRows.filter((r) => r.checked && poBcRowReady_(r))
+    .map((r) => ({ itemName: r.name, barcode: r.barcode, newName: r.rename && r.renameTo ? r.renameTo : "" }));
+  if (items.length === 0) { err.textContent = "ยังไม่ได้ติ๊กสินค้าที่จะเติมบาร์โค้ด"; err.classList.remove("hidden"); return; }
+  const bad = items.filter((it) => it.barcode && !/^[0-9A-Za-z_.\-]{3,30}$/.test(it.barcode));
+  if (bad.length) { err.textContent = "บาร์โค้ดไม่ถูกต้อง: " + bad.map((b) => b.itemName).join(", "); err.classList.remove("hidden"); return; }
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl === "YOUR_URL_HERE") { err.textContent = "กรุณาวางลิงก์ Apps Script Web App ที่แท็บ Settings ก่อน"; err.classList.remove("hidden"); return; }
+  const btn = document.getElementById("poBarcodeFillSaveBtn");
+  const original = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+  err.classList.add("hidden");
+  try {
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "bulkSetPreOrderBarcodes", pin: currentStaff ? currentStaff.pin : "", branch: getBranchCode(), items: items })
+    });
+    const result = await response.json();
+    if (!result || result.status !== "success") throw new Error((result && result.message) || "เติมบาร์โค้ดไม่สำเร็จ");
+    showToast(result.message || "เติมบาร์โค้ดเรียบร้อยแล้ว", "success");
+    closePoBarcodeFillModal();
+    loadPreOrders();
+  } catch (e) {
+    console.error(e);
+    err.textContent = e.message; err.classList.remove("hidden");
+  } finally {
+    btn.disabled = false; btn.innerHTML = original;
+  }
+}
+
+function setupPoBarcodeFillModal() {
+  document.getElementById("poBarcodeFillBtn").addEventListener("click", openPoBarcodeFillModal);
+  document.getElementById("poBarcodeFillCancelBtn").addEventListener("click", closePoBarcodeFillModal);
+  document.getElementById("poBarcodeFillSaveBtn").addEventListener("click", savePoBarcodeFill);
+}
+
 function setupPreCustImgModal() {
   document.getElementById("preCustImgCloseBtn").addEventListener("click", closePreCustImgModal);
   document.getElementById("preCustImgCopyBtn").addEventListener("click", copyPreCustImg);
@@ -10541,7 +10769,7 @@ let preOrderStatusFilter = "all";  // active pill in the ตามใบจอ�
 // "newest" — added 2026-09 per Wing's request so an old pending PO doesn't
 // get buried once there's a big backlog. Purely a client-side re-sort of
 // lastLoadedPreOrders, no re-fetch needed.
-let preOrderSortOrder = "oldest";
+let preOrderSortOrder = "newest"; // ค่าเริ่มต้น "ใหม่สุดก่อน" (2026-10-22, per Wing)
 let poProductExpandOpen = new Set();  // itemName keys currently expanded in the ตามสินค้า view
 let preOrderReceiveState = null;   // { itemName, candidates, checked:Set, selectedLineIds, index } while poReceiveModal is open
 let poInvoiceDeliveryMethod = "pickup"; // active choice inside the receive modal's invoice step
@@ -11485,6 +11713,7 @@ function setupPreOrderSortToggle_() {
 }
 
 function renderPreOrderPoList() {
+  updatePoBarcodeFillCount_();
   renderPreOrderStatusFilterPills();
   renderPreOrderSortToggle_();
   const emptyState = document.getElementById("poListEmptyState");
@@ -19262,6 +19491,7 @@ async function init() {
   setupEditPreCustomerModal();
   setupPoEditItemModal();
   setupPreCustImgModal();
+  setupPoBarcodeFillModal();
   setupProductCheckSearch();
   setupPreOrderTab();
   setupWSTab();
