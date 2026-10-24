@@ -81,12 +81,32 @@
   .bill-format-btn.active { background: #047857; color: #fff; }
   .bill-format-btn:not(.active) { background: #f3f4f6; color: #6b7280; }
 
+  /* Print isolation (2026-10-24): the print area used to be printed in
+     place, inside a position:fixed modal with a scrolling body. Browsers
+     repeat fixed elements on EVERY printed page, so a long A4 WS invoice
+     printed its header block over the item rows of page 2+. Now
+     printIsolated_() moves the area into #printRoot (a direct child of
+     <body>) for the duration of the print, and everything else is
+     display:none — normal document flow, so pages break cleanly. */
+  #printRoot { display: none; }
   @media print {
     body * { visibility: hidden; }
     #billPreviewPrintArea, #billPreviewPrintArea *,
     #storewdPrintArea, #storewdPrintArea * { visibility: visible; }
     #billPreviewPrintArea, #storewdPrintArea { position: absolute; top: 0; left: 0; }
     .no-print { display: none !important; }
+
+    html, body.printing-isolated { height: auto !important; overflow: visible !important; background: #fff !important; }
+    body.printing-isolated > *:not(#printRoot) { display: none !important; }
+    body.printing-isolated #printRoot { display: block !important; visibility: visible; }
+    body.printing-isolated #printRoot * { visibility: visible; }
+    body.printing-isolated #billPreviewPrintArea,
+    body.printing-isolated #storewdPrintArea {
+      position: static !important; box-shadow: none !important; margin: 0 auto !important;
+    }
+    body.printing-isolated #billPreviewPrintArea.format-a4 { max-width: none; width: 100%; padding: 0 !important; }
+    #billPreviewPrintArea thead, #storewdPrintArea thead { display: table-header-group; }
+    #billPreviewPrintArea tr, #storewdPrintArea tr { break-inside: avoid; page-break-inside: avoid; }
   }
 </style>
 </head>
@@ -235,7 +255,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.22-e</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.24-a</span>
       </div>
       <div class="flex-1"></div>
 
@@ -18937,7 +18957,7 @@ function closeStorewdPrint_() {
 }
 
 function printStorewdLog_() {
-  window.print();
+  printIsolated_("storewdPrintArea");
 }
 
 // Branch view's "🖨️ ปริ้น" — prints exactly what's currently loaded in
@@ -19923,9 +19943,45 @@ function closeBillPreview() {
   }
 }
 
+// Prints one element on its own: moves it into #printRoot (direct child
+// of <body>) so it flows like a normal document instead of living inside
+// a fixed, scrolling modal — see the print-isolation note in the <style>.
+// The element goes back to its original place once printing finishes.
+function printIsolated_(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) { window.print(); return; }
+  let root = document.getElementById("printRoot");
+  if (!root) {
+    root = document.createElement("div");
+    root.id = "printRoot";
+    document.body.appendChild(root);
+  }
+  const parent = el.parentNode;
+  const next = el.nextSibling;
+  let restored = false;
+  const restore = () => {
+    if (restored) return;
+    restored = true;
+    if (next && next.parentNode === parent) parent.insertBefore(el, next);
+    else parent.appendChild(el);
+    document.body.classList.remove("printing-isolated");
+    window.removeEventListener("afterprint", restore);
+  };
+  root.appendChild(el);
+  document.body.classList.add("printing-isolated");
+  window.addEventListener("afterprint", restore);
+  try {
+    window.print();
+  } finally {
+    // Chrome/Edge block inside print() until the dialog closes; Safari
+    // may return early, so afterprint (or this fallback) restores it.
+    setTimeout(restore, 1500);
+  }
+}
+
 function printBillPreview() {
   if (!currentPreviewBill) return;
-  window.print();
+  printIsolated_("billPreviewPrintArea");
 }
 
 function setupBillPreviewModal() {
