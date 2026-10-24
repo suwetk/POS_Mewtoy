@@ -255,7 +255,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.24-a</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.24-b</span>
       </div>
       <div class="flex-1"></div>
 
@@ -4019,7 +4019,10 @@
     <div class="no-print flex items-center flex-wrap gap-2 px-5 py-2 border-b">
       <button type="button" data-format="receipt" class="bill-format-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">🧾 ใบเสร็จ (แนวแคบ)</button>
       <button type="button" data-format="a4" class="bill-format-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">📄 ใบกำกับ A4</button>
-      <button id="billPreviewPrintBtn" type="button" class="ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white transition">
+      <button id="billPreviewExcelBtn" type="button" class="ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg bg-white border border-emerald-700 text-emerald-800 hover:bg-emerald-50 transition" title="ดาวน์โหลดบิลนี้เป็นไฟล์ Excel (.xlsx) ส่งให้ลูกค้า">
+        📊 Excel
+      </button>
+      <button id="billPreviewPrintBtn" type="button" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white transition">
         🖨️ พิมพ์
       </button>
     </div>
@@ -19984,9 +19987,231 @@ function printBillPreview() {
   printIsolated_("billPreviewPrintArea");
 }
 
+/* ---------------- Export บิลเป็น Excel (2026-10-24, per Wing) ----------------
+   ลูกค้า/พ่อค้าส่งอยากได้บิลเป็นไฟล์ — ปุ่ม "📊 Excel" ในหน้าพรีวิวบิล ใช้ได้
+   กับทุกบิลที่เปิดพรีวิวได้ (ขายหน้าร้าน / WS / Pre-Order, ทั้งร่างและบิลที่
+   บันทึกแล้ว) ใช้ข้อมูลชุดเดียวกับที่พิมพ์ (currentPreviewBill).
+   หน้าตา: ใช้ ExcelJS (โหลดจาก cdnjs ตอนกดครั้งแรกเท่านั้น) ได้ตัวหนา/เส้นตาราง/
+   ตั้งหน้า A4 — ถ้าโหลดไม่ได้ (เน็ตช้า/CDN ล่ม) ใช้ SheetJS ที่โหลดอยู่แล้ว
+   (XLSX) ได้ไฟล์ข้อมูลเดียวกันแต่ไม่มีตัวหนา. ตัวเลขเป็นตัวเลขจริง (บวก/กรอง
+   ต่อใน Excel ได้) บาร์โค้ดเป็นข้อความ (ไม่กลายเป็น 4.57E+12). */
+const EXCELJS_CDN_URL = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js";
+let excelJsLoadPromise_ = null;
+
+function loadExcelJs_() {
+  if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  if (!excelJsLoadPromise_) {
+    excelJsLoadPromise_ = new Promise((resolve, reject) => {
+      const sc = document.createElement("script");
+      sc.src = EXCELJS_CDN_URL;
+      sc.onload = () => (window.ExcelJS ? resolve(window.ExcelJS) : reject(new Error("ExcelJS ไม่พร้อม")));
+      sc.onerror = () => reject(new Error("โหลด ExcelJS ไม่ได้"));
+      document.head.appendChild(sc);
+      setTimeout(() => reject(new Error("โหลด ExcelJS นานเกินไป")), 15000);
+    }).catch((err) => { excelJsLoadPromise_ = null; throw err; });
+  }
+  return excelJsLoadPromise_;
+}
+
+// แปลงบิลเป็นแถวๆ (ใช้ร่วมกันทั้ง ExcelJS และ SheetJS) — kind บอกว่าแถวนั้น
+// ต้องจัดหน้าตาแบบไหน, value เป็น array 7 ช่อง (A–G) ตามตาราง
+function billToExcelRows_(bill) {
+  const shop = shopInfoCache || { name: "", address: "", phone: "" };
+  const items = bill.items || [];
+  const hasDiscount = items.some((it) => Number(it.discountPct) > 0);
+  const rows = [];
+  const line = (kind, value) => rows.push({ kind, value });
+  const blank = () => line("blank", []);
+
+  line("shop", [shop.name || "Mewtoy"]);
+  if (shop.address) line("sub", [shop.address]);
+  if (shop.phone) line("sub", ["โทร " + shop.phone]);
+  blank();
+  line("doc", [bill.docLabel || "บิล"]);
+  line("docId", [bill.isDraft ? "ฉบับร่าง (ยังไม่บันทึก)" : "เลขที่ " + (bill.billId || "")]);
+  blank();
+  line("info", ["วันที่", bill.dateText || "", "", "", "พนักงาน", bill.cashier || ""]);
+  if (bill.customerName) line("info", ["ลูกค้า", bill.customerName]);
+  if (bill.customerPhone) line("info", ["โทร", String(bill.customerPhone)]);
+  if (bill.customerAddress) line("info", ["ที่อยู่", bill.customerAddress]);
+  blank();
+  line("head", ["ลำดับ", "บาร์โค้ด", "รายการ", "จำนวน", "ราคา/หน่วย", hasDiscount ? "ส่วนลด %" : "", "ยอดรวม"]);
+  items.forEach((it, i) => {
+    const name = (it.name || "(ไม่มีชื่อ)") + (it.note ? " (" + it.note + ")" : "");
+    line("item", [
+      i + 1,
+      String(it.barcode || ""),
+      name,
+      Number(it.qty) || 0,
+      it.unitPrice != null && it.unitPrice !== "" ? Number(it.unitPrice) : "",
+      hasDiscount && Number(it.discountPct) > 0 ? Number(it.discountPct) : "",
+      Number(it.lineTotal) || 0
+    ]);
+  });
+  const totalQty = items.reduce((sum, it) => sum + (Number(it.qty) || 0), 0);
+  line("sum", ["", "", "รวม " + items.length + " รายการ", totalQty, "", "", ""]);
+  line("grand", ["", "", "ยอดรวมสุทธิ (บาท)", "", "", "", Number(bill.grandTotal) || 0]);
+  (bill.paymentLines || []).filter((pl) => pl.amount).forEach((pl) => {
+    line("pay", ["", "", pl.label, "", "", "", Number(pl.amount) || 0]);
+  });
+  if (bill.amountDue) line("due", ["", "", "ค้างชำระ", "", "", "", Number(bill.amountDue) || 0]);
+  if (bill.extraNote) { blank(); line("note", ["หมายเหตุ: " + bill.extraNote]); }
+  blank();
+  line("foot", ["ออกจากระบบ POS · " + new Date().toLocaleString("th-TH")]);
+  return { rows, hasDiscount };
+}
+
+function billExcelFileName_(bill) {
+  const parts = [bill.isDraft ? "ฉบับร่าง" : bill.billId || "บิล"];
+  if (bill.customerName) parts.push(bill.customerName);
+  return parts.join("_").replace(/[\\/:*?"<>|\r\n]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) + ".xlsx";
+}
+
+function downloadBlob_(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+const BILL_XLSX_MONEY_FMT = "#,##0.00";
+const BILL_XLSX_FULL_WIDTH_KINDS = ["shop", "sub", "doc", "docId", "note", "foot"];
+
+async function buildBillXlsxWithExcelJs_(ExcelJS, bill) {
+  const { rows, hasDiscount } = billToExcelRows_(bill);
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Mewtoy POS";
+  const ws = wb.addWorksheet("บิล", {
+    pageSetup: { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+      margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } },
+    views: [{ showGridLines: false }]
+  });
+  ws.columns = [{ width: 7 }, { width: 16 }, { width: 46 }, { width: 8 }, { width: 12 }, { width: hasDiscount ? 10 : 2 }, { width: 14 }];
+  const font = { name: "Tahoma", size: 10 };
+  const thin = { style: "thin", color: { argb: "FFBFBFBF" } };
+  let headRowNo = 0;
+  rows.forEach((r, idx) => {
+    const rowNo = idx + 1;
+    const row = ws.getRow(rowNo);
+    r.value.forEach((v, i) => { if (v !== "" && v != null) row.getCell(i + 1).value = v; });
+    row.eachCell({ includeEmpty: true }, (c) => { c.font = font; });
+    if (BILL_XLSX_FULL_WIDTH_KINDS.includes(r.kind)) {
+      ws.mergeCells(rowNo, 1, rowNo, 7);
+      const c = row.getCell(1);
+      c.alignment = { horizontal: "center", vertical: "middle", wrapText: r.kind === "note" };
+      if (r.kind === "shop") c.font = { ...font, size: 16, bold: true };
+      if (r.kind === "doc") c.font = { ...font, size: 13, bold: true };
+      if (r.kind === "docId") c.font = { ...font, bold: true };
+      if (r.kind === "sub" || r.kind === "foot") c.font = { ...font, size: 9, color: { argb: "FF6B7280" } };
+      if (r.kind === "note") { c.alignment = { horizontal: "left", wrapText: true }; row.height = 30; }
+    }
+    if (r.kind === "info") {
+      row.getCell(1).font = { ...font, bold: true };
+      row.getCell(5).font = { ...font, bold: true };
+      ws.mergeCells(rowNo, 2, rowNo, 4);
+      ws.mergeCells(rowNo, 6, rowNo, 7);
+      row.getCell(2).alignment = { horizontal: "left" };
+    }
+    if (r.kind === "head") {
+      headRowNo = rowNo;
+      row.eachCell({ includeEmpty: true }, (c, col) => {
+        if (col > 7) return;
+        c.font = { ...font, bold: true, color: { argb: "FFFFFFFF" } };
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F766E" } };
+        c.alignment = { horizontal: col === 3 ? "left" : "center", vertical: "middle" };
+        c.border = { top: thin, bottom: thin, left: thin, right: thin };
+      });
+      row.height = 20;
+    }
+    if (r.kind === "item") {
+      for (let col = 1; col <= 7; col++) {
+        const c = row.getCell(col);
+        c.border = { top: thin, bottom: thin, left: thin, right: thin };
+        c.alignment = { vertical: "top", horizontal: col === 1 || col === 4 || col === 6 ? "center" : col === 2 || col === 3 ? "left" : "right", wrapText: col === 3 };
+      }
+      row.getCell(2).numFmt = "@";
+      row.getCell(5).numFmt = BILL_XLSX_MONEY_FMT;
+      row.getCell(7).numFmt = BILL_XLSX_MONEY_FMT;
+    }
+    if (["sum", "grand", "pay", "due"].includes(r.kind)) {
+      row.getCell(3).alignment = { horizontal: "right" };
+      row.getCell(4).alignment = { horizontal: "center" };
+      row.getCell(7).numFmt = BILL_XLSX_MONEY_FMT;
+      if (r.kind === "grand") {
+        [3, 7].forEach((col) => { row.getCell(col).font = { ...font, size: 12, bold: true }; });
+        for (let col = 1; col <= 7; col++) row.getCell(col).border = { top: { style: "medium" } };
+      }
+      if (r.kind === "due") [3, 7].forEach((col) => { row.getCell(col).font = { ...font, bold: true, color: { argb: "FFB45309" } }; });
+    }
+  });
+  if (headRowNo) ws.pageSetup.printTitlesRow = headRowNo + ":" + headRowNo;
+  const buf = await wb.xlsx.writeBuffer();
+  return new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
+
+// สำรอง: SheetJS (community) เขียนไฟล์ได้แต่ไม่มีตัวหนา/สี — ข้อมูลครบเหมือนกัน
+function buildBillXlsxWithSheetJs_(bill) {
+  const { rows, hasDiscount } = billToExcelRows_(bill);
+  const aoa = rows.map((r) => {
+    const v = r.value.slice();
+    while (v.length < 7) v.push("");
+    return v;
+  });
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"] = [{ wch: 7 }, { wch: 16 }, { wch: 46 }, { wch: 8 }, { wch: 12 }, { wch: hasDiscount ? 10 : 2 }, { wch: 14 }];
+  ws["!merges"] = [];
+  rows.forEach((r, idx) => {
+    if (BILL_XLSX_FULL_WIDTH_KINDS.includes(r.kind)) ws["!merges"].push({ s: { r: idx, c: 0 }, e: { r: idx, c: 6 } });
+    if (r.kind === "item") {
+      const bc = ws[XLSX.utils.encode_cell({ r: idx, c: 1 })];
+      if (bc) { bc.t = "s"; bc.z = "@"; }
+      [4, 6].forEach((c) => { const cell = ws[XLSX.utils.encode_cell({ r: idx, c })]; if (cell && cell.t === "n") cell.z = BILL_XLSX_MONEY_FMT; });
+    }
+    if (["grand", "pay", "due"].includes(r.kind)) {
+      const cell = ws[XLSX.utils.encode_cell({ r: idx, c: 6 })];
+      if (cell) cell.z = BILL_XLSX_MONEY_FMT;
+    }
+  });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "บิล");
+  const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  return new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
+
+async function exportBillPreviewToExcel() {
+  const bill = currentPreviewBill;
+  if (!bill) return;
+  const btn = document.getElementById("billPreviewExcelBtn");
+  const oldText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = "⏳ กำลังสร้างไฟล์...";
+  try {
+    let blob;
+    try {
+      const ExcelJS = await loadExcelJs_();
+      blob = await buildBillXlsxWithExcelJs_(ExcelJS, bill);
+    } catch (err) {
+      console.warn("Excel export: ใช้แบบสำรอง (SheetJS) —", err);
+      if (typeof XLSX === "undefined") throw new Error("ไม่มีตัวสร้างไฟล์ Excel (เช็กอินเทอร์เน็ต)");
+      blob = buildBillXlsxWithSheetJs_(bill);
+    }
+    downloadBlob_(blob, billExcelFileName_(bill));
+  } catch (err) {
+    alert("สร้างไฟล์ Excel ไม่สำเร็จ: " + (err && err.message ? err.message : err));
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = oldText;
+  }
+}
+
 function setupBillPreviewModal() {
   document.getElementById("billPreviewCloseBtn").addEventListener("click", closeBillPreview);
   document.getElementById("billPreviewPrintBtn").addEventListener("click", printBillPreview);
+  document.getElementById("billPreviewExcelBtn").addEventListener("click", exportBillPreviewToExcel);
   document.querySelectorAll(".bill-format-btn").forEach((btn) => {
     btn.addEventListener("click", () => setBillPreviewFormat(btn.getAttribute("data-format")));
   });
