@@ -89,6 +89,27 @@
      <body>) for the duration of the print, and everything else is
      display:none — normal document flow, so pages break cleanly. */
   #printRoot { display: none; }
+  /* ใบปะหน้า A4 4 ใบ/แผ่น (2026-10-26, mockup_shipping.html) */
+  #shipLabelPrintArea { font-family: 'Segoe UI', Tahoma, 'Noto Sans Thai', sans-serif; color: #111827; }
+  .ship-page { width: 194mm; height: 280mm; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; background: #fff; }
+  .ship-page + .ship-page { margin-top: 6mm; }
+  .ship-lbl { border: 1px dashed #9ca3af; padding: 5mm 5mm 4mm; display: flex; flex-direction: column; overflow: hidden; font-size: 9pt; }
+  .ship-lbl.empty { border-color: #e5e7eb; }
+  .ship-lbl .from { border-bottom: 1px solid #d1d5db; padding-bottom: 2mm; color: #4b5563; line-height: 1.35; font-size: 8pt; }
+  .ship-lbl .from b { color: #111827; }
+  .ship-lbl .to { flex: 1; padding-top: 3mm; min-height: 0; }
+  .ship-lbl .k { font-size: 8pt; font-weight: 800; color: #0f766e; letter-spacing: .04em; }
+  .ship-lbl .nm { font-size: 20pt; font-weight: 800; line-height: 1.2; margin: 1mm 0; }
+  .ship-lbl .ph { font-size: 16pt; font-weight: 800; }
+  .ship-lbl .ad { font-size: 15pt; line-height: 1.4; margin-top: 1.5mm; white-space: pre-wrap; }
+  .ship-lbl .cod { display: inline-block; margin-top: 2.5mm; border: 2px solid #b91c1c; color: #b91c1c; font-weight: 900; font-size: 12pt; padding: 1mm 3mm; border-radius: 1.5mm; }
+  .ship-lbl .foot { border-top: 1px solid #d1d5db; padding-top: 2mm; color: #374151; line-height: 1.35; font-size: 8pt; max-height: 45mm; overflow: hidden; }
+  .ship-lbl .foot b { color: #111827; }
+  @media print {
+    body.printing-isolated #shipLabelPrintArea { position: static !important; }
+    .ship-page { page-break-after: always; break-after: page; margin: 0 !important; }
+    .ship-page:last-child { page-break-after: auto; break-after: auto; }
+  }
   @media print {
     body * { visibility: hidden; }
     #billPreviewPrintArea, #billPreviewPrintArea *,
@@ -255,7 +276,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.24-b</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.26-a</span>
       </div>
       <div class="flex-1"></div>
 
@@ -315,6 +336,7 @@
           <span class="navB-cap">ขาย</span>
           <button data-tab="pos"          type="button" class="tab-btn navB-tab nav-act"><i class="fa-solid fa-cash-register"></i>POS</button>
           <button data-tab="preorder"     type="button" class="tab-btn role-gated-tab navB-tab"><i class="fa-solid fa-calendar-check"></i>Pre-Order</button>
+          <button data-tab="shipping"     type="button" class="tab-btn navB-tab"><i class="fa-solid fa-truck"></i>จัดส่ง<span id="shipNavCount" class="hidden ml-1 bg-orange-500 text-white text-[10px] font-extrabold rounded-full px-1.5 leading-4"></span></button>
           <button data-tab="ws"           type="button" class="tab-btn role-gated-tab navB-tab"><i class="fa-solid fa-boxes-stacked"></i>WS</button>
         </div>
         <div class="navB-grp" data-nav-group="report">
@@ -758,6 +780,45 @@
         <span class="text-emerald-700 font-medium">Camera Scan</span>
         <span class="text-gray-400 text-sm">Scan barcode using camera</span>
       </div>
+    </div>
+  </section>
+
+
+  <!-- ============= TAB: 🚚 จัดส่ง (2026-10-26, mockup_shipping.html) =============
+       รวมบิลที่กด 🚚 จัดส่ง (ขายหน้าร้าน + ปิดบิลใบจองแบบจัดส่ง) — ทุกคนที่ล็อกอินใช้ได้
+       ไม่ต้องขอ PIN เพิ่ม (Wing 2026-10-26). ใบปะหน้า A4 4 ใบ/แผ่น + รูปส่ง LINE ขนส่ง -->
+  <section id="tab-shipping" class="tab-panel hidden flex flex-col gap-3">
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+      <div class="flex items-center gap-2 flex-wrap px-4 pt-3">
+        <h2 class="font-semibold text-gray-800 text-lg mr-2">🚚 จัดส่ง</h2>
+        <div class="flex gap-1.5 flex-wrap" id="shipViewBtns">
+          <button type="button" data-ship-view="wait" class="ship-view-btn text-sm px-3.5 py-1.5 rounded-full border font-semibold">⏳ รอจัดส่ง <span id="shipCntWait" class="font-extrabold"></span></button>
+          <button type="button" data-ship-view="track" class="ship-view-btn text-sm px-3.5 py-1.5 rounded-full border font-semibold">🔢 รอเลขพัสดุ <span id="shipCntTrack" class="font-extrabold"></span></button>
+          <button type="button" data-ship-view="done" class="ship-view-btn text-sm px-3.5 py-1.5 rounded-full border font-semibold">✅ ส่งแล้ว</button>
+        </div>
+        <button id="shipReloadBtn" type="button" class="ml-auto text-xs text-gray-500 hover:text-gray-800 px-2 py-1"><i class="fa-solid fa-rotate-right"></i> โหลดใหม่</button>
+      </div>
+      <div class="flex gap-3 flex-wrap items-end px-4 py-3 border-b">
+        <label class="text-xs font-bold text-gray-500">สาขา<br>
+          <select id="shipBranchFilter" class="mt-1 border rounded-lg px-2 py-1.5 text-sm font-normal text-gray-800"></select></label>
+        <label class="text-xs font-bold text-gray-500">มาจาก<br>
+          <select id="shipSourceFilter" class="mt-1 border rounded-lg px-2 py-1.5 text-sm font-normal text-gray-800">
+            <option value="all">ทั้งหมด</option><option value="sale">บิลขาย</option><option value="po">ใบจอง</option></select></label>
+        <label class="text-xs font-bold text-gray-500 flex-1 min-w-[200px]">ค้นหา<br>
+          <input id="shipSearchInput" type="text" placeholder="ชื่อ / เบอร์ / เลขบิล / เลขพัสดุ" class="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm font-normal text-gray-800"></label>
+        <div id="shipDoneDates" class="hidden flex gap-2 items-end">
+          <label class="text-xs font-bold text-gray-500">ส่งวันที่<br><input id="shipDateFrom" type="date" class="mt-1 border rounded-lg px-2 py-1.5 text-sm font-normal"></label>
+          <label class="text-xs font-bold text-gray-500">ถึง<br><input id="shipDateTo" type="date" class="mt-1 border rounded-lg px-2 py-1.5 text-sm font-normal"></label>
+        </div>
+      </div>
+      <div id="shipBulkBar" class="hidden flex items-center gap-2 flex-wrap px-4 py-2 bg-teal-50 border-b border-teal-100 text-sm">
+        <label class="flex items-center gap-1.5 cursor-pointer"><input id="shipChkAll" type="checkbox" class="w-4 h-4 accent-teal-700"> เลือกทั้งหมด</label>
+        <span>เลือกแล้ว <b id="shipSelCount" class="text-teal-800">0</b> บิล</span>
+        <button id="shipBulkPrintBtn" type="button" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white disabled:opacity-40">🖨️ พิมพ์ใบปะหน้า A4</button>
+        <button id="shipBulkCombineBtn" type="button" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white border border-teal-700 text-teal-800 hover:bg-teal-50 disabled:opacity-40">📦 รวมกล่อง</button>
+        <button id="shipBulkShipBtn" type="button" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white disabled:opacity-40">✅ ส่งแล้ว (แยกกล่อง)</button>
+      </div>
+      <div id="shipList" class="text-sm"></div>
     </div>
   </section>
 
@@ -2139,7 +2200,7 @@
            → ค่าเริ่มต้นไม่ติ๊ก; ติ๊กเฉพาะตอนลูกค้ามาจ่ายและรับของพร้อมกันที่หน้าร้าน -->
       <label class="flex items-center gap-2 text-sm bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 cursor-pointer">
         <input id="poFulfillPickedUpChk" type="checkbox" class="w-4 h-4 accent-emerald-600">
-        <span>📦 ลูกค้ารับของไปแล้ว <span class="text-gray-500 text-xs">(ไม่ติ๊ก = ชำระแล้ว รอมารับ)</span></span>
+        <span>📦 ลูกค้ารับของไปแล้ว <span class="text-gray-500 text-xs">(ไม่ติ๊ก = ชำระแล้ว รอมารับ · จัดส่ง → ไม่ต้องติ๊ก ไปกด "ส่งแล้ว" ที่หน้า 🚚 จัดส่ง)</span></span>
       </label>
       <p id="poFulfillModalError" class="text-sm text-red-500 hidden"></p>
 
@@ -2213,7 +2274,7 @@
            → ค่าเริ่มต้นไม่ติ๊ก; ติ๊กเฉพาะตอนลูกค้ามาจ่ายและรับของพร้อมกันที่หน้าร้าน -->
       <label class="flex items-center gap-2 text-sm bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 cursor-pointer">
         <input id="poBulkFulfillPickedUpChk" type="checkbox" class="w-4 h-4 accent-emerald-600">
-        <span>📦 ลูกค้ารับของไปแล้ว <span class="text-gray-500 text-xs">(ไม่ติ๊ก = ชำระแล้ว รอมารับ)</span></span>
+        <span>📦 ลูกค้ารับของไปแล้ว <span class="text-gray-500 text-xs">(ไม่ติ๊ก = ชำระแล้ว รอมารับ · จัดส่ง → ไม่ต้องติ๊ก ไปกด "ส่งแล้ว" ที่หน้า 🚚 จัดส่ง)</span></span>
       </label>
       <p id="poBulkFulfillModalError" class="text-sm text-red-500 hidden"></p>
 
@@ -3483,6 +3544,19 @@
       </div>
 
       <!-- 📦 รับของ Pre-Order (2026-10-22): รับของที่สาขานี้วันนี้ + ใบจองสาขานี้ที่ชำระแล้วค้างรับ ≥ 7 วัน -->
+      <div id="reportShipCard" class="hidden bg-white rounded-xl shadow p-4">
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <h3 class="font-semibold text-gray-700">🚚 จัดส่ง</h3>
+          <button id="reportShipOpenBtn" type="button" class="text-xs bg-orange-50 hover:bg-orange-100 text-orange-700 font-semibold px-3 py-1.5 rounded-lg">เปิดหน้า 🚚 จัดส่ง →</button>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 text-sm">
+          <div class="border rounded-lg px-3 py-2"><div class="text-xs text-gray-500">ส่งของวันนี้</div><div id="reportShipToday" class="text-xl font-bold tabular-nums">0</div></div>
+          <div class="border rounded-lg px-3 py-2"><div class="text-xs text-gray-500">ยังไม่ส่ง</div><div id="reportShipWaiting" class="text-xl font-bold tabular-nums">0</div></div>
+          <div class="border rounded-lg px-3 py-2"><div class="text-xs text-gray-500">ค้าง <span id="reportShipOverdueDays">3</span> วันขึ้นไป</div><div id="reportShipOverdue" class="text-xl font-bold tabular-nums text-red-700">0</div></div>
+          <div class="border rounded-lg px-3 py-2"><div class="text-xs text-gray-500">รอเลขพัสดุ</div><div id="reportShipTrack" class="text-xl font-bold tabular-nums text-amber-700">0</div></div>
+        </div>
+      </div>
+
       <div id="reportPickupCard" class="hidden bg-white rounded-xl shadow p-4">
         <div class="flex items-baseline justify-between mb-2 gap-2 flex-wrap">
           <h3 class="font-semibold text-gray-700">📦 รับของจองวันนี้ <span id="reportPickupCount" class="text-xs text-gray-400 font-normal"></span></h3>
@@ -3992,6 +4066,131 @@
 <!-- ============================================================
      TOAST NOTIFICATION
      ============================================================ -->
+
+<!-- ===== 🚚 จัดส่ง: modal ส่งแล้ว / แก้ข้อมูลการส่ง ===== -->
+<div id="shipModal" class="fixed inset-0 bg-black/50 z-[115] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
+    <div class="flex items-center justify-between px-5 py-3 border-b">
+      <h3 id="shipModalTitle" class="font-semibold text-gray-800 text-lg">✅ บันทึกส่งแล้ว</h3>
+      <button id="shipModalCloseBtn" type="button" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="px-5 py-4 flex flex-col gap-3">
+      <div id="shipModalSummary" class="bg-gray-50 border rounded-lg px-3 py-2 text-sm"></div>
+      <div>
+        <div class="text-xs font-bold text-gray-600 mb-1.5">ส่งด้วย</div>
+        <div id="shipCarrierChips" class="flex flex-wrap gap-1.5"></div>
+        <input id="shipCarrierOther" type="text" placeholder="ชื่อขนส่ง" class="hidden mt-2 w-full border rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div id="shipCalledByWrap" class="hidden">
+        <div class="text-xs font-bold text-gray-600 mb-1.5">ใครเรียกรถ</div>
+        <div class="flex flex-wrap gap-1.5">
+          <button type="button" data-called="customer" class="ship-called-btn border-2 rounded-lg px-3 py-1.5 text-sm">🙋 ลูกค้าเรียกมารับ</button>
+          <button type="button" data-called="shop" class="ship-called-btn border-2 rounded-lg px-3 py-1.5 text-sm">🏪 ร้านเรียกให้</button>
+        </div>
+        <p class="text-[11px] text-gray-500 mt-1">ลูกค้าเรียกมารับ = ไม่ต้องมีเลขพัสดุ จบที่ "ส่งแล้ว" เลย</p>
+      </div>
+      <div id="shipTrackWrap">
+        <div class="text-xs font-bold text-gray-600 mb-1.5">เลขพัสดุ <span class="font-normal text-gray-400">(ไม่บังคับ — ใส่ทีหลังได้)</span></div>
+        <input id="shipTrackInput" type="text" autocomplete="off" class="w-full border rounded-lg px-3 py-2 text-sm font-mono" placeholder="เช่น TH0123456789">
+        <p id="shipTrackHint" class="text-[11px] text-gray-500 mt-1">เว้นว่าง → ไปอยู่กอง "รอเลขพัสดุ" กลับมาใส่ทีหลัง</p>
+      </div>
+      <div>
+        <div class="text-xs font-bold text-gray-600 mb-1.5">Remark</div>
+        <textarea id="shipRemarkInput" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm resize-none" placeholder="เช่น ส่งรอบเย็น / คนขับชื่อ… / ลูกค้าขอเปลี่ยนที่อยู่"></textarea>
+      </div>
+      <p class="text-[11px] text-gray-500">บันทึกวันเวลา + ชื่อคนกดให้อัตโนมัติ · บิลที่มาจากใบจอง → ติ๊ก "รับแล้ว" ให้ด้วย</p>
+      <p id="shipModalError" class="hidden text-sm text-red-600"></p>
+    </div>
+    <div class="flex justify-end gap-2 px-5 py-3 border-t">
+      <button id="shipModalCancelBtn" type="button" class="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm font-semibold">ยกเลิก</button>
+      <button id="shipModalOkBtn" type="button" class="px-4 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold">✅ บันทึกส่งแล้ว</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 🚚 จัดส่ง: แก้ผู้รับ / Remark ===== -->
+<div id="shipInfoModal" class="fixed inset-0 bg-black/50 z-[115] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md">
+    <div class="flex items-center justify-between px-5 py-3 border-b">
+      <h3 class="font-semibold text-gray-800 text-lg">✏️ แก้ผู้รับ / Remark <span id="shipInfoTx" class="text-sm text-gray-400 font-normal"></span></h3>
+      <button id="shipInfoCloseBtn" type="button" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="px-5 py-4 flex flex-col gap-2 text-sm">
+      <label class="text-xs font-bold text-gray-600">ชื่อผู้รับ<input id="shipInfoName" type="text" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm font-normal"></label>
+      <label class="text-xs font-bold text-gray-600">เบอร์โทร<input id="shipInfoPhone" type="text" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm font-normal"></label>
+      <label class="text-xs font-bold text-gray-600">ที่อยู่จัดส่ง<textarea id="shipInfoAddress" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm font-normal resize-none"></textarea></label>
+      <label class="text-xs font-bold text-gray-600">Remark<textarea id="shipInfoRemark" rows="2" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm font-normal resize-none"></textarea></label>
+      <p class="text-[11px] text-gray-500">แก้ตรงนี้ = แก้ในบิลนี้เลย (ไม่ต้องแก้บิล ไม่ต้องขอ PIN)</p>
+      <p id="shipInfoError" class="hidden text-sm text-red-600"></p>
+    </div>
+    <div class="flex justify-end gap-2 px-5 py-3 border-t">
+      <button id="shipInfoCancelBtn" type="button" class="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm font-semibold">ยกเลิก</button>
+      <button id="shipInfoOkBtn" type="button" class="px-4 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 🚚 จัดส่ง: รวมกล่อง ===== -->
+<div id="shipCombineModal" class="fixed inset-0 bg-black/50 z-[114] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
+    <div class="flex items-center justify-between px-5 py-3 border-b">
+      <h3 class="font-semibold text-gray-800 text-lg">📦 รวมกล่อง</h3>
+      <button id="shipCombineCloseBtn" type="button" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="shipCombineBody" class="px-5 py-4 text-sm"></div>
+    <div class="flex justify-end gap-2 flex-wrap px-5 py-3 border-t">
+      <button id="shipCombinePrintBtn" type="button" class="px-3 py-2 rounded-lg bg-white border border-teal-700 text-teal-800 text-sm font-semibold">🖨️ ใบปะหน้า</button>
+      <button id="shipCombineImgBtn" type="button" class="px-3 py-2 rounded-lg bg-white border border-teal-700 text-teal-800 text-sm font-semibold">📷 คัดลอกรูป</button>
+      <button id="shipCombineShipBtn" type="button" class="px-3 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold">✅ ส่งแล้ว (กล่องเดียว)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 🚚 จัดส่ง: พิมพ์ใบปะหน้า A4 ===== -->
+<div id="shipPrintModal" class="fixed inset-0 bg-black/50 z-[116] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl flex flex-col max-h-[94vh]">
+    <div class="no-print flex items-center justify-between px-5 py-3 border-b">
+      <h3 class="font-semibold text-gray-800 text-lg">🖨️ ใบปะหน้า A4 <span id="shipPrintInfo" class="text-sm text-gray-400 font-normal"></span></h3>
+      <button id="shipPrintCloseBtn" type="button" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="no-print flex items-center gap-3 flex-wrap px-5 py-2 border-b text-sm">
+      <label>เริ่มพิมพ์ที่ช่อง
+        <select id="shipPrintStartSlot" class="border rounded-lg px-2 py-1 ml-1">
+          <option value="0">1 (บนซ้าย)</option><option value="1">2 (บนขวา)</option><option value="2">3 (ล่างซ้าย)</option><option value="3">4 (ล่างขวา)</option>
+        </select></label>
+      <label class="flex items-center gap-1.5"><input id="shipPrintShowItems" type="checkbox" checked class="accent-teal-700"> แสดงรายการสินค้า</label>
+      <button id="shipPrintGoBtn" type="button" class="ml-auto px-4 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-semibold">🖨️ พิมพ์</button>
+    </div>
+    <div class="overflow-auto bg-gray-100 p-4">
+      <div id="shipPrintZoom" style="zoom:.62" class="mx-auto w-max"><div id="shipLabelPrintArea"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 🚚 จัดส่ง: รูปใบปะหน้า (ส่ง LINE ขนส่ง) ===== -->
+<div id="shipImgModal" class="fixed inset-0 bg-black/50 z-[116] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl p-5 flex flex-wrap gap-5 items-start max-h-[92vh] overflow-y-auto">
+    <div id="shipImgHolder" class="max-w-full"></div>
+    <div class="flex flex-col gap-2 min-w-[200px] flex-1">
+      <h3 class="font-semibold text-gray-800 text-lg">📷 รูปใบปะหน้า</h3>
+      <button id="shipImgCopyBtn" type="button" class="bg-teal-800 hover:bg-teal-900 text-white rounded-lg px-4 py-2.5 font-bold text-left"><i class="fa-solid fa-copy mr-1"></i> คัดลอกรูป</button>
+      <button id="shipImgSaveBtn" type="button" class="bg-sky-100 hover:bg-sky-200 text-sky-800 rounded-lg px-4 py-2.5 font-bold text-left"><i class="fa-solid fa-download mr-1"></i> บันทึกรูป (PNG)</button>
+      <button id="shipImgCopyTextBtn" type="button" class="bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg px-4 py-2.5 font-semibold text-left"><i class="fa-regular fa-clipboard mr-1"></i> คัดลอกเป็นข้อความ</button>
+      <button id="shipImgCloseBtn" type="button" class="bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg px-4 py-2.5 font-semibold text-left">ปิด</button>
+      <p class="text-xs text-gray-500 leading-relaxed">คัดลอกแล้วไปที่แชต LINE ของขนส่ง กด Ctrl+V<br>(เครื่องไหนคัดลอกรูปไม่ได้ ใช้ "บันทึกรูป" แทน)</p>
+      <p id="shipImgStatus" class="text-sm text-emerald-700 font-semibold"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== หน้าขาย: หลังบันทึกบิลจัดส่ง ===== -->
+<div id="shipAfterSaveBar" class="hidden fixed bottom-24 right-6 z-[60] bg-emerald-800 text-white rounded-xl shadow-xl px-4 py-3 flex items-center gap-2 flex-wrap max-w-[92vw] text-sm">
+  <span>🚚 <b id="shipAfterSaveTx"></b> เพิ่มเข้า "รอจัดส่ง" แล้ว</span>
+  <button id="shipAfterSavePrintBtn" type="button" class="bg-white/10 hover:bg-white/20 border border-emerald-300 rounded-lg px-2.5 py-1 text-xs font-semibold">🖨️ ใบปะหน้า</button>
+  <button id="shipAfterSaveImgBtn" type="button" class="bg-white/10 hover:bg-white/20 border border-emerald-300 rounded-lg px-2.5 py-1 text-xs font-semibold">📷 คัดลอกรูป</button>
+  <button id="shipAfterSaveCloseBtn" type="button" class="text-emerald-200 hover:text-white text-lg leading-none px-1">×</button>
+</div>
+
 <div id="toast" class="hidden fixed bottom-6 right-6 z-50 toast-anim">
   <div id="toastInner" class="px-5 py-3 rounded-lg shadow-lg text-white font-medium"></div>
 </div>
@@ -6737,6 +6936,11 @@ async function submitTransaction() {
     return;
   }
 
+  // 🚚 จัดส่งแต่ยังไม่มีที่อยู่ → ถามก่อน (แก้ทีหลังได้ที่หน้า 🚚 จัดส่ง)
+  if (deliveryMethod === "delivery" && !document.getElementById("customerAddressInput").value.trim()) {
+    if (!confirm("บิลนี้เลือก 🚚 จัดส่ง แต่ยังไม่มีที่อยู่จัดส่ง\n\nบันทึกไปก่อนแล้วเติมที่อยู่ทีหลังที่หน้า 🚚 จัดส่ง ได้ — บันทึกเลยไหม?")) return;
+  }
+
   const submitBtn = document.getElementById("submitBtn");
   const originalHtml = submitBtn.innerHTML;
   submitBtn.disabled = true;
@@ -6772,6 +6976,9 @@ async function submitTransaction() {
     if (result.poId) idParts.push("ใบจองใหม่: " + result.poId);
     const idSuffix = idParts.length ? " " + idParts.join(" · ") : "";
     showToast("บันทึกรายการขายลง Google Sheets เรียบร้อยแล้ว!" + idSuffix, "success");
+    if (payload.deliveryMethod === "delivery" && result.transactionId) {
+      try { showShipAfterSave_(result.transactionId, payload, cart.map((i) => ({ name: i.name, qty: i.qty, barcode: i.barcode }))); } catch (e) { console.warn(e); }
+    }
     resetPOSForNextSale();
   } catch (err) {
     console.error(err);
@@ -7929,6 +8136,9 @@ function setupTabs() {
       // right away. loadStorewdTab() itself decides branch vs Store view.
       if (target === "storewd") loadStorewdTab();
 
+      // 🚚 จัดส่ง (2026-10-26) — โหลดคิวใหม่ทุกครั้งที่เปิด
+      if (target === "shipping") loadShippingQueue();
+
       // Keep the mobile picker's selected option matching whichever tab
       // just became active (a real tab-btn click always reaches here,
       // whether it was triggered by mobileTabNav's own change handler
@@ -8663,6 +8873,7 @@ function renderDailySummary(summary) {
 
   reportPrePoCards = summary.prePoCards || {}; // รูปใบจองให้ลูกค้า (2026-10-20)
   renderReportPickupCard_(summary);
+  renderReportShipCard_(summary);
   renderReportBillsList(summary.bills || [], summary.billCount || 0, summary.itemCount || 0, summary.preRows || []);
 
   const crossCheckLine = document.getElementById("crossCheckLine");
@@ -12143,6 +12354,11 @@ async function onPoPickupToggleClick_(btn) {
   const picked = btn.getAttribute("data-picked") === "1";
   const line = lastLoadedPreOrders.find((l) => l.lineId === lineId);
   const name = line ? line.itemName : lineId;
+  if (!picked && line && line.deliveryMethod === "delivery") {
+    // ใบจองจัดส่ง → บันทึกส่งแล้ว (ขนส่ง/เลขพัสดุ) ที่หน้า 🚚 จัดส่ง แทน (2026-10-26)
+    openShippingTab_("wait", line.fulfilledTransactionId || "");
+    return;
+  }
   if (picked && !confirm('เอาติ๊ก "รับของแล้ว" ของ\n' + name + '\nออก? (รายการจะกลับไปอยู่ใน "ชำระแล้ว รอรับ")')) return;
   btn.disabled = true;
   try {
@@ -19987,6 +20203,683 @@ function printBillPreview() {
   printIsolated_("billPreviewPrintArea");
 }
 
+
+/* =================================================================
+   🚚 จัดส่ง (2026-10-26, Wing อนุมัติ mockup_shipping.html)
+   -----------------------------------------------------------------
+   คิวอ่านจาก backend getShippingQueue (Sales_History ที่ Delivery
+   Method = delivery). มุมมอง: รอจัดส่ง / รอเลขพัสดุ / ส่งแล้ว.
+   ใบปะหน้า A4 4 ใบ/แผ่น (printIsolated_) + รูป Canvas ส่ง LINE ขนส่ง
+   รวมกล่อง = หลายบิลผู้รับเดียวกัน → ใบปะหน้าใบเดียว + ส่งแล้วทีเดียว
+   (backend ให้รหัส Ship Group เดียวกัน) · ใครก็กดได้ ไม่ขอ PIN เพิ่ม
+   ================================================================= */
+const SHIP_CARRIERS = ["Kerry", "Flash", "J&T", "ไปรษณีย์ EMS", "ไปรษณีย์ลงทะเบียน", "Shopee Express", "Grab", "Lalamove", "LINE MAN", "ลูกค้ามารับเอง", "อื่นๆ"];
+const SHIP_RIDE_CARRIERS_UI = ["Grab", "Lalamove", "LINE MAN"];
+const SHIP_FEE_BARCODES = ["789", "678", "456"]; // ค่าส่ง — ไม่ใส่ในรายการบนใบปะหน้า
+const SHIP_BACKFILL_BY_UI = "ระบบ (ตั้งค่าเริ่มต้น)";
+let shipView = "wait";
+let shipData = null;          // ผลล่าสุดจาก getShippingQueue
+let shipSelected = new Set(); // txId ที่ติ๊กในมุมมองรอจัดส่ง
+let shipReqSeq = 0;
+let shipModalCtx = null;      // { mode, rows, combine }
+let shipInfoCtx = null;
+let shipCombineRows = [];
+let shipPrintLabels = [];
+let shipImgCanvas = null, shipImgLabel = null;
+let shipAfterSaveLabel = null, shipAfterSaveTimer = null;
+let shipCarrierPick = "", shipCalledPick = "customer";
+
+function shipTodayStr_() { return poTodayStr_(); }
+
+async function shipPost_(body) {
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl === "YOUR_URL_HERE" || !currentStaff) throw new Error("ยังไม่ได้ล็อกอิน/ตั้งค่าลิงก์");
+  const response = await fetch(scriptUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(Object.assign({ pin: currentStaff.pin, branch: getBranchCode() }, body))
+  });
+  const result = await response.json();
+  if (!result || result.status !== "success") throw new Error((result && result.message) || "ทำรายการไม่สำเร็จ");
+  return result;
+}
+
+function shipDigits_(s) { return String(s || "").replace(/\D/g, ""); }
+function shipRecipientKey_(r) {
+  const ph = shipDigits_(r.customerPhone);
+  if (ph.length >= 9) return "p" + ph.slice(-9);
+  return "n" + String(r.customerName || "").trim().toLowerCase() + "|" + String(r.customerAddress || "").trim().toLowerCase();
+}
+function shipFmtDT_(iso) { return iso ? poShortDateTime_(iso) : ""; }
+function shipItemsForLabel_(r) {
+  return (r.items || []).filter((it) => SHIP_FEE_BARCODES.indexOf(String(it.barcode)) === -1);
+}
+
+// รวมหลายบิล (ผู้รับเดียวกัน) เป็นใบปะหน้าเดียว — ใช้ข้อมูลผู้รับจากบิลแรก
+function shipLabelFromRows_(rows) {
+  const first = rows[0] || {};
+  const items = [];
+  rows.forEach((r) => shipItemsForLabel_(r).forEach((it) => items.push(it)));
+  const remarks = rows.map((r) => r.shipRemark).filter((x) => x);
+  return {
+    refs: rows.map((r) => r.transactionId),
+    poIds: [].concat.apply([], rows.map((r) => r.poIds || [])),
+    name: first.customerName || "",
+    phone: first.customerPhone || "",
+    address: first.customerAddress || "",
+    items: items,
+    pieces: items.reduce((s, it) => s + (Number(it.qty) || 0), 0),
+    cod: rows.reduce((s, r) => s + (Number(r.amountDue) || 0), 0),
+    remark: remarks.filter((x, i) => remarks.indexOf(x) === i).join(" · ")
+  };
+}
+
+function shipShop_() {
+  const shop = shopInfoCache || {};
+  return { name: shop.name || "Mewtoy", address: shop.address || "", phone: shop.phone || "" };
+}
+
+function shipLabelHtml_(lab, showItems) {
+  if (!lab) return '<div class="ship-lbl empty"></div>';
+  const shop = shipShop_();
+  const refs = lab.refs.join(", ") + (lab.poIds && lab.poIds.length ? " (ใบจอง " + lab.poIds.join(", ") + ")" : "");
+  const itemsTxt = lab.items.map((it) => it.name + " ×" + it.qty).join(", ");
+  return `<div class="ship-lbl">
+    <div class="from">ผู้ส่ง: <b>${escapeHtml(shop.name)}</b>${shop.phone ? " · โทร " + escapeHtml(shop.phone) : ""}${shop.address ? "<br>" + escapeHtml(shop.address) : ""}</div>
+    <div class="to">
+      <div class="k">ผู้รับ</div>
+      <div class="nm">${escapeHtml(lab.name || "-")}</div>
+      ${lab.phone ? `<div class="ph">โทร ${escapeHtml(lab.phone)}</div>` : ""}
+      <div class="ad">${escapeHtml(lab.address || "(ยังไม่มีที่อยู่)")}</div>
+      ${lab.cod > 0 ? `<div class="cod">เก็บเงินปลายทาง ฿${formatMoney(lab.cod)}</div>` : ""}
+    </div>
+    <div class="foot">${lab.refs.length > 1 ? "รวมกล่อง " + lab.refs.length + " บิล · " : "อ้างอิง "}<b>${escapeHtml(refs)}</b> · ${lab.pieces} ชิ้น
+      ${showItems && itemsTxt ? "<br>" + escapeHtml(itemsTxt) : ""}${lab.remark ? "<br>📝 " + escapeHtml(lab.remark) : ""}</div>
+  </div>`;
+}
+
+function shipLabelText_(lab) {
+  const lines = ["ผู้รับ: " + (lab.name || "-")];
+  if (lab.phone) lines.push("โทร " + lab.phone);
+  lines.push(lab.address || "");
+  if (lab.cod > 0) lines.push("เก็บเงินปลายทาง " + formatMoney(lab.cod) + " บาท");
+  lines.push("(" + lab.refs.join(", ") + " · " + lab.pieces + " ชิ้น)");
+  if (lab.remark) lines.push("หมายเหตุ: " + lab.remark);
+  return lines.join("\n");
+}
+
+/* ---------------- โหลด / แสดงผล ---------------- */
+function setupShippingTab() {
+  const bf = document.getElementById("shipBranchFilter");
+  bf.innerHTML = '<option value="">สาขานี้</option>' + BRANCH_LIST.map((b) => `<option value="${b}">${b}</option>`).join("") + '<option value="all">ทุกสาขา</option>';
+  document.querySelectorAll(".ship-view-btn").forEach((b) => b.addEventListener("click", () => { shipView = b.getAttribute("data-ship-view"); loadShippingQueue(); }));
+  document.getElementById("shipReloadBtn").addEventListener("click", loadShippingQueue);
+  bf.addEventListener("change", loadShippingQueue);
+  document.getElementById("shipSourceFilter").addEventListener("change", renderShippingList_);
+  document.getElementById("shipSearchInput").addEventListener("input", renderShippingList_);
+  document.getElementById("shipDateFrom").addEventListener("change", loadShippingQueue);
+  document.getElementById("shipDateTo").addEventListener("change", loadShippingQueue);
+  document.getElementById("shipChkAll").addEventListener("change", (e) => {
+    shipVisibleRows_().forEach((r) => (e.target.checked ? shipSelected.add(r.transactionId) : shipSelected.delete(r.transactionId)));
+    renderShippingList_();
+  });
+  document.getElementById("shipBulkPrintBtn").addEventListener("click", () => {
+    const rows = shipSelectedRows_();
+    if (rows.length) openShipPrint_(rows.map((r) => shipLabelFromRows_([r])));
+  });
+  document.getElementById("shipBulkShipBtn").addEventListener("click", () => {
+    const rows = shipSelectedRows_();
+    if (rows.length) openShipModal_("ship", rows, false);
+  });
+  document.getElementById("shipBulkCombineBtn").addEventListener("click", () => {
+    const rows = shipSelectedRows_();
+    if (rows.length < 2) { showToast("เลือกอย่างน้อย 2 บิลเพื่อรวมกล่อง", "error"); return; }
+    openShipCombine_(rows);
+  });
+  document.getElementById("shipList").addEventListener("click", onShipListClick_);
+  document.getElementById("shipList").addEventListener("change", (e) => {
+    const c = e.target.closest(".ship-row-chk");
+    if (!c) return;
+    if (c.checked) shipSelected.add(c.dataset.tx); else shipSelected.delete(c.dataset.tx);
+    updateShipBulkBar_();
+  });
+
+  // ship modal
+  document.getElementById("shipCarrierChips").innerHTML = SHIP_CARRIERS.map((c) =>
+    `<button type="button" data-carrier="${escapeHtml(c)}" class="ship-carrier-btn border-2 rounded-lg px-2.5 py-1.5 text-sm">${escapeHtml(c)}</button>`).join("");
+  document.getElementById("shipCarrierChips").addEventListener("click", (e) => {
+    const b = e.target.closest(".ship-carrier-btn");
+    if (b) { shipCarrierPick = b.dataset.carrier; syncShipModal_(); }
+  });
+  document.querySelectorAll(".ship-called-btn").forEach((b) => b.addEventListener("click", () => { shipCalledPick = b.dataset.called; syncShipModal_(); }));
+  ["shipModalCloseBtn", "shipModalCancelBtn"].forEach((id) => document.getElementById(id).addEventListener("click", () => document.getElementById("shipModal").classList.add("hidden")));
+  document.getElementById("shipModalOkBtn").addEventListener("click", submitShipModal_);
+  // info modal
+  ["shipInfoCloseBtn", "shipInfoCancelBtn"].forEach((id) => document.getElementById(id).addEventListener("click", () => document.getElementById("shipInfoModal").classList.add("hidden")));
+  document.getElementById("shipInfoOkBtn").addEventListener("click", submitShipInfo_);
+  // combine
+  document.getElementById("shipCombineCloseBtn").addEventListener("click", () => document.getElementById("shipCombineModal").classList.add("hidden"));
+  document.getElementById("shipCombinePrintBtn").addEventListener("click", () => openShipPrint_([shipLabelFromRows_(shipCombineRows)]));
+  document.getElementById("shipCombineImgBtn").addEventListener("click", () => openShipImg_(shipLabelFromRows_(shipCombineRows)));
+  document.getElementById("shipCombineShipBtn").addEventListener("click", () => {
+    document.getElementById("shipCombineModal").classList.add("hidden");
+    openShipModal_("ship", shipCombineRows, true);
+  });
+  // print
+  document.getElementById("shipPrintCloseBtn").addEventListener("click", () => document.getElementById("shipPrintModal").classList.add("hidden"));
+  document.getElementById("shipPrintStartSlot").addEventListener("change", renderShipPrint_);
+  document.getElementById("shipPrintShowItems").addEventListener("change", renderShipPrint_);
+  document.getElementById("shipPrintGoBtn").addEventListener("click", printShipLabels_);
+  // image
+  document.getElementById("shipImgCloseBtn").addEventListener("click", () => document.getElementById("shipImgModal").classList.add("hidden"));
+  document.getElementById("shipImgCopyBtn").addEventListener("click", copyShipImg_);
+  document.getElementById("shipImgSaveBtn").addEventListener("click", saveShipImg_);
+  document.getElementById("shipImgCopyTextBtn").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(shipLabelText_(shipImgLabel)); showToast("คัดลอกข้อความแล้ว", "success"); }
+    catch (e) { showToast("คัดลอกไม่ได้", "error"); }
+  });
+  ["shipModal", "shipInfoModal", "shipCombineModal", "shipPrintModal", "shipImgModal"].forEach((id) => {
+    document.getElementById(id).addEventListener("click", (e) => { if (e.target.id === id) e.target.classList.add("hidden"); });
+  });
+  // after-save bar (หน้าขาย)
+  document.getElementById("shipAfterSaveCloseBtn").addEventListener("click", hideShipAfterSave_);
+  document.getElementById("shipAfterSavePrintBtn").addEventListener("click", () => { if (shipAfterSaveLabel) openShipPrint_([shipAfterSaveLabel]); });
+  document.getElementById("shipAfterSaveImgBtn").addEventListener("click", () => { if (shipAfterSaveLabel) openShipImg_(shipAfterSaveLabel); });
+  const rb = document.getElementById("reportShipOpenBtn");
+  if (rb) rb.addEventListener("click", () => openShippingTab_("wait"));
+}
+
+function openShippingTab_(view, search) {
+  if (view) shipView = view;
+  if (search != null) document.getElementById("shipSearchInput").value = search;
+  const btn = document.querySelector('.tab-btn[data-tab="shipping"]');
+  if (btn) btn.click();
+}
+
+async function loadShippingQueue() {
+  const seq = ++shipReqSeq;
+  document.querySelectorAll(".ship-view-btn").forEach((b) => {
+    const on = b.getAttribute("data-ship-view") === shipView;
+    b.classList.toggle("bg-teal-700", on); b.classList.toggle("text-white", on); b.classList.toggle("border-teal-700", on);
+    b.classList.toggle("bg-white", !on); b.classList.toggle("text-gray-700", !on);
+  });
+  document.getElementById("shipDoneDates").classList.toggle("hidden", shipView !== "done");
+  const df = document.getElementById("shipDateFrom"), dt = document.getElementById("shipDateTo");
+  if (shipView === "done" && !dt.value) {
+    dt.value = shipTodayStr_();
+    const d = new Date(); d.setDate(d.getDate() - 6);
+    df.value = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  document.getElementById("shipList").innerHTML = '<p class="text-gray-400 px-4 py-6">กำลังโหลด…</p>';
+  try {
+    const res = await shipPost_({
+      action: "getShippingQueue",
+      view: shipView,
+      branchFilter: document.getElementById("shipBranchFilter").value || getBranchCode(),
+      dateFrom: shipView === "done" ? df.value : "",
+      dateTo: shipView === "done" ? dt.value : ""
+    });
+    if (seq !== shipReqSeq) return;
+    shipData = res;
+    const live = new Set((res.rows || []).map((r) => r.transactionId));
+    shipSelected.forEach((t) => { if (!live.has(t)) shipSelected.delete(t); });
+    document.getElementById("shipCntWait").textContent = res.counts ? String(res.counts.wait) : "";
+    document.getElementById("shipCntTrack").textContent = res.counts ? String(res.counts.track) : "";
+    updateShipNavCount_(res.counts ? res.counts.wait : 0);
+    renderShippingList_();
+  } catch (err) {
+    if (seq !== shipReqSeq) return;
+    document.getElementById("shipList").innerHTML = `<p class="text-red-600 px-4 py-6">โหลดไม่สำเร็จ: ${escapeHtml(err.message)}${/action|Unknown|ไม่รู้จัก/i.test(err.message) ? "<br>(ต้องอัป pos_backend.gs รุ่นใหม่ก่อน)" : ""}</p>`;
+  }
+}
+
+function updateShipNavCount_(n) {
+  const el = document.getElementById("shipNavCount");
+  if (!el) return;
+  el.textContent = n > 0 ? String(n) : "";
+  el.classList.toggle("hidden", !(n > 0));
+}
+
+function shipVisibleRows_() {
+  if (!shipData) return [];
+  const src = document.getElementById("shipSourceFilter").value;
+  const q = document.getElementById("shipSearchInput").value.trim().toLowerCase();
+  const qd = shipDigits_(q);
+  return (shipData.rows || []).filter((r) => {
+    if (src === "sale" && r.hasRec) return false;
+    if (src === "po" && !r.hasRec) return false;
+    if (!q) return true;
+    const hay = [r.transactionId, r.customerName, r.customerAddress, r.trackingNo, r.carrier, r.customerCode, (r.poIds || []).join(" ")].join(" ").toLowerCase();
+    return hay.indexOf(q) !== -1 || (qd.length >= 4 && shipDigits_(r.customerPhone).indexOf(qd) !== -1);
+  });
+}
+function shipSelectedRows_() { return shipVisibleRows_().filter((r) => shipSelected.has(r.transactionId)); }
+function shipRowByTx_(tx) { return ((shipData && shipData.rows) || []).find((r) => r.transactionId === tx); }
+
+function updateShipBulkBar_() {
+  const bar = document.getElementById("shipBulkBar");
+  bar.classList.toggle("hidden", shipView !== "wait");
+  const vis = shipVisibleRows_();
+  const n = vis.filter((r) => shipSelected.has(r.transactionId)).length;
+  document.getElementById("shipSelCount").textContent = String(n);
+  document.getElementById("shipChkAll").checked = vis.length > 0 && n === vis.length;
+  document.getElementById("shipBulkPrintBtn").disabled = n === 0;
+  document.getElementById("shipBulkShipBtn").disabled = n === 0;
+  document.getElementById("shipBulkCombineBtn").disabled = n < 2;
+}
+
+function renderShippingList_() {
+  const box = document.getElementById("shipList");
+  const rows = shipVisibleRows_();
+  updateShipBulkBar_();
+  if (!shipData) return;
+  if (!rows.length) {
+    box.innerHTML = `<p class="text-gray-400 px-4 py-8 text-center">${shipView === "wait" ? "ไม่มีของรอจัดส่ง 🎉" : shipView === "track" ? "ไม่มีรายการรอเลขพัสดุ" : "ไม่มีรายการส่งในช่วงวันที่นี้"}</p>`;
+    return;
+  }
+  // ผู้รับเดียวกันมีหลายบิลรอส่ง → แนะนำรวมกล่อง
+  const groupCount = {};
+  if (shipView === "wait") rows.forEach((r) => { const k = shipRecipientKey_(r); groupCount[k] = (groupCount[k] || 0) + 1; });
+  const od = (shipData && shipData.overdueDays) || 3;
+  box.innerHTML = rows.map((r) => {
+    const src = r.hasRec ? `<span class="bg-pink-100 text-pink-800 text-[11px] font-bold px-2 rounded-full">ใบจอง${(r.poIds || []).length ? " " + escapeHtml(r.poIds.join(", ")) : ""}</span>`
+      : '<span class="bg-sky-100 text-sky-800 text-[11px] font-bold px-2 rounded-full">บิลขาย</span>';
+    const pay = r.amountDue > 0 ? `<span class="bg-red-100 text-red-800 text-[11px] font-bold px-2 rounded-full">COD ${formatMoney(r.amountDue)}</span>`
+      : '<span class="bg-green-100 text-green-800 text-[11px] font-bold px-2 rounded-full">จ่ายครบ</span>';
+    const days = r.daysWaiting;
+    const dayCls = days >= 7 ? "text-red-700" : days >= od ? "text-amber-700" : "text-gray-500";
+    const items = shipItemsForLabel_(r).map((it) => escapeHtml(it.name) + " ×" + it.qty).join("<br>");
+    const fee = (r.items || []).filter((it) => SHIP_FEE_BARCODES.indexOf(String(it.barcode)) !== -1).map((it) => escapeHtml(it.name)).join(", ");
+    const gk = shipView === "wait" ? shipRecipientKey_(r) : "";
+    const combineHint = gk && groupCount[gk] > 1
+      ? `<button type="button" class="ship-combine-hint mt-1 text-[11px] font-bold text-teal-800 bg-teal-50 border border-teal-200 rounded-full px-2 py-0.5" data-key="${escapeHtml(gk)}">📦 ผู้รับนี้มี ${groupCount[gk]} บิล — รวมกล่อง</button>` : "";
+    const shipInfo = r.shipStatus === "ส่งแล้ว"
+      ? `<div class="mt-1"><span class="bg-violet-100 text-violet-800 text-[11px] font-bold px-2 rounded-full">${escapeHtml(r.carrier || (r.isBackfill ? "ระบบตั้งเป็นส่งแล้ว" : "-"))}${r.calledBy === "customer" ? " · ลูกค้าเรียกมารับ" : ""}</span>
+          ${r.trackingNo ? `<div class="font-mono text-xs mt-1">${escapeHtml(r.trackingNo)}</div>` : r.needsTracking ? '<div class="text-xs text-amber-700 mt-1">ยังไม่มีเลขพัสดุ</div>' : ""}
+          <div class="text-[11px] text-gray-500 mt-0.5">ส่ง ${escapeHtml(r.isBackfill ? "(บิลเก่า)" : shipFmtDT_(r.shippedAt))} · ${escapeHtml(r.shippedBy || "")}${r.shipGroup ? " · 📦 รวมกล่อง" : ""}</div></div>`
+      : "";
+    let actions;
+    if (shipView === "wait") {
+      actions = `<button type="button" class="ship-act text-xs border rounded-lg px-2 py-1 hover:bg-gray-50" data-act="print">🖨️ ใบปะหน้า</button>
+        <button type="button" class="ship-act text-xs border rounded-lg px-2 py-1 hover:bg-gray-50" data-act="img">📷 คัดลอกรูป</button>
+        <button type="button" class="ship-act text-xs rounded-lg px-2 py-1 bg-teal-700 hover:bg-teal-800 text-white font-semibold" data-act="ship">✅ ส่งแล้ว</button>
+        <button type="button" class="ship-act text-xs border rounded-lg px-2 py-1 hover:bg-gray-50" data-act="info">✏️ ผู้รับ / Remark</button>`;
+    } else if (shipView === "track") {
+      actions = `<button type="button" class="ship-act text-xs rounded-lg px-2 py-1 bg-teal-700 hover:bg-teal-800 text-white font-semibold" data-act="track">🔢 ใส่เลขพัสดุ</button>
+        <button type="button" class="ship-act text-xs border rounded-lg px-2 py-1 hover:bg-gray-50" data-act="img">📷 รูปใบปะหน้า</button>`;
+    } else {
+      actions = `${r.trackingNo ? '<button type="button" class="ship-act text-xs border rounded-lg px-2 py-1 hover:bg-gray-50" data-act="msg">📋 ข้อความแจ้งลูกค้า</button>' : ""}
+        <button type="button" class="ship-act text-xs border rounded-lg px-2 py-1 hover:bg-gray-50" data-act="track">✏️ แก้การส่ง</button>
+        <button type="button" class="ship-act text-xs border rounded-lg px-2 py-1 hover:bg-gray-50" data-act="img">📷 รูปใบปะหน้า</button>
+        <button type="button" class="ship-act text-xs border rounded-lg px-2 py-1 hover:bg-gray-50 text-gray-500" data-act="unship">↩️ ย้ายกลับไปรอจัดส่ง</button>`;
+    }
+    return `<div class="ship-row grid gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 items-start" style="grid-template-columns:${shipView === "wait" ? "22px " : ""}minmax(150px,1fr) minmax(200px,1.6fr) minmax(160px,1.3fr) auto" data-tx="${escapeHtml(r.transactionId)}">
+      ${shipView === "wait" ? `<input type="checkbox" class="ship-row-chk w-4 h-4 mt-1 accent-teal-700" data-tx="${escapeHtml(r.transactionId)}" ${shipSelected.has(r.transactionId) ? "checked" : ""}>` : ""}
+      <div><div class="font-bold">${escapeHtml(r.transactionId)}</div>
+        <div class="flex gap-1 flex-wrap mt-0.5">${src}${pay}${r.branch !== getBranchCode() ? `<span class="bg-amber-200 text-amber-900 text-[11px] font-bold px-2 rounded-full">${escapeHtml(r.branch)}</span>` : ""}</div>
+        <div class="text-xs text-gray-500 mt-0.5">${escapeHtml(shipFmtDT_(r.timestamp))} · ${escapeHtml(r.cashier)}</div>
+        ${shipView === "wait" ? `<div class="text-xs font-extrabold ${dayCls}">ค้าง ${days} วัน</div>` : ""}</div>
+      <div><div class="font-semibold">${escapeHtml(r.customerName || "(ไม่มีชื่อ)")}${r.customerPhone ? " · " + escapeHtml(r.customerPhone) : ""}</div>
+        <div class="text-xs text-gray-700 whitespace-pre-line">${r.customerAddress ? escapeHtml(r.customerAddress) : '<span class="text-red-600 font-semibold">ยังไม่มีที่อยู่</span>'}</div>
+        ${r.shipRemark ? `<div class="text-xs text-violet-700 mt-1">📝 ${escapeHtml(r.shipRemark)}</div>` : ""}
+        ${r.billRemark ? `<div class="text-xs text-amber-700 mt-0.5">หมายเหตุบิล: ${escapeHtml(r.billRemark)}</div>` : ""}
+        ${combineHint}</div>
+      <div class="text-xs leading-relaxed">${items || '<span class="text-gray-400">-</span>'}${fee ? `<div class="text-gray-400">${fee}</div>` : ""}${shipInfo}</div>
+      <div class="flex flex-col gap-1 min-w-[120px]">${actions}</div>
+    </div>`;
+  }).join("");
+}
+
+function onShipListClick_(e) {
+  const hint = e.target.closest(".ship-combine-hint");
+  if (hint) {
+    const rows = shipVisibleRows_().filter((r) => shipRecipientKey_(r) === hint.dataset.key);
+    rows.forEach((r) => shipSelected.add(r.transactionId));
+    renderShippingList_();
+    openShipCombine_(rows);
+    return;
+  }
+  const b = e.target.closest(".ship-act");
+  if (!b) return;
+  const r = shipRowByTx_(b.closest(".ship-row").dataset.tx);
+  if (!r) return;
+  const act = b.dataset.act;
+  const groupRows = r.shipGroup ? shipData.rows.filter((x) => x.shipGroup === r.shipGroup) : [r];
+  if (act === "print") openShipPrint_([shipLabelFromRows_([r])]);
+  else if (act === "img") openShipImg_(shipLabelFromRows_(groupRows));
+  else if (act === "ship") openShipModal_("ship", [r], false);
+  else if (act === "track") openShipModal_("update", groupRows, groupRows.length > 1);
+  else if (act === "info") openShipInfo_(r);
+  else if (act === "msg") copyShipCustomerMsg_(r);
+  else if (act === "unship") unshipRow_(r, groupRows);
+}
+
+/* ---------------- ส่งแล้ว / แก้การส่ง ---------------- */
+function openShipModal_(mode, rows, combine) {
+  shipModalCtx = { mode: mode, rows: rows, combine: !!combine };
+  const first = rows[0];
+  const isUpdate = mode === "update";
+  document.getElementById("shipModalTitle").textContent = isUpdate
+    ? (first.trackingNo ? "✏️ แก้ข้อมูลการส่ง" : "🔢 ใส่เลขพัสดุ")
+    : combine ? "✅ ส่งแล้ว — รวมกล่อง " + rows.length + " บิล" : rows.length > 1 ? "✅ ส่งแล้ว — " + rows.length + " บิล (แยกกล่อง)" : "✅ บันทึกส่งแล้ว";
+  document.getElementById("shipModalSummary").innerHTML = rows.length === 1 || combine
+    ? `<b>${escapeHtml(rows.map((r) => r.transactionId).join(", "))}</b> · ${escapeHtml(first.customerName || "-")}${first.customerPhone ? " · " + escapeHtml(first.customerPhone) : ""}<br><span class="text-gray-500 text-xs">${escapeHtml(first.customerAddress || "")}</span>`
+    : `<b>${rows.length} บิล</b> · ${escapeHtml(rows.map((r) => r.transactionId).join(", "))}<br><span class="text-gray-500 text-xs">ใช้ขนส่ง/Remark เดียวกันทั้งหมด · เลขพัสดุใส่แยกทีละบิลทีหลัง (กอง "รอเลขพัสดุ")</span>`;
+  shipCarrierPick = isUpdate ? (first.carrier || "") : "";
+  if (shipCarrierPick && SHIP_CARRIERS.indexOf(shipCarrierPick) === -1) {
+    document.getElementById("shipCarrierOther").value = shipCarrierPick;
+    shipCarrierPick = "อื่นๆ";
+  } else {
+    document.getElementById("shipCarrierOther").value = "";
+  }
+  shipCalledPick = isUpdate && first.calledBy === "shop" ? "shop" : "customer";
+  document.getElementById("shipTrackInput").value = isUpdate ? (first.trackingNo || "") : "";
+  document.getElementById("shipRemarkInput").value = rows.length === 1 || combine ? (first.shipRemark || "") : "";
+  document.getElementById("shipTrackWrap").classList.toggle("hidden", rows.length > 1 && !combine && !isUpdate);
+  document.getElementById("shipModalOkBtn").textContent = isUpdate ? "บันทึก" : "✅ บันทึกส่งแล้ว";
+  document.getElementById("shipModalError").classList.add("hidden");
+  syncShipModal_();
+  document.getElementById("shipModal").classList.remove("hidden");
+}
+
+function syncShipModal_() {
+  document.querySelectorAll(".ship-carrier-btn").forEach((b) => {
+    const on = b.dataset.carrier === shipCarrierPick;
+    b.classList.toggle("border-teal-700", on); b.classList.toggle("bg-teal-50", on); b.classList.toggle("font-bold", on); b.classList.toggle("text-teal-800", on);
+    b.classList.toggle("border-gray-200", !on);
+  });
+  document.getElementById("shipCarrierOther").classList.toggle("hidden", shipCarrierPick !== "อื่นๆ");
+  const ride = SHIP_RIDE_CARRIERS_UI.indexOf(shipCarrierPick) !== -1;
+  document.getElementById("shipCalledByWrap").classList.toggle("hidden", !ride);
+  document.querySelectorAll(".ship-called-btn").forEach((b) => {
+    const on = b.dataset.called === shipCalledPick;
+    b.classList.toggle("border-teal-700", on); b.classList.toggle("bg-teal-50", on); b.classList.toggle("font-bold", on);
+    b.classList.toggle("border-gray-200", !on);
+  });
+  const noTrack = (ride && shipCalledPick === "customer") || shipCarrierPick === "ลูกค้ามารับเอง";
+  const inp = document.getElementById("shipTrackInput");
+  inp.disabled = noTrack;
+  inp.placeholder = noTrack ? "ไม่ต้องใส่" : ride ? "เลขงาน / ชื่อคนขับ (ถ้ามี)" : "เช่น TH0123456789";
+  document.getElementById("shipTrackHint").textContent = noTrack ? "ไม่ต้องมีเลขพัสดุ — จบที่ \"ส่งแล้ว\"" : ride ? "ไม่บังคับ" : "เว้นว่าง → ไปอยู่กอง \"รอเลขพัสดุ\" กลับมาใส่ทีหลัง";
+}
+
+async function submitShipModal_() {
+  const ctx = shipModalCtx;
+  if (!ctx) return;
+  const err = document.getElementById("shipModalError");
+  let carrier = shipCarrierPick === "อื่นๆ" ? document.getElementById("shipCarrierOther").value.trim() : shipCarrierPick;
+  if (!carrier) { err.textContent = "เลือกขนส่งก่อน"; err.classList.remove("hidden"); return; }
+  const ride = SHIP_RIDE_CARRIERS_UI.indexOf(shipCarrierPick) !== -1;
+  const body = {
+    action: "setShipment",
+    mode: ctx.mode,
+    txIds: ctx.rows.map((r) => r.transactionId),
+    carrier: carrier,
+    calledBy: ride ? shipCalledPick : "shop",
+    remark: document.getElementById("shipRemarkInput").value.trim(),
+    combine: ctx.combine
+  };
+  const trackHidden = document.getElementById("shipTrackWrap").classList.contains("hidden");
+  if (!trackHidden) body.trackingNo = document.getElementById("shipTrackInput").disabled ? "" : document.getElementById("shipTrackInput").value.trim();
+  if (ctx.rows.length > 1 && !ctx.combine && ctx.mode === "ship" && !body.remark) delete body.remark;
+  const btn = document.getElementById("shipModalOkBtn");
+  btn.disabled = true;
+  try {
+    const res = await shipPost_(body);
+    document.getElementById("shipModal").classList.add("hidden");
+    ctx.rows.forEach((r) => shipSelected.delete(r.transactionId));
+    showToast(res.message || "บันทึกแล้ว", "success");
+    loadShippingQueue();
+  } catch (e) {
+    err.textContent = e.message; err.classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function unshipRow_(r, groupRows) {
+  const msg = groupRows.length > 1
+    ? "ย้าย " + groupRows.length + " บิลในกล่องนี้ กลับไปรอจัดส่ง?\n(ล้างขนส่ง/เลขพัสดุ)"
+    : "ย้ายบิล " + r.transactionId + " กลับไปรอจัดส่ง?\n(ล้างขนส่ง/เลขพัสดุ)";
+  if (!confirm(msg)) return;
+  try {
+    const res = await shipPost_({ action: "setShipment", mode: "unship", txIds: groupRows.map((x) => x.transactionId) });
+    showToast(res.message, "success");
+    loadShippingQueue();
+  } catch (e) { showToast("ไม่สำเร็จ: " + e.message, "error"); }
+}
+
+async function copyShipCustomerMsg_(r) {
+  const shop = shipShop_();
+  const txt = "ร้าน " + shop.name + " จัดส่งสินค้าให้แล้วนะคะ 🚚\n" +
+    "ขนส่ง: " + (r.carrier || "-") + "\nเลขพัสดุ: " + r.trackingNo + "\n(บิล " + r.transactionId + ")";
+  try { await navigator.clipboard.writeText(txt); showToast("คัดลอกข้อความแล้ว วางในแชตลูกค้าได้เลย", "success"); }
+  catch (e) { prompt("คัดลอกข้อความนี้", txt); }
+}
+
+/* ---------------- แก้ผู้รับ / Remark ---------------- */
+function openShipInfo_(r) {
+  shipInfoCtx = r;
+  document.getElementById("shipInfoTx").textContent = r.transactionId;
+  document.getElementById("shipInfoName").value = r.customerName || "";
+  document.getElementById("shipInfoPhone").value = r.customerPhone || "";
+  document.getElementById("shipInfoAddress").value = r.customerAddress || "";
+  document.getElementById("shipInfoRemark").value = r.shipRemark || "";
+  document.getElementById("shipInfoError").classList.add("hidden");
+  document.getElementById("shipInfoModal").classList.remove("hidden");
+}
+
+async function submitShipInfo_() {
+  const r = shipInfoCtx;
+  if (!r) return;
+  const name = document.getElementById("shipInfoName").value.trim();
+  const phone = document.getElementById("shipInfoPhone").value.trim();
+  const address = document.getElementById("shipInfoAddress").value.trim();
+  const remark = document.getElementById("shipInfoRemark").value.trim();
+  const btn = document.getElementById("shipInfoOkBtn");
+  btn.disabled = true;
+  try {
+    if (name !== (r.customerName || "") || phone !== (r.customerPhone || "") || address !== (r.customerAddress || "")) {
+      await shipPost_({ action: "setShipment", mode: "info", txIds: [r.transactionId], customerName: name, customerPhone: phone, customerAddress: address });
+    }
+    if (remark !== (r.shipRemark || "")) {
+      await shipPost_({ action: "setShipment", mode: "remark", txIds: [r.transactionId], remark: remark });
+    }
+    document.getElementById("shipInfoModal").classList.add("hidden");
+    showToast("บันทึกแล้ว", "success");
+    loadShippingQueue();
+  } catch (e) {
+    const err = document.getElementById("shipInfoError");
+    err.textContent = e.message; err.classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ---------------- รวมกล่อง ---------------- */
+function openShipCombine_(rows) {
+  shipCombineRows = rows.slice();
+  const keys = rows.map(shipRecipientKey_);
+  const mixed = keys.some((k) => k !== keys[0]);
+  const lab = shipLabelFromRows_(rows);
+  document.getElementById("shipCombineBody").innerHTML = `
+    ${mixed ? '<div class="bg-amber-50 border border-amber-300 text-amber-900 rounded-lg px-3 py-2 mb-3 text-xs font-semibold">⚠️ บิลที่เลือกชื่อ/เบอร์ผู้รับไม่ตรงกัน — ใบปะหน้าจะใช้ผู้รับของบิลแรก ตรวจให้แน่ใจก่อน</div>' : ""}
+    <div class="font-semibold">${escapeHtml(lab.name || "-")}${lab.phone ? " · " + escapeHtml(lab.phone) : ""}</div>
+    <div class="text-xs text-gray-600 mb-3 whitespace-pre-line">${escapeHtml(lab.address || "(ยังไม่มีที่อยู่)")}</div>
+    <div class="text-xs font-bold text-gray-500 mb-1">ในกล่องนี้มี ${rows.length} บิล · ${lab.pieces} ชิ้น${lab.cod > 0 ? ` · <span class="text-red-700">เก็บเงินปลายทางรวม ${formatMoney(lab.cod)}</span>` : ""}</div>
+    ${rows.map((r) => `<div class="border rounded-lg px-3 py-2 mb-1.5">
+        <div class="font-semibold text-xs">${escapeHtml(r.transactionId)} ${r.hasRec ? '<span class="bg-pink-100 text-pink-800 text-[10px] font-bold px-1.5 rounded-full">ใบจอง</span>' : '<span class="bg-sky-100 text-sky-800 text-[10px] font-bold px-1.5 rounded-full">บิลขาย</span>'}${r.amountDue > 0 ? ` <span class="text-red-700 text-[10px] font-bold">COD ${formatMoney(r.amountDue)}</span>` : ""}</div>
+        <div class="text-xs text-gray-700">${shipItemsForLabel_(r).map((it) => escapeHtml(it.name) + " ×" + it.qty).join("<br>") || "-"}</div>
+      </div>`).join("")}`;
+  document.getElementById("shipCombineModal").classList.remove("hidden");
+}
+
+/* ---------------- ใบปะหน้า A4 ---------------- */
+function openShipPrint_(labels) {
+  shipPrintLabels = labels;
+  document.getElementById("shipPrintStartSlot").value = "0";
+  renderShipPrint_();
+  document.getElementById("shipPrintModal").classList.remove("hidden");
+}
+
+function renderShipPrint_() {
+  const start = Number(document.getElementById("shipPrintStartSlot").value) || 0;
+  const showItems = document.getElementById("shipPrintShowItems").checked;
+  const slots = [];
+  for (let i = 0; i < start; i++) slots.push(null);
+  shipPrintLabels.forEach((l) => slots.push(l));
+  while (slots.length % 4) slots.push(null);
+  const pages = [];
+  for (let i = 0; i < slots.length; i += 4) pages.push(slots.slice(i, i + 4));
+  document.getElementById("shipLabelPrintArea").innerHTML = pages.map((pg) =>
+    `<div class="ship-page">${pg.map((l) => shipLabelHtml_(l, showItems)).join("")}</div>`).join("");
+  document.getElementById("shipPrintInfo").textContent = "— " + shipPrintLabels.length + " ใบ · " + pages.length + " แผ่น";
+}
+
+function printShipLabels_() {
+  let styleEl = document.getElementById("billPrintPageStyle");
+  if (!styleEl) {
+    styleEl = document.createElement("style");
+    styleEl.id = "billPrintPageStyle";
+    document.head.appendChild(styleEl);
+  }
+  const prev = styleEl.textContent;
+  styleEl.textContent = "@page { size: A4; margin: 8mm; }";
+  const restore = () => { styleEl.textContent = prev; window.removeEventListener("afterprint", restore); };
+  window.addEventListener("afterprint", restore);
+  printIsolated_("shipLabelPrintArea");
+  setTimeout(restore, 1600);
+}
+
+/* ---------------- รูปใบปะหน้า (Canvas) ---------------- */
+function drawShipLabelCanvas_(lab) {
+  const W = 360, PAD = 18, SCALE = 2;
+  const FONT = "'Segoe UI', Tahoma, 'Noto Sans Thai', 'Leelawadee UI', sans-serif";
+  const shop = shipShop_();
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const font = (size, weight) => (weight || "400") + " " + size + "px " + FONT;
+  function layout(draw) {
+    let y = 0;
+    const lines = (str, size, weight, color, x, maxW, lh) => {
+      ctx.font = font(size, weight);
+      const ls = preCustImgWrap_(ctx, str, maxW);
+      ls.forEach((ln) => {
+        if (draw) { ctx.font = font(size, weight); ctx.fillStyle = color; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(ln, x, y + lh / 2); }
+        y += lh;
+      });
+    };
+    // header
+    if (draw) { ctx.fillStyle = "#0f766e"; ctx.fillRect(0, 0, W, 40); ctx.fillStyle = "#fff"; ctx.font = font(15, "800"); ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.fillText("ใบปะหน้า · " + shop.name, PAD, 20);
+      ctx.font = font(11, "600"); ctx.textAlign = "right"; ctx.fillText(lab.refs.length > 1 ? "รวม " + lab.refs.length + " บิล" : lab.refs[0], W - PAD, 20); }
+    y = 52;
+    lines("ผู้รับ", 12, "800", "#0f766e", PAD, W - PAD * 2, 18);
+    lines(lab.name || "-", 22, "800", "#111827", PAD, W - PAD * 2, 30);
+    if (lab.phone) lines("📞 " + lab.phone, 19, "800", "#111827", PAD, W - PAD * 2, 28);
+    y += 2;
+    lines(lab.address || "(ยังไม่มีที่อยู่)", 16, "400", "#111827", PAD, W - PAD * 2, 24);
+    if (lab.cod > 0) {
+      y += 8;
+      const t = "เก็บเงินปลายทาง ฿" + formatMoney(lab.cod);
+      ctx.font = font(16, "900");
+      const w = ctx.measureText(t).width + 18;
+      if (draw) { ctx.strokeStyle = "#b91c1c"; ctx.lineWidth = 2; ctx.strokeRect(PAD, y, w, 30); ctx.fillStyle = "#b91c1c"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(t, PAD + 9, y + 15); }
+      y += 30;
+    }
+    y += 12;
+    if (draw) { ctx.fillStyle = "#e5e7eb"; ctx.fillRect(PAD, y, W - PAD * 2, 1); }
+    y += 8;
+    lines("ผู้ส่ง " + shop.name + (shop.phone ? " · โทร " + shop.phone : ""), 12, "600", "#374151", PAD, W - PAD * 2, 18);
+    lines(lab.refs.join(", ") + " · " + lab.pieces + " ชิ้น", 12, "400", "#4b5563", PAD, W - PAD * 2, 18);
+    const it = lab.items.map((i) => i.name + " ×" + i.qty).join(", ");
+    if (it) lines(it, 12, "400", "#4b5563", PAD, W - PAD * 2, 18);
+    if (lab.remark) lines("📝 " + lab.remark, 12, "600", "#6d28d9", PAD, W - PAD * 2, 18);
+    return y + PAD;
+  }
+  const H = Math.ceil(layout(false));
+  canvas.width = W * SCALE; canvas.height = H * SCALE;
+  ctx.scale(SCALE, SCALE);
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+  layout(true);
+  ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 1; ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
+  return canvas;
+}
+
+function openShipImg_(lab) {
+  shipImgLabel = lab;
+  shipImgCanvas = drawShipLabelCanvas_(lab);
+  const holder = document.getElementById("shipImgHolder");
+  holder.innerHTML = "";
+  const img = document.createElement("img");
+  img.src = shipImgCanvas.toDataURL("image/png");
+  img.style.width = "360px"; img.style.maxWidth = "100%";
+  img.className = "rounded-lg shadow";
+  holder.appendChild(img);
+  document.getElementById("shipImgStatus").textContent = "";
+  document.getElementById("shipImgModal").classList.remove("hidden");
+}
+
+async function copyShipImg_() {
+  const status = document.getElementById("shipImgStatus");
+  try {
+    if (!shipImgCanvas || !navigator.clipboard || typeof ClipboardItem === "undefined") throw new Error("unsupported");
+    const blob = await new Promise((resolve) => shipImgCanvas.toBlob(resolve, "image/png"));
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    status.textContent = "คัดลอกรูปแล้ว — ไปที่แชต LINE ขนส่ง กด Ctrl+V";
+    showToast("คัดลอกรูปแล้ว วางในแชตได้เลย (Ctrl+V)", "success");
+  } catch (err) {
+    status.textContent = "เครื่องนี้คัดลอกรูปไม่ได้ — กด \"บันทึกรูป\" แทน";
+  }
+}
+
+function saveShipImg_() {
+  if (!shipImgCanvas) return;
+  const link = document.createElement("a");
+  link.download = "ใบปะหน้า_" + (shipImgLabel ? shipImgLabel.refs[0] : "") + ".png";
+  link.href = shipImgCanvas.toDataURL("image/png");
+  link.click();
+}
+
+/* ---------------- หน้าขาย: หลังบันทึกบิลจัดส่ง ---------------- */
+function showShipAfterSave_(txId, payload, cartSnapshot) {
+  const items = (cartSnapshot || []).filter((i) => SHIP_FEE_BARCODES.indexOf(String(i.barcode)) === -1)
+    .map((i) => ({ name: i.name, qty: Number(i.qty) || 1, barcode: i.barcode }));
+  shipAfterSaveLabel = {
+    refs: [txId],
+    poIds: [],
+    name: payload.customerName || "",
+    phone: payload.customerPhone || "",
+    address: payload.customerAddress || "",
+    items: items,
+    pieces: items.reduce((s, it) => s + it.qty, 0),
+    cod: 0,
+    remark: ""
+  };
+  document.getElementById("shipAfterSaveTx").textContent = txId;
+  document.getElementById("shipAfterSaveBar").classList.remove("hidden");
+  clearTimeout(shipAfterSaveTimer);
+  shipAfterSaveTimer = setTimeout(hideShipAfterSave_, 30000);
+  const n = document.getElementById("shipNavCount");
+  if (n) updateShipNavCount_((Number(n.textContent) || 0) + 1);
+}
+function hideShipAfterSave_() {
+  document.getElementById("shipAfterSaveBar").classList.add("hidden");
+}
+
+/* ---------------- Report ---------------- */
+function renderReportShipCard_(summary) {
+  const card = document.getElementById("reportShipCard");
+  if (!card) return;
+  const s = summary && summary.shipping;
+  if (!s) { card.classList.add("hidden"); return; }
+  card.classList.remove("hidden");
+  document.getElementById("reportShipToday").textContent = String(s.shippedToday || 0);
+  document.getElementById("reportShipWaiting").textContent = String(s.waiting || 0);
+  document.getElementById("reportShipOverdue").textContent = String(s.waitingOverdue || 0);
+  document.getElementById("reportShipOverdueDays").textContent = String(s.overdueDays || 3);
+  document.getElementById("reportShipTrack").textContent = String(s.trackPending || 0);
+}
+
 /* ---------------- Export บิลเป็น Excel (2026-10-24, per Wing) ----------------
    ลูกค้า/พ่อค้าส่งอยากได้บิลเป็นไฟล์ — ปุ่ม "📊 Excel" ในหน้าพรีวิวบิล ใช้ได้
    กับทุกบิลที่เปิดพรีวิวได้ (ขายหน้าร้าน / WS / Pre-Order, ทั้งร่างและบิลที่
@@ -20545,6 +21438,7 @@ async function init() {
   setupPermissionsTab();
   setupBillPreviewModal();
   setupStorewdPrintModal();
+  setupShippingTab();
   checkPinLockOnLoad(); // resume an in-progress lockout if the page was reloaded mid-countdown
   renderCart();       // also renders grand total + split inputs
   renderSplitInputs();
