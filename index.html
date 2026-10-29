@@ -276,7 +276,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.26-a</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.29-a</span>
       </div>
       <div class="flex-1"></div>
 
@@ -5800,6 +5800,14 @@ function setRowType(id, type) {
     const product = item.barcode ? findByBarcodeExact(item.barcode) : null;
     const price2 = product ? Number(product.price2) || 0 : 0;
     if (price2 > 0 && Number(item.agreed) === Number(item.price)) item.agreed = price2;
+  }
+  // เปลี่ยนเป็น "WS" (2026-10-29, per Wing) — ราคาส่งตั้งต้น = Price 2 (เดิมใช้ Price 1
+  // หน้าร้าน ผิด) เหมือนแท็บ WS · ทับเฉพาะตอนช่องราคาส่งยังเป็นค่าตั้งต้น (= ราคาหน้าร้าน)
+  // ถ้าพิมพ์ราคาเองไปแล้วไม่ทับ · สินค้าไม่มี Price 2 ใช้ Price 1 เหมือนเดิม
+  if (type === "ws") {
+    const product = item.barcode ? findByBarcodeExact(item.barcode) : null;
+    const price2 = product ? Number(product.price2) || 0 : 0;
+    if (price2 > 0 && Number(item.wsPrice) === Number(item.price)) item.wsPrice = price2;
   }
   // ตอนแก้บิลเก่า (startEditingBill) แต่ละแถวจำประเภทเดิมไว้ใน savedType ซึ่ง
   // cartItemsForSale() ให้ความสำคัญก่อน — พอผู้ใช้เลือกประเภทใหม่เองจาก dropdown
