@@ -276,7 +276,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.29-a</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.30-a</span>
       </div>
       <div class="flex-1"></div>
 
@@ -15760,6 +15760,51 @@ function addOrIncrementWSDraftItem(barcode, name, price, qtyDelta) {
        unused in every file of this kind
    ----------------------------------------------------------------- */
 
+/* ไฟล์ "📊 Excel" ที่ POS สร้างเอง (exportBillPreviewToExcel, 2026-10-24) วางคอลัมน์
+   คนละแบบกับ Stop list (ลำดับ|บาร์โค้ด|รายการ|จำนวน|ราคา/หน่วย|ส่วนลด %|ยอดรวม) —
+   นำเข้าด้วย parseWSStopListGrid_ แล้วจำนวนกับราคาสลับกัน (พบ 2026-10-29).
+   แก้: หาแถวหัวตารางที่มี บาร์โค้ด+รายการ+จำนวน+ราคา/หน่วย ครบ → อ่านตามชื่อหัว
+   (แถวสินค้า = คอลัมน์ ลำดับ เป็นตัวเลข; แถวรวม/ชำระ/ค้างชำระไม่มีลำดับ จึงข้าม).
+   ไม่เจอหัวตารางชุดนี้ = ไม่ใช่ไฟล์จาก POS → คืน null ให้ไปอ่านแบบ Stop list เดิม */
+function parseWSPosExportGrid_(rawGrid) {
+  const norm = (v) => String(v == null ? "" : v).trim();
+  let headRow = -1, col = null;
+  for (let r = 0; r < Math.min(rawGrid.length, 40); r++) {
+    const row = (rawGrid[r] || []).map(norm);
+    const need = ["บาร์โค้ด", "รายการ", "จำนวน", "ราคา/หน่วย"];
+    if (need.every((h) => row.indexOf(h) !== -1)) {
+      headRow = r;
+      col = {
+        seq: row.indexOf("ลำดับ"),
+        barcode: row.indexOf("บาร์โค้ด"),
+        name: row.indexOf("รายการ"),
+        qty: row.indexOf("จำนวน"),
+        price: row.indexOf("ราคา/หน่วย"),
+        disc: row.indexOf("ส่วนลด %")
+      };
+      break;
+    }
+  }
+  if (headRow === -1) return null;
+  const items = [];
+  for (let r = headRow + 1; r < rawGrid.length; r++) {
+    const row = rawGrid[r] || [];
+    const seq = col.seq !== -1 ? norm(row[col.seq]) : "1";
+    if (!/^\d+$/.test(seq)) continue; // แถวรวม/ยอดสุทธิ/การชำระ/หมายเหตุ ไม่มีลำดับ
+    const name = norm(row[col.name]);
+    const qty = Number(row[col.qty]) || 0;
+    if (!name || qty <= 0) continue;
+    items.push({
+      barcode: norm(row[col.barcode]),
+      name: name,
+      qty: qty,
+      price: Number(row[col.price]) || 0,
+      discountPct: col.disc !== -1 ? Number(row[col.disc]) || 0 : 0
+    });
+  }
+  return items;
+}
+
 function parseWSStopListGrid_(rawGrid) {
   const items = [];
   let serviceFee = 0;
@@ -15806,15 +15851,40 @@ function handleWSImportFile_(file) {
       const sheet = workbook.Sheets[sheetName];
       const rawGrid = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true });
 
-      const items = parseWSStopListGrid_(rawGrid);
+      // ไฟล์ 📊 Excel จาก POS (อ่านตามชื่อหัวตาราง) หรือ Stop list (ตำแหน่งคอลัมน์เดิม)
+      let posItems = null;
+      for (const sn of workbook.SheetNames) {
+        posItems = parseWSPosExportGrid_(XLSX.utils.sheet_to_json(workbook.Sheets[sn], { header: 1, defval: "", raw: true }));
+        if (posItems) break;
+      }
+      const formatLabel = posItems ? "ไฟล์ Excel จาก POS" : "Stop list";
+      const items = posItems || parseWSStopListGrid_(rawGrid);
       if (items.length === 0) {
-        throw new Error('ไม่พบรายการสินค้าในชีต "' + sheetName + '" — ตรวจสอบว่าเป็นไฟล์ Stop list ตามรูปแบบเดิมหรือไม่');
+        throw new Error(posItems
+          ? "ไฟล์ Excel จาก POS นี้ไม่มีรายการสินค้า"
+          : 'ไม่พบรายการสินค้าในชีต "' + sheetName + '" — ตรวจสอบว่าเป็นไฟล์ Stop list ตามรูปแบบเดิมหรือไม่');
       }
 
-      items.forEach((it) => addOrIncrementWSDraftItem(it.barcode, it.name, it.price, it.qty));
+      // กันจำนวน/ราคาสลับ: ตัวเลขดูผิดปกติ → ถามก่อนใส่บิล
+      const odd = items.filter((it) => it.qty > 200 || (it.price > 0 && it.price < 10));
+      if (odd.length && !confirm("อ่านแบบ " + formatLabel + " — พบ " + odd.length + " รายการที่ตัวเลขดูผิดปกติ (จำนวนเกิน 200 ชิ้น หรือราคาต่ำกว่า 10 บาท):\n\n" +
+          odd.slice(0, 8).map((it) => "• " + it.name + " — " + it.qty + " ชิ้น × " + it.price + " บาท").join("\n") +
+          (odd.length > 8 ? "\n… และอีก " + (odd.length - 8) + " รายการ" : "") +
+          "\n\nจำนวนกับราคาอาจสลับกัน — ยังจะนำเข้าไหม?")) {
+        return;
+      }
+
+      items.forEach((it) => {
+        addOrIncrementWSDraftItem(it.barcode, it.name, it.price, it.qty);
+        if (it.discountPct > 0) {
+          const d = wsDraftItems.find((x) => x.barcode === it.barcode && x.name === it.name) || wsDraftItems.find((x) => x.barcode === it.barcode);
+          if (d) { d.discountPct = it.discountPct; d.discountOn = true; }
+        }
+      });
+      if (items.some((it) => it.discountPct > 0)) renderWSDraftItems();
 
       const totalQty = items.reduce((s, it) => s + it.qty, 0);
-      showToast("นำเข้าจากไฟล์แล้ว " + items.length + " รายการ (" + totalQty + " ชิ้น) — ตรวจสอบที่สรุปบิลด้านขวาก่อนยืนยัน", "success");
+      showToast("นำเข้า (อ่านแบบ " + formatLabel + ") " + items.length + " รายการ (" + totalQty + " ชิ้น) — ตรวจสอบที่สรุปบิลด้านขวาก่อนยืนยัน", "success");
     } catch (err) {
       console.error(err);
       errEl.textContent = "นำเข้าไฟล์ไม่สำเร็จ: " + err.message;
