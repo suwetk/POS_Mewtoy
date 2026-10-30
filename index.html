@@ -95,6 +95,14 @@
   .ship-page + .ship-page { margin-top: 6mm; }
   .ship-lbl { border: 1px dashed #9ca3af; padding: 5mm 5mm 4mm; display: flex; flex-direction: column; overflow: hidden; font-size: 9pt; }
   .ship-lbl.empty { border-color: #e5e7eb; }
+  .ship-page.two { grid-template-columns: 1fr; }
+  .ship-page.two .ship-lbl { padding: 7mm 9mm 6mm; font-size: 11pt; }
+  .ship-page.two .ship-lbl .from { font-size: 10pt; }
+  .ship-page.two .ship-lbl .nm { font-size: 26pt; }
+  .ship-page.two .ship-lbl .ph { font-size: 20pt; }
+  .ship-page.two .ship-lbl .ad { font-size: 18pt; }
+  .ship-page.two .ship-lbl .foot { font-size: 10pt; }
+  .ship-lbl .box { float: right; border: 2px solid #111827; border-radius: 1.5mm; padding: .5mm 2.5mm; font-weight: 900; font-size: 12pt; color: #111827; }
   .ship-lbl .from { border-bottom: 1px solid #d1d5db; padding-bottom: 2mm; color: #4b5563; line-height: 1.35; font-size: 8pt; }
   .ship-lbl .from b { color: #111827; }
   .ship-lbl .to { flex: 1; padding-top: 3mm; min-height: 0; }
@@ -276,7 +284,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.30-a</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.30-b</span>
       </div>
       <div class="flex-1"></div>
 
@@ -4146,8 +4154,55 @@
   </div>
 </div>
 
+<!-- ===== 🏷️ ใบปะหน้าจากบิล (WS / ลูกค้ามีรหัส) — 2026-10-30 ===== -->
+<div id="billLabelModal" class="fixed inset-0 bg-black/50 z-[125] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[92vh] overflow-y-auto">
+    <div class="flex items-center justify-between px-5 py-3 border-b">
+      <h3 class="font-semibold text-gray-800 text-lg">🏷️ ใบปะหน้า <span id="billLabelRef" class="text-sm text-gray-400 font-normal"></span></h3>
+      <button id="billLabelCloseBtn" type="button" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="px-5 py-4 flex flex-col gap-2 text-sm">
+      <label class="text-xs font-bold text-gray-600">ผู้ส่ง<select id="billLabelSender" class="ship-sender-select mt-1 w-full border rounded-lg px-3 py-2 text-sm font-normal"></select></label>
+      <label class="text-xs font-bold text-gray-600">ชื่อผู้รับ<input id="billLabelName" type="text" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm font-normal"></label>
+      <label class="text-xs font-bold text-gray-600">เบอร์โทร<input id="billLabelPhone" type="text" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm font-normal"></label>
+      <label class="text-xs font-bold text-gray-600">ที่อยู่ <span id="billLabelAddrSrc" class="font-normal text-gray-400"></span><textarea id="billLabelAddress" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm font-normal resize-none"></textarea></label>
+      <div class="flex gap-3 flex-wrap items-end">
+        <label class="text-xs font-bold text-gray-600">จำนวนกล่อง<input id="billLabelBoxes" type="number" min="1" max="30" value="1" class="mt-1 w-24 border rounded-lg px-3 py-2 text-sm font-normal"></label>
+        <label class="flex items-center gap-1.5 pb-2"><input id="billLabelShowItems" type="checkbox" class="accent-teal-700"> แสดงรายการสินค้า</label>
+        <label class="flex items-center gap-1.5 pb-2"><input id="billLabelShowCod" type="checkbox" class="accent-red-600"> เก็บเงินปลายทาง <span id="billLabelCodAmt" class="text-red-700 font-semibold"></span></label>
+      </div>
+      <label class="text-xs font-bold text-gray-600">หมายเหตุบนใบปะหน้า<input id="billLabelNote" type="text" placeholder="เช่น ระวังแตก / ส่งรอบเย็น" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm font-normal"></label>
+      <p class="text-[11px] text-gray-500">แก้ตรงนี้ใช้กับใบปะหน้าเท่านั้น ไม่เปลี่ยนบิลหรือข้อมูลลูกค้า</p>
+    </div>
+    <div class="flex justify-end gap-2 px-5 py-3 border-t">
+      <button id="billLabelImgBtn" type="button" class="px-3 py-2 rounded-lg bg-white border border-teal-700 text-teal-800 text-sm font-semibold">📷 คัดลอกรูป</button>
+      <button id="billLabelPrintBtn" type="button" class="px-4 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold">🖨️ พิมพ์ A4</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ผู้ส่งบนใบปะหน้า: พิมพ์เอง ===== -->
+<div id="shipSenderModal" class="fixed inset-0 bg-black/50 z-[140] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm">
+    <div class="px-5 py-3 border-b font-semibold text-gray-800">✏️ ผู้ส่ง (พิมพ์เอง)</div>
+    <div class="px-5 py-4 flex flex-col gap-2 text-sm">
+      <label class="text-xs font-bold text-gray-600">ชื่อผู้ส่ง<input id="shipSenderName" type="text" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm font-normal"></label>
+      <label class="text-xs font-bold text-gray-600">เบอร์โทร<input id="shipSenderPhone" type="text" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm font-normal"></label>
+      <label class="text-xs font-bold text-gray-600">ที่อยู่<textarea id="shipSenderAddress" rows="2" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm font-normal resize-none"></textarea></label>
+      <label class="flex items-center gap-1.5 text-xs"><input id="shipSenderRemember" type="checkbox" checked class="accent-teal-700"> จำไว้ในรายชื่อผู้ส่ง (เครื่องนี้)</label>
+    </div>
+    <div class="flex justify-between gap-2 px-5 py-3 border-t">
+      <button id="shipSenderDeleteBtn" type="button" class="px-3 py-2 rounded-lg text-red-600 hover:bg-red-50 text-xs font-semibold">ลบผู้ส่งที่จำไว้ทั้งหมด</button>
+      <div class="flex gap-2">
+        <button id="shipSenderCancelBtn" type="button" class="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm font-semibold">ยกเลิก</button>
+        <button id="shipSenderOkBtn" type="button" class="px-3 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold">ใช้ผู้ส่งนี้</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== 🚚 จัดส่ง: พิมพ์ใบปะหน้า A4 ===== -->
-<div id="shipPrintModal" class="fixed inset-0 bg-black/50 z-[116] hidden flex items-center justify-center p-4">
+<div id="shipPrintModal" class="fixed inset-0 bg-black/50 z-[135] hidden flex items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl flex flex-col max-h-[94vh]">
     <div class="no-print flex items-center justify-between px-5 py-3 border-b">
       <h3 class="font-semibold text-gray-800 text-lg">🖨️ ใบปะหน้า A4 <span id="shipPrintInfo" class="text-sm text-gray-400 font-normal"></span></h3>
@@ -4158,6 +4213,9 @@
         <select id="shipPrintStartSlot" class="border rounded-lg px-2 py-1 ml-1">
           <option value="0">1 (บนซ้าย)</option><option value="1">2 (บนขวา)</option><option value="2">3 (ล่างซ้าย)</option><option value="3">4 (ล่างขวา)</option>
         </select></label>
+      <label>ต่อแผ่น
+        <select id="shipPrintPerPage" class="border rounded-lg px-2 py-1 ml-1"><option value="4">4 ใบ / A4</option><option value="2">2 ใบ / A4 (ใหญ่)</option></select></label>
+      <label>ผู้ส่ง <select id="shipPrintSender" class="ship-sender-select border rounded-lg px-2 py-1 ml-1 max-w-[180px]"></select></label>
       <label class="flex items-center gap-1.5"><input id="shipPrintShowItems" type="checkbox" checked class="accent-teal-700"> แสดงรายการสินค้า</label>
       <button id="shipPrintGoBtn" type="button" class="ml-auto px-4 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-semibold">🖨️ พิมพ์</button>
     </div>
@@ -4168,11 +4226,12 @@
 </div>
 
 <!-- ===== 🚚 จัดส่ง: รูปใบปะหน้า (ส่ง LINE ขนส่ง) ===== -->
-<div id="shipImgModal" class="fixed inset-0 bg-black/50 z-[116] hidden flex items-center justify-center p-4">
+<div id="shipImgModal" class="fixed inset-0 bg-black/50 z-[135] hidden flex items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl p-5 flex flex-wrap gap-5 items-start max-h-[92vh] overflow-y-auto">
     <div id="shipImgHolder" class="max-w-full"></div>
     <div class="flex flex-col gap-2 min-w-[200px] flex-1">
       <h3 class="font-semibold text-gray-800 text-lg">📷 รูปใบปะหน้า</h3>
+      <label class="text-xs font-bold text-gray-500">ผู้ส่ง<select id="shipImgSender" class="ship-sender-select mt-1 w-full border rounded-lg px-2 py-1.5 text-sm font-normal text-gray-800"></select></label>
       <button id="shipImgCopyBtn" type="button" class="bg-teal-800 hover:bg-teal-900 text-white rounded-lg px-4 py-2.5 font-bold text-left"><i class="fa-solid fa-copy mr-1"></i> คัดลอกรูป</button>
       <button id="shipImgSaveBtn" type="button" class="bg-sky-100 hover:bg-sky-200 text-sky-800 rounded-lg px-4 py-2.5 font-bold text-left"><i class="fa-solid fa-download mr-1"></i> บันทึกรูป (PNG)</button>
       <button id="shipImgCopyTextBtn" type="button" class="bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg px-4 py-2.5 font-semibold text-left"><i class="fa-regular fa-clipboard mr-1"></i> คัดลอกเป็นข้อความ</button>
@@ -4218,6 +4277,9 @@
     <div class="no-print flex items-center flex-wrap gap-2 px-5 py-2 border-b">
       <button type="button" data-format="receipt" class="bill-format-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">🧾 ใบเสร็จ (แนวแคบ)</button>
       <button type="button" data-format="a4" class="bill-format-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">📄 ใบกำกับ A4</button>
+      <button id="billPreviewLabelBtn" type="button" class="hidden ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg bg-white border border-orange-500 text-orange-700 hover:bg-orange-50 transition" title="พิมพ์ใบปะหน้ากล่อง (A4) / คัดลอกรูปส่งขนส่ง">
+        🏷️ ใบปะหน้า
+      </button>
       <button id="billPreviewExcelBtn" type="button" class="ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg bg-white border border-emerald-700 text-emerald-800 hover:bg-emerald-50 transition" title="ดาวน์โหลดบิลนี้เป็นไฟล์ Excel (.xlsx) ส่งให้ลูกค้า">
         📊 Excel
       </button>
@@ -20225,6 +20287,7 @@ function setBillPreviewFormat(format) {
 function openBillPreview(bill) {
   currentPreviewBill = bill;
   renderBillPreviewContent(bill);
+  try { syncBillPreviewLabelBtn_(); } catch (e) { /* ignore */ }
   setBillPreviewFormat(billPreviewFormat); // re-apply the remembered/current format to the freshly-rendered content
   document.getElementById("billPreviewModal").classList.remove("hidden");
 }
@@ -20359,25 +20422,26 @@ function shipShop_() {
 
 function shipLabelHtml_(lab, showItems) {
   if (!lab) return '<div class="ship-lbl empty"></div>';
-  const shop = shipShop_();
+  const shop = lab.sender || shipCurrentSender_();
   const refs = lab.refs.join(", ") + (lab.poIds && lab.poIds.length ? " (ใบจอง " + lab.poIds.join(", ") + ")" : "");
   const itemsTxt = lab.items.map((it) => it.name + " ×" + it.qty).join(", ");
   return `<div class="ship-lbl">
     <div class="from">ผู้ส่ง: <b>${escapeHtml(shop.name)}</b>${shop.phone ? " · โทร " + escapeHtml(shop.phone) : ""}${shop.address ? "<br>" + escapeHtml(shop.address) : ""}</div>
     <div class="to">
+      ${lab.boxTotal > 1 ? `<span class="box">กล่อง ${lab.boxNo}/${lab.boxTotal}</span>` : ""}
       <div class="k">ผู้รับ</div>
       <div class="nm">${escapeHtml(lab.name || "-")}</div>
       ${lab.phone ? `<div class="ph">โทร ${escapeHtml(lab.phone)}</div>` : ""}
       <div class="ad">${escapeHtml(lab.address || "(ยังไม่มีที่อยู่)")}</div>
       ${lab.cod > 0 ? `<div class="cod">เก็บเงินปลายทาง ฿${formatMoney(lab.cod)}</div>` : ""}
     </div>
-    <div class="foot">${lab.refs.length > 1 ? "รวมกล่อง " + lab.refs.length + " บิล · " : "อ้างอิง "}<b>${escapeHtml(refs)}</b> · ${lab.pieces} ชิ้น
+    <div class="foot">${lab.refs.length > 1 ? "รวมกล่อง " + lab.refs.length + " บิล · " : "อ้างอิง "}<b>${escapeHtml(refs)}</b> · ${lab.itemCount ? lab.itemCount + " รายการ / " : ""}${lab.pieces} ชิ้น${lab.boxTotal > 1 ? " (ทั้งหมด " + lab.boxTotal + " กล่อง)" : ""}
       ${showItems && itemsTxt ? "<br>" + escapeHtml(itemsTxt) : ""}${lab.remark ? "<br>📝 " + escapeHtml(lab.remark) : ""}</div>
   </div>`;
 }
 
 function shipLabelText_(lab) {
-  const lines = ["ผู้รับ: " + (lab.name || "-")];
+  const lines = [(lab.boxTotal > 1 ? "กล่อง " + lab.boxNo + "/" + lab.boxTotal + " · " : "") + "ผู้รับ: " + (lab.name || "-")];
   if (lab.phone) lines.push("โทร " + lab.phone);
   lines.push(lab.address || "");
   if (lab.cod > 0) lines.push("เก็บเงินปลายทาง " + formatMoney(lab.cod) + " บาท");
@@ -20803,14 +20867,18 @@ function openShipPrint_(labels) {
 function renderShipPrint_() {
   const start = Number(document.getElementById("shipPrintStartSlot").value) || 0;
   const showItems = document.getElementById("shipPrintShowItems").checked;
+  const per = document.getElementById("shipPrintPerPage").value === "2" ? 2 : 4;
+  const slotSel = document.getElementById("shipPrintStartSlot");
+  Array.from(slotSel.options).forEach((o) => { o.hidden = Number(o.value) >= per; });
+  const startSlot = Math.min(start, per - 1);
   const slots = [];
-  for (let i = 0; i < start; i++) slots.push(null);
+  for (let i = 0; i < startSlot; i++) slots.push(null);
   shipPrintLabels.forEach((l) => slots.push(l));
-  while (slots.length % 4) slots.push(null);
+  while (slots.length % per) slots.push(null);
   const pages = [];
-  for (let i = 0; i < slots.length; i += 4) pages.push(slots.slice(i, i + 4));
+  for (let i = 0; i < slots.length; i += per) pages.push(slots.slice(i, i + per));
   document.getElementById("shipLabelPrintArea").innerHTML = pages.map((pg) =>
-    `<div class="ship-page">${pg.map((l) => shipLabelHtml_(l, showItems)).join("")}</div>`).join("");
+    `<div class="ship-page${per === 2 ? " two" : ""}">${pg.map((l) => shipLabelHtml_(l, showItems && !(l && l.hideItems))).join("")}</div>`).join("");
   document.getElementById("shipPrintInfo").textContent = "— " + shipPrintLabels.length + " ใบ · " + pages.length + " แผ่น";
 }
 
@@ -20833,7 +20901,7 @@ function printShipLabels_() {
 function drawShipLabelCanvas_(lab) {
   const W = 360, PAD = 18, SCALE = 2;
   const FONT = "'Segoe UI', Tahoma, 'Noto Sans Thai', 'Leelawadee UI', sans-serif";
-  const shop = shipShop_();
+  const shop = lab.sender || shipCurrentSender_();
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   const font = (size, weight) => (weight || "400") + " " + size + "px " + FONT;
@@ -20849,7 +20917,7 @@ function drawShipLabelCanvas_(lab) {
     };
     // header
     if (draw) { ctx.fillStyle = "#0f766e"; ctx.fillRect(0, 0, W, 40); ctx.fillStyle = "#fff"; ctx.font = font(15, "800"); ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.fillText("ใบปะหน้า · " + shop.name, PAD, 20);
-      ctx.font = font(11, "600"); ctx.textAlign = "right"; ctx.fillText(lab.refs.length > 1 ? "รวม " + lab.refs.length + " บิล" : lab.refs[0], W - PAD, 20); }
+      ctx.font = font(11, "600"); ctx.textAlign = "right"; ctx.fillText((lab.boxTotal > 1 ? "กล่อง " + lab.boxNo + "/" + lab.boxTotal + " · " : "") + (lab.refs.length > 1 ? "รวม " + lab.refs.length + " บิล" : lab.refs[0]), W - PAD, 20); }
     y = 52;
     lines("ผู้รับ", 12, "800", "#0f766e", PAD, W - PAD * 2, 18);
     lines(lab.name || "-", 22, "800", "#111827", PAD, W - PAD * 2, 30);
@@ -20868,8 +20936,9 @@ function drawShipLabelCanvas_(lab) {
     if (draw) { ctx.fillStyle = "#e5e7eb"; ctx.fillRect(PAD, y, W - PAD * 2, 1); }
     y += 8;
     lines("ผู้ส่ง " + shop.name + (shop.phone ? " · โทร " + shop.phone : ""), 12, "600", "#374151", PAD, W - PAD * 2, 18);
-    lines(lab.refs.join(", ") + " · " + lab.pieces + " ชิ้น", 12, "400", "#4b5563", PAD, W - PAD * 2, 18);
-    const it = lab.items.map((i) => i.name + " ×" + i.qty).join(", ");
+    if (shop.address) lines(shop.address, 11, "400", "#4b5563", PAD, W - PAD * 2, 16);
+    lines(lab.refs.join(", ") + " · " + (lab.itemCount ? lab.itemCount + " รายการ / " : "") + lab.pieces + " ชิ้น", 12, "400", "#4b5563", PAD, W - PAD * 2, 18);
+    const it = lab.hideItems ? "" : lab.items.map((i) => i.name + " ×" + i.qty).join(", ");
     if (it) lines(it, 12, "400", "#4b5563", PAD, W - PAD * 2, 18);
     if (lab.remark) lines("📝 " + lab.remark, 12, "600", "#6d28d9", PAD, W - PAD * 2, 18);
     return y + PAD;
@@ -20942,6 +21011,172 @@ function showShipAfterSave_(txId, payload, cartSnapshot) {
 }
 function hideShipAfterSave_() {
   document.getElementById("shipAfterSaveBar").classList.add("hidden");
+}
+
+
+/* ---------------- ผู้ส่งบนใบปะหน้า (2026-10-30) ----------------
+   ค่าเริ่มต้น = Mewtoy ตาม Settings ของสาขานี้ (shopInfoCache) · "➕ พิมพ์เอง…"
+   (เช่นส่งแทนร้านลูกค้าส่ง) จำไว้ใน localStorage ของเครื่องนั้นได้ หรือใช้ครั้งเดียว ·
+   ตัวเลือกล่าสุดจำไว้ใช้ครั้งถัดไป · ใช้ร่วมกันทั้งหน้าพิมพ์ A4 / รูป / ใบปะหน้าจากบิล
+   ค่า: "shop" | "c:<index ในรายชื่อที่จำไว้>" | "tmp" (ใช้ครั้งเดียว) */
+const SHIP_SENDERS_KEY = "pos_ship_senders";
+const SHIP_SENDER_PICK_KEY = "pos_ship_sender_pick";
+let shipSenderPick = "shop";
+let shipTempSender_ = null;
+try { shipSenderPick = localStorage.getItem(SHIP_SENDER_PICK_KEY) || "shop"; } catch (e) { /* ignore */ }
+
+function shipSavedSenders_() {
+  try { const a = JSON.parse(localStorage.getItem(SHIP_SENDERS_KEY) || "[]"); return Array.isArray(a) ? a : []; }
+  catch (e) { return []; }
+}
+function shipCurrentSender_() {
+  if (shipSenderPick === "tmp" && shipTempSender_) return shipTempSender_;
+  if (String(shipSenderPick).indexOf("c:") === 0) {
+    const s = shipSavedSenders_()[Number(String(shipSenderPick).slice(2))];
+    if (s) return s;
+  }
+  return shipShop_();
+}
+function setShipSenderPick_(v) {
+  shipSenderPick = v;
+  if (v !== "tmp") { try { localStorage.setItem(SHIP_SENDER_PICK_KEY, v); } catch (e) { /* ignore */ } }
+}
+function renderShipSenderSelects_() {
+  const shop = shipShop_();
+  const saved = shipSavedSenders_();
+  if (String(shipSenderPick).indexOf("c:") === 0 && !saved[Number(String(shipSenderPick).slice(2))]) shipSenderPick = "shop";
+  if (shipSenderPick === "tmp" && !shipTempSender_) shipSenderPick = "shop";
+  const opts = [`<option value="shop">${escapeHtml(shop.name)} (ร้าน)</option>`]
+    .concat(saved.map((x, i) => `<option value="c:${i}">${escapeHtml(x.name)}</option>`))
+    .concat(shipTempSender_ ? [`<option value="tmp">${escapeHtml(shipTempSender_.name)} (ครั้งนี้)</option>`] : [])
+    .concat(['<option value="new">➕ พิมพ์เอง…</option>']);
+  document.querySelectorAll(".ship-sender-select").forEach((sel) => { sel.innerHTML = opts.join(""); sel.value = shipSenderPick; });
+}
+function shipSenderChanged_() {
+  renderShipSenderSelects_();
+  if (!document.getElementById("shipPrintModal").classList.contains("hidden")) renderShipPrint_();
+  if (!document.getElementById("shipImgModal").classList.contains("hidden") && shipImgLabel) openShipImg_(shipImgLabel);
+}
+function setupShipSender_() {
+  renderShipSenderSelects_();
+  document.querySelectorAll(".ship-sender-select").forEach((sel) => sel.addEventListener("change", (e) => {
+    if (e.target.value === "new") {
+      ["shipSenderName", "shipSenderPhone", "shipSenderAddress"].forEach((id) => { document.getElementById(id).value = ""; });
+      document.getElementById("shipSenderRemember").checked = true;
+      document.getElementById("shipSenderModal").classList.remove("hidden");
+      document.getElementById("shipSenderName").focus();
+      return;
+    }
+    setShipSenderPick_(e.target.value);
+    shipSenderChanged_();
+  }));
+  document.getElementById("shipSenderCancelBtn").addEventListener("click", () => {
+    document.getElementById("shipSenderModal").classList.add("hidden");
+    renderShipSenderSelects_();
+  });
+  document.getElementById("shipSenderOkBtn").addEventListener("click", () => {
+    const x = {
+      name: document.getElementById("shipSenderName").value.trim(),
+      phone: document.getElementById("shipSenderPhone").value.trim(),
+      address: document.getElementById("shipSenderAddress").value.trim()
+    };
+    if (!x.name) { showToast("ใส่ชื่อผู้ส่งก่อน", "error"); return; }
+    if (document.getElementById("shipSenderRemember").checked) {
+      const saved = shipSavedSenders_();
+      saved.push(x);
+      try { localStorage.setItem(SHIP_SENDERS_KEY, JSON.stringify(saved)); } catch (e) { /* ignore */ }
+      setShipSenderPick_("c:" + (saved.length - 1));
+    } else {
+      shipTempSender_ = x;
+      setShipSenderPick_("tmp");
+    }
+    document.getElementById("shipSenderModal").classList.add("hidden");
+    shipSenderChanged_();
+  });
+  document.getElementById("shipSenderDeleteBtn").addEventListener("click", () => {
+    if (!confirm("ลบรายชื่อผู้ส่งที่จำไว้ในเครื่องนี้ทั้งหมด? (ผู้ส่ง = ร้าน กลับเป็นค่าเริ่มต้น)")) return;
+    try { localStorage.removeItem(SHIP_SENDERS_KEY); } catch (e) { /* ignore */ }
+    shipTempSender_ = null;
+    setShipSenderPick_("shop");
+    document.getElementById("shipSenderModal").classList.add("hidden");
+    shipSenderChanged_();
+  });
+}
+
+/* ---------------- 🏷️ ใบปะหน้าจากหน้าพรีวิวบิล (WS / ลูกค้ามีรหัส) — 2026-10-30 ----------------
+   ไม่บันทึกอะไรกลับ (ไม่เข้าคิว 🚚 จัดส่ง) — แค่พิมพ์/คัดลอกรูป · ที่อยู่: จากบิล →
+   ข้อมูลลูกค้าตามรหัส (customerMap ที่ซิงค์ไว้) → พิมพ์เอง · จำนวนกล่อง n = n ใบ
+   "กล่อง x/n" · COD แสดงเฉพาะใบแรก (ค่าเริ่มต้นปิดสำหรับ WS — ยอดค้างส่วนใหญ่เป็นเครดิต) */
+function billLabelEligible_(bill) {
+  return !!bill && (bill.billKind === "ws" || !!String(bill.customerCode || "").trim() || !!String(bill.customerAddress || "").trim());
+}
+function syncBillPreviewLabelBtn_() {
+  const btn = document.getElementById("billPreviewLabelBtn");
+  if (!btn) return;
+  const on = billLabelEligible_(currentPreviewBill);
+  btn.classList.toggle("hidden", !on);
+  document.getElementById("billPreviewExcelBtn").classList.toggle("ml-auto", !on);
+}
+function openBillLabelModal_() {
+  const bill = currentPreviewBill;
+  if (!bill) return;
+  const cust = bill.customerCode ? findCustomerByCode(bill.customerCode) : null;
+  let addr = String(bill.customerAddress || "").trim();
+  let src = addr ? "(จากบิล)" : "";
+  if (!addr && cust && cust.address) { addr = String(cust.address).trim(); src = "(จากข้อมูลลูกค้า " + bill.customerCode + ")"; }
+  if (!addr) src = "(ยังไม่มี — พิมพ์ได้)";
+  document.getElementById("billLabelRef").textContent = bill.isDraft ? "ฉบับร่าง" : (bill.billId || "");
+  document.getElementById("billLabelName").value = bill.customerName || (cust && cust.name) || "";
+  document.getElementById("billLabelPhone").value = bill.customerPhone || (cust && cust.phone) || "";
+  document.getElementById("billLabelAddress").value = addr;
+  document.getElementById("billLabelAddrSrc").textContent = src;
+  document.getElementById("billLabelBoxes").value = "1";
+  document.getElementById("billLabelShowItems").checked = (bill.items || []).length <= 6;
+  const due = Number(bill.amountDue) || 0;
+  const cod = document.getElementById("billLabelShowCod");
+  cod.checked = bill.billKind !== "ws" && due > 0;
+  cod.disabled = !(due > 0);
+  document.getElementById("billLabelCodAmt").textContent = due > 0 ? "฿" + formatMoney(due) : "(ไม่มียอดค้าง)";
+  document.getElementById("billLabelNote").value = "";
+  renderShipSenderSelects_();
+  document.getElementById("billLabelModal").classList.remove("hidden");
+}
+function billLabelsFromModal_() {
+  const bill = currentPreviewBill;
+  const boxes = Math.max(1, Math.min(30, Math.floor(Number(document.getElementById("billLabelBoxes").value) || 1)));
+  const items = (bill.items || []).filter((it) => SHIP_FEE_BARCODES.indexOf(String(it.barcode)) === -1)
+    .map((it) => ({ name: it.name, qty: Number(it.qty) || 0, barcode: it.barcode }));
+  const codAmt = document.getElementById("billLabelShowCod").checked ? Number(bill.amountDue) || 0 : 0;
+  const base = {
+    refs: [bill.isDraft ? "ฉบับร่าง" : (bill.billId || "")],
+    poIds: [],
+    name: document.getElementById("billLabelName").value.trim(),
+    phone: document.getElementById("billLabelPhone").value.trim(),
+    address: document.getElementById("billLabelAddress").value.trim(),
+    items: items,
+    itemCount: items.length,
+    pieces: items.reduce((s, it) => s + it.qty, 0),
+    remark: document.getElementById("billLabelNote").value.trim(),
+    hideItems: !document.getElementById("billLabelShowItems").checked,
+    boxTotal: boxes
+  };
+  const out = [];
+  for (let i = 1; i <= boxes; i++) out.push(Object.assign({}, base, { boxNo: i, cod: i === 1 ? codAmt : 0 }));
+  return out;
+}
+function setupBillLabel_() {
+  document.getElementById("billPreviewLabelBtn").addEventListener("click", openBillLabelModal_);
+  document.getElementById("billLabelCloseBtn").addEventListener("click", () => document.getElementById("billLabelModal").classList.add("hidden"));
+  document.getElementById("billLabelModal").addEventListener("click", (e) => { if (e.target.id === "billLabelModal") e.target.classList.add("hidden"); });
+  document.getElementById("billLabelPrintBtn").addEventListener("click", () => {
+    const labs = billLabelsFromModal_();
+    if (!labs[0].address && !confirm("ยังไม่มีที่อยู่ผู้รับ — พิมพ์ต่อไหม?")) return;
+    document.getElementById("shipPrintShowItems").checked = !labs[0].hideItems;
+    openShipPrint_(labs);
+  });
+  document.getElementById("billLabelImgBtn").addEventListener("click", () => openShipImg_(billLabelsFromModal_()[0]));
+  document.getElementById("shipPrintPerPage").addEventListener("change", renderShipPrint_);
+  setupShipSender_();
 }
 
 /* ---------------- Report ---------------- */
@@ -21208,6 +21443,8 @@ function buildCartBillObject_(isDraft, existingBill) {
     if (bill.changeGiven > 0) paymentLines.push({ label: "เงินทอน", amount: -Number(bill.changeGiven) });
     return {
       docLabel: "ใบเสร็จรับเงิน",
+      billKind: "sale",
+      customerCode: bill.customerCode || "",
       billId: bill.transactionId,
       isDraft: false,
       dateText: bill.timestamp ? new Date(bill.timestamp).toLocaleString("th-TH") : "",
@@ -21237,6 +21474,8 @@ function buildCartBillObject_(isDraft, existingBill) {
   }));
   return {
     docLabel: "ใบเสร็จรับเงิน",
+    billKind: "sale",
+    customerCode: document.getElementById("customerCodeInput").value.trim(),
     billId: editingTransactionId || null,
     isDraft: true,
     dateText: new Date().toLocaleString("th-TH"),
@@ -21274,6 +21513,8 @@ function buildWSBillObject_(isDraft, existingInvoice) {
     }));
     return {
       docLabel: "ใบส่งของ / ใบแจ้งหนี้ขายส่ง (WS)",
+      billKind: "ws",
+      customerCode: inv.customerCode || "",
       billId: inv.invoiceId,
       isDraft: false,
       dateText: inv.createdAt ? new Date(inv.createdAt).toLocaleString("th-TH") : "",
@@ -21318,6 +21559,8 @@ function buildWSBillObject_(isDraft, existingInvoice) {
     : wsPaymentMethodLabel(wsSelectedPaymentMethod);
   return {
     docLabel: "ใบส่งของ / ใบแจ้งหนี้ขายส่ง (WS)",
+    billKind: "ws",
+    customerCode: document.getElementById("wsCustomerCodeInput").value.trim(),
     billId: null,
     isDraft: true,
     dateText: new Date().toLocaleString("th-TH"),
@@ -21353,6 +21596,8 @@ function buildPreOrderBillObject_(isDraft, existingLines) {
     const arrivalNotes = existingLines.map((l) => l.expectedArrivalNote).filter(Boolean);
     return {
       docLabel: "ใบจองสินค้า (Pre-order)",
+      billKind: "po",
+      customerCode: first.customerCode || "",
       billId: first.poId,
       isDraft: false,
       dateText: first.openedAt ? new Date(first.openedAt).toLocaleString("th-TH") : "",
@@ -21381,6 +21626,8 @@ function buildPreOrderBillObject_(isDraft, existingLines) {
   const arrivalNotes = preOrderDraftItems.map((i) => i.expectedArrivalNote).filter(Boolean);
   return {
     docLabel: "ใบจองสินค้า (Pre-order)",
+    billKind: "po",
+    customerCode: document.getElementById("poCustomerCodeInput").value.trim(),
     billId: null,
     isDraft: true,
     dateText: new Date().toLocaleString("th-TH"),
@@ -21517,6 +21764,7 @@ async function init() {
   setupBillPreviewModal();
   setupStorewdPrintModal();
   setupShippingTab();
+  setupBillLabel_();
   checkPinLockOnLoad(); // resume an in-progress lockout if the page was reloaded mid-countdown
   renderCart();       // also renders grand total + split inputs
   renderSplitInputs();
