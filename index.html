@@ -89,30 +89,62 @@
      <body>) for the duration of the print, and everything else is
      display:none — normal document flow, so pages break cleanly. */
   #printRoot { display: none; }
-  /* ใบปะหน้า A4 4 ใบ/แผ่น (2026-10-26, mockup_shipping.html) */
+  /* ใบปะหน้า A4 — 8 / 4 / 2 ใบต่อแผ่น (2026-10-31, mockup_label_real_customers.html)
+     ขนาดเป็น mm ตรงกับกระดาษจริง · ที่อยู่ยาวจะถูกย่อตัวหนังสือให้พอดีกรอบ (shipFitLabels_) */
   #shipLabelPrintArea { font-family: 'Segoe UI', Tahoma, 'Noto Sans Thai', sans-serif; color: #111827; }
-  .ship-page { width: 194mm; height: 280mm; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; background: #fff; }
+  .ship-page { width: 194mm; height: 280mm; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(4, minmax(0, 1fr)); background: #fff; }
+  .ship-page.p4 { grid-template-rows: repeat(2, minmax(0, 1fr)); }
+  .ship-page.p2 { grid-template-columns: 1fr; grid-template-rows: repeat(2, minmax(0, 1fr)); }
   .ship-page + .ship-page { margin-top: 6mm; }
-  .ship-lbl { border: 1px dashed #9ca3af; padding: 5mm 5mm 4mm; display: flex; flex-direction: column; overflow: hidden; font-size: 9pt; }
-  .ship-lbl.empty { border-color: #e5e7eb; }
-  .ship-page.two { grid-template-columns: 1fr; }
-  .ship-page.two .ship-lbl { padding: 7mm 9mm 6mm; font-size: 11pt; }
-  .ship-page.two .ship-lbl .from { font-size: 10pt; }
-  .ship-page.two .ship-lbl .nm { font-size: 26pt; }
-  .ship-page.two .ship-lbl .ph { font-size: 20pt; }
-  .ship-page.two .ship-lbl .ad { font-size: 18pt; }
-  .ship-page.two .ship-lbl .foot { font-size: 10pt; }
-  .ship-lbl .box { float: right; border: 2px solid #111827; border-radius: 1.5mm; padding: .5mm 2.5mm; font-weight: 900; font-size: 12pt; color: #111827; }
-  .ship-lbl .from { border-bottom: 1px solid #d1d5db; padding-bottom: 2mm; color: #4b5563; line-height: 1.35; font-size: 8pt; }
-  .ship-lbl .from b { color: #111827; }
-  .ship-lbl .to { flex: 1; padding-top: 3mm; min-height: 0; }
-  .ship-lbl .k { font-size: 8pt; font-weight: 800; color: #0f766e; letter-spacing: .04em; }
-  .ship-lbl .nm { font-size: 20pt; font-weight: 800; line-height: 1.2; margin: 1mm 0; }
-  .ship-lbl .ph { font-size: 16pt; font-weight: 800; }
-  .ship-lbl .ad { font-size: 15pt; line-height: 1.4; margin-top: 1.5mm; white-space: pre-wrap; }
-  .ship-lbl .cod { display: inline-block; margin-top: 2.5mm; border: 2px solid #b91c1c; color: #b91c1c; font-weight: 900; font-size: 12pt; padding: 1mm 3mm; border-radius: 1.5mm; }
-  .ship-lbl .foot { border-top: 1px solid #d1d5db; padding-top: 2mm; color: #374151; line-height: 1.35; font-size: 8pt; max-height: 45mm; overflow: hidden; }
-  .ship-lbl .foot b { color: #111827; }
+  .ship-cell { border: 1px dashed #9ca3af; overflow: hidden; min-width: 0; min-height: 0; }
+  .ship-cell.empty { border-color: #e5e7eb; }
+  .ship-cell .sk { font-size: 3mm; font-weight: 800; color: #6b7280; letter-spacing: .04em; }
+  .ship-cell .rk { font-size: 3mm; font-weight: 800; color: #0f766e; letter-spacing: .04em; }
+  .ship-cell .zip { font-weight: 900; letter-spacing: .06em; }
+  .ship-cell .noaddr { color: #b91c1c; font-weight: 800; }
+  .ship-cell .rm { color: #6d28d9; font-weight: 800; }
+  /* 8 ใบ (97×70mm) */
+  .sl8 { padding: 3mm 3.5mm 2.5mm; display: flex; flex-direction: column; height: 100%; line-height: 1.3; font-size: 3.1mm; }
+  .sl8 .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 2mm; border-bottom: 1px solid #d1d5db; padding-bottom: 1.5mm; }
+  .sl8 .snd { min-width: 0; line-height: 1.25; }
+  .sl8 .sn { font-size: 5mm; font-weight: 800; }
+  .sl8 .sd { font-size: 4mm; color: #374151; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .sl8 .box { border: 1.5px solid #111827; border-radius: 1.5mm; font-weight: 900; font-size: 3.9mm; padding: 0 1.5mm; white-space: nowrap; }
+  .sl8 .to { flex: 1; padding-top: 1.5mm; min-height: 0; overflow: hidden; }
+  .sl8 .nm { font-size: 6mm; font-weight: 800; line-height: 1.15; }
+  .sl8 .ph { font-size: 5.25mm; font-weight: 800; }
+  .sl8 .ad { font-size: 4.5mm; line-height: 1.25; margin-top: .5mm; }
+  .sl8 .zip { font-size: 5.5mm; }
+  .sl8 .cod { display: inline-block; border: 1.5px solid #b91c1c; color: #b91c1c; font-weight: 900; font-size: 3.9mm; padding: 0 1.5mm; border-radius: 1.5mm; margin-top: 1mm; }
+  .sl8 .ft { border-top: 1px solid #e5e7eb; padding-top: 1mm; color: #4b5563; display: flex; justify-content: space-between; gap: 2mm; white-space: nowrap; }
+  .sl8 .ft > span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .sl8 .ft > span:first-child { flex-shrink: 0; max-width: 60%; }
+  /* 4 ใบ (97×140mm) */
+  .sl4 { padding: 4.5mm 5mm 4mm; display: flex; flex-direction: column; height: 100%; line-height: 1.35; font-size: 3.5mm; }
+  .sl4 .hdr { display: flex; justify-content: space-between; align-items: center; gap: 2mm; background: #0f766e; color: #fff; border-radius: 2mm; padding: 2mm 3mm; font-weight: 800; font-size: 4mm; }
+  .sl4 .hdr .ref { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sl4 .hdr .box { background: #fff; color: #0f766e; border-radius: 1.5mm; padding: 0 2mm; font-size: 4.5mm; white-space: nowrap; }
+  .sl4 .from { margin-top: 3mm; color: #374151; font-size: 4.75mm; line-height: 1.35; border: 1.5px solid #9ca3af; border-radius: 2.5mm; padding: 2mm 3.5mm; }
+  .sl4 .from b { color: #111827; font-size: 6mm; }
+  .sl4 .from .sd { font-size: 4.25mm; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .sl4 .to { margin-top: 3mm; border: 2px solid #111827; border-radius: 2.5mm; padding: 3mm 3.5mm; flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .sl4 .nm { font-size: 8.5mm; font-weight: 900; line-height: 1.15; margin-top: .5mm; }
+  .sl4 .ph { font-size: 7mm; font-weight: 800; margin-top: 1mm; }
+  .sl4 .ad { font-size: 6.25mm; line-height: 1.35; margin-top: 2mm; }
+  .sl4 .zip { font-size: 8.5mm; display: block; margin-top: 1mm; }
+  .sl4 .cod { margin-top: auto; align-self: flex-start; border: 2px solid #b91c1c; color: #b91c1c; font-weight: 900; font-size: 5mm; padding: .5mm 2.5mm; border-radius: 2mm; }
+  .sl4 .ft { margin-top: 2.5mm; display: flex; justify-content: space-between; gap: 3mm; color: #374151; font-size: 3.4mm; }
+  .sl4 .ft .rm { font-size: 4mm; text-align: right; }
+  .sl4 .items { margin-top: 1.5mm; color: #4b5563; font-size: 3.15mm; line-height: 1.3; max-height: 12.5mm; overflow: hidden; }
+  /* 2 ใบ (194×140mm) — แบบ 4 ใบ ขยาย */
+  .p2 .sl4 { padding: 6mm 8mm 5mm; }
+  .p2 .sl4 .hdr { font-size: 5mm; } .p2 .sl4 .hdr .box { font-size: 5.5mm; }
+  .p2 .sl4 .from { font-size: 5.5mm; } .p2 .sl4 .from b { font-size: 7.5mm; } .p2 .sl4 .from .sd { font-size: 5mm; }
+  .p2 .sl4 .nm { font-size: 11mm; } .p2 .sl4 .ph { font-size: 9mm; }
+  .p2 .sl4 .ad { font-size: 8mm; } .p2 .sl4 .zip { font-size: 11mm; }
+  .p2 .sl4 .cod { font-size: 6mm; }
+  .p2 .sl4 .ft { font-size: 4mm; } .p2 .sl4 .ft .rm { font-size: 4.8mm; }
+  .p2 .sl4 .items { font-size: 3.8mm; max-height: 10mm; }
   @media print {
     body.printing-isolated #shipLabelPrintArea { position: static !important; }
     .ship-page { page-break-after: always; break-after: page; margin: 0 !important; }
@@ -284,7 +316,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.30-b</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.31-a</span>
       </div>
       <div class="flex-1"></div>
 
@@ -4209,18 +4241,18 @@
       <button id="shipPrintCloseBtn" type="button" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="no-print flex items-center gap-3 flex-wrap px-5 py-2 border-b text-sm">
-      <label>เริ่มพิมพ์ที่ช่อง
+      <label title="นับซ้าย→ขวา บน→ล่าง — ใช้กับกระดาษที่ตัดไปแล้วบางช่อง">เริ่มพิมพ์ที่ช่อง
         <select id="shipPrintStartSlot" class="border rounded-lg px-2 py-1 ml-1">
-          <option value="0">1 (บนซ้าย)</option><option value="1">2 (บนขวา)</option><option value="2">3 (ล่างซ้าย)</option><option value="3">4 (ล่างขวา)</option>
+          <option value="0">1</option><option value="1">2</option><option value="2">3</option><option value="3">4</option><option value="4">5</option><option value="5">6</option><option value="6">7</option><option value="7">8</option>
         </select></label>
       <label>ต่อแผ่น
-        <select id="shipPrintPerPage" class="border rounded-lg px-2 py-1 ml-1"><option value="4">4 ใบ / A4</option><option value="2">2 ใบ / A4 (ใหญ่)</option></select></label>
+        <select id="shipPrintPerPage" class="border rounded-lg px-2 py-1 ml-1"><option value="8">8 ใบ / A4</option><option value="4">4 ใบ / A4</option><option value="2">2 ใบ / A4 (ใหญ่)</option></select></label>
       <label>ผู้ส่ง <select id="shipPrintSender" class="ship-sender-select border rounded-lg px-2 py-1 ml-1 max-w-[180px]"></select></label>
       <label class="flex items-center gap-1.5"><input id="shipPrintShowItems" type="checkbox" checked class="accent-teal-700"> แสดงรายการสินค้า</label>
       <button id="shipPrintGoBtn" type="button" class="ml-auto px-4 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-semibold">🖨️ พิมพ์</button>
     </div>
     <div class="overflow-auto bg-gray-100 p-4">
-      <div id="shipPrintZoom" style="zoom:.62" class="mx-auto w-max"><div id="shipLabelPrintArea"></div></div>
+      <div id="shipPrintZoomOuter" class="mx-auto" style="overflow:hidden"><div id="shipPrintZoom" style="transform:scale(.62);transform-origin:top left;width:max-content"><div id="shipLabelPrintArea"></div></div></div>
     </div>
   </div>
 </div>
@@ -20420,30 +20452,108 @@ function shipShop_() {
   return { name: shop.name || "Mewtoy", address: shop.address || "", phone: shop.phone || "" };
 }
 
-function shipLabelHtml_(lab, showItems) {
-  if (!lab) return '<div class="ship-lbl empty"></div>';
+/* ---------- จัดข้อมูลบนใบปะหน้า (2026-10-31) — ใช้กับ A4 / รูป / ข้อความ ----------
+   ที่อยู่: ตัดอักษรล่องหน, "ที่อยู่:", ช่องว่าง/จุลภาคซ้ำ, แยกรหัสไปรษณีย์ที่ติดชื่อจังหวัด ·
+   สั้นกว่า 15 ตัวอักษร (เช่น "M1", "ติดต่อผ่านท้อป") = ไม่ใช่ที่อยู่ → เตือนแดง ·
+   เบอร์ 0xx-xxx-xxxx · ชื่อผู้รับขึ้นต้น "K." (ย่อ "คุณ") ยกเว้นมีคำนำหน้า/เป็นร้าน-บริษัทอยู่แล้ว */
+function shipCleanAddr_(a) {
+  let s = String(a || "").replace(/[​‌‍﻿]/g, "").replace(/\r/g, "");
+  s = s.replace(/ที่อยู่\s*[:：]\s*/g, "");
+  s = s.split("\n").map((x) => x.trim()).filter(Boolean).join(" ");
+  s = s.replace(/\s*,\s*/g, ", ").replace(/,(\s*,)+/g, ",").replace(/\s{2,}/g, " ").trim().replace(/[,\s]+$/, "");
+  s = s.replace(/([ก-๙a-zA-Z.])(\d{5})(?!\d)/g, "$1 $2");
+  return s;
+}
+function shipSplitZip_(s) {
+  const m = String(s || "").match(/^(.*?)[,\s]*(\d{5})\s*(Thailand|ไทย)?\s*$/i);
+  return m ? { body: m[1].trim(), zip: m[2] } : { body: String(s || ""), zip: "" };
+}
+function shipAddrJunk_(cleaned) { return String(cleaned || "").replace(/\s/g, "").length < 15; }
+function shipFmtPhone_(p) {
+  const d = String(p || "").replace(/\D/g, "");
+  if (d.length === 10) return d.slice(0, 3) + "-" + d.slice(3, 6) + "-" + d.slice(6);
+  if (d.length === 9) return d.slice(0, 2) + "-" + d.slice(2, 5) + "-" + d.slice(5);
+  return String(p || "").trim();
+}
+function shipRecipName_(n) {
+  const s = String(n || "").trim();
+  if (!s) return "";
+  if (/^(K\.|K |คุณ|Khun|Mr\.?|Mrs\.?|Ms\.?|Miss|นาย|นาง|น\.ส\.|ร้าน|บริษัท|บจก|หจก|Shop|Store)/i.test(s)) return s;
+  return "K. " + s;
+}
+const SHIP_NOADDR_TXT = "⚠️ ไม่มีที่อยู่ — พิมพ์เองก่อนพิมพ์";
+function shipAddrHtml_(addr) {
+  const c = shipCleanAddr_(addr);
+  if (shipAddrJunk_(c)) return '<span class="noaddr">' + SHIP_NOADDR_TXT + "</span>";
+  const z = shipSplitZip_(c);
+  return z.zip ? escapeHtml(z.body) + ' <span class="zip">' + z.zip + "</span>" : escapeHtml(z.body);
+}
+function shipRefsTxt_(lab) {
+  return lab.refs.join(", ") + (lab.poIds && lab.poIds.length ? " (ใบจอง " + lab.poIds.join(", ") + ")" : "");
+}
+function shipCountTxt_(lab) {
+  return (lab.itemCount ? lab.itemCount + " รายการ / " : "") + lab.pieces + " ชิ้น" + (lab.boxTotal > 1 ? " (ทั้งหมด " + lab.boxTotal + " กล่อง)" : "");
+}
+
+function shipLabelHtml_(lab, showItems, per) {
+  if (!lab) return '<div class="ship-cell empty"></div>';
   const shop = lab.sender || shipCurrentSender_();
-  const refs = lab.refs.join(", ") + (lab.poIds && lab.poIds.length ? " (ใบจอง " + lab.poIds.join(", ") + ")" : "");
-  const itemsTxt = lab.items.map((it) => it.name + " ×" + it.qty).join(", ");
-  return `<div class="ship-lbl">
-    <div class="from">ผู้ส่ง: <b>${escapeHtml(shop.name)}</b>${shop.phone ? " · โทร " + escapeHtml(shop.phone) : ""}${shop.address ? "<br>" + escapeHtml(shop.address) : ""}</div>
-    <div class="to">
-      ${lab.boxTotal > 1 ? `<span class="box">กล่อง ${lab.boxNo}/${lab.boxTotal}</span>` : ""}
-      <div class="k">ผู้รับ</div>
-      <div class="nm">${escapeHtml(lab.name || "-")}</div>
-      ${lab.phone ? `<div class="ph">โทร ${escapeHtml(lab.phone)}</div>` : ""}
-      <div class="ad">${escapeHtml(lab.address || "(ยังไม่มีที่อยู่)")}</div>
-      ${lab.cod > 0 ? `<div class="cod">เก็บเงินปลายทาง ฿${formatMoney(lab.cod)}</div>` : ""}
-    </div>
-    <div class="foot">${lab.refs.length > 1 ? "รวมกล่อง " + lab.refs.length + " บิล · " : "อ้างอิง "}<b>${escapeHtml(refs)}</b> · ${lab.itemCount ? lab.itemCount + " รายการ / " : ""}${lab.pieces} ชิ้น${lab.boxTotal > 1 ? " (ทั้งหมด " + lab.boxTotal + " กล่อง)" : ""}
-      ${showItems && itemsTxt ? "<br>" + escapeHtml(itemsTxt) : ""}${lab.remark ? "<br>📝 " + escapeHtml(lab.remark) : ""}</div>
-  </div>`;
+  const name = escapeHtml(shipRecipName_(lab.name) || "-");
+  const phone = lab.phone ? `<div class="ph">โทร ${escapeHtml(shipFmtPhone_(lab.phone))}</div>` : "";
+  const ad = `<div class="ad">${shipAddrHtml_(lab.address)}</div>`;
+  const sndDetail = [shop.phone ? "โทร " + shop.phone : "", shop.address || ""].filter(Boolean).join(" · ");
+  const boxTxt = lab.boxTotal > 1 ? "กล่อง " + lab.boxNo + "/" + lab.boxTotal : "";
+  const refTxt = (lab.refs.length > 1 ? "รวม " + lab.refs.length + " บิล: " : "") + shipRefsTxt_(lab);
+  const remark = lab.remark ? `<span class="rm">📝 ${escapeHtml(lab.remark)}</span>` : "";
+  if (per === 8) {
+    return `<div class="ship-cell"><div class="sl8">
+      <div class="top"><div class="snd"><div class="sk">ผู้ส่ง</div><div class="sn">${escapeHtml(shop.name)}</div>${sndDetail ? `<div class="sd">${escapeHtml(sndDetail)}</div>` : ""}</div>${boxTxt ? `<span class="box">${boxTxt}</span>` : ""}</div>
+      <div class="to"><div class="rk">ผู้รับ</div><div class="nm">${name}</div>${phone}${ad}${lab.cod > 0 ? `<span class="cod">COD ฿${formatMoney(lab.cod)}</span>` : ""}</div>
+      <div class="ft"><span>${escapeHtml(lab.refs.length > 1 ? "รวม " + lab.refs.length + " บิล" : lab.refs[0] || "")} · ${lab.pieces} ชิ้น</span>${remark}</div>
+    </div></div>`;
+  }
+  const itemsTxt = showItems ? lab.items.map((it) => it.name + " ×" + it.qty).join(", ") : "";
+  return `<div class="ship-cell"><div class="sl4">
+    <div class="hdr"><span class="ref">📦 ${escapeHtml(refTxt)}</span>${boxTxt ? `<span class="box">${boxTxt}</span>` : ""}</div>
+    <div class="from"><div class="sk">ผู้ส่ง</div><b>${escapeHtml(shop.name)}</b>${sndDetail ? `<div class="sd">${escapeHtml(sndDetail)}</div>` : ""}</div>
+    <div class="to"><div class="rk">ผู้รับ</div><div class="nm">${name}</div>${phone}${ad}${lab.cod > 0 ? `<span class="cod">เก็บเงินปลายทาง ฿${formatMoney(lab.cod)}</span>` : ""}</div>
+    <div class="ft"><span>${shipCountTxt_(lab)}</span>${remark}</div>
+    ${itemsTxt ? `<div class="items">${escapeHtml(itemsTxt)}</div>` : ""}
+  </div></div>`;
+}
+
+/* ย่อตัวหนังสือที่อยู่ (และรหัสไปรษณีย์) ลงทีละนิดจนพอดีกรอบผู้รับ — ต่ำสุด 62% ของขนาดปกติ */
+function shipFitLabels_(root) {
+  root.querySelectorAll(".ship-cell .to").forEach((to) => {
+    const ad = to.querySelector(".ad");
+    if (!ad) return;
+    const zp = ad.querySelector(".zip");
+    let fs = parseFloat(getComputedStyle(ad).fontSize);
+    const zr = zp ? parseFloat(getComputedStyle(zp).fontSize) / fs : 1.2;
+    const min = fs * 0.62;
+    let guard = 0;
+    while (to.scrollHeight > to.clientHeight + 1 && fs > min && guard++ < 80) {
+      fs -= 0.4;
+      ad.style.fontSize = fs + "px";
+      if (zp) zp.style.fontSize = (fs * zr) + "px";
+    }
+    // ยังล้น (ที่อยู่ยาวมาก) → ย่อชื่อ/เบอร์ลงอีกนิด ไม่ต่ำกว่า 75%
+    const nm = to.querySelector(".nm"), ph = to.querySelector(".ph");
+    let k = 1;
+    const nm0 = parseFloat(getComputedStyle(nm).fontSize), ph0 = ph ? parseFloat(getComputedStyle(ph).fontSize) : 0;
+    while (to.scrollHeight > to.clientHeight + 1 && k > 0.75 && guard++ < 120) {
+      k -= 0.03;
+      nm.style.fontSize = (nm0 * k) + "px";
+      if (ph) ph.style.fontSize = (ph0 * k) + "px";
+    }
+  });
 }
 
 function shipLabelText_(lab) {
-  const lines = [(lab.boxTotal > 1 ? "กล่อง " + lab.boxNo + "/" + lab.boxTotal + " · " : "") + "ผู้รับ: " + (lab.name || "-")];
-  if (lab.phone) lines.push("โทร " + lab.phone);
-  lines.push(lab.address || "");
+  const lines = [(lab.boxTotal > 1 ? "กล่อง " + lab.boxNo + "/" + lab.boxTotal + " · " : "") + "ผู้รับ: " + (shipRecipName_(lab.name) || "-")];
+  if (lab.phone) lines.push("โทร " + shipFmtPhone_(lab.phone));
+  const c = shipCleanAddr_(lab.address);
+  lines.push(shipAddrJunk_(c) ? "(ยังไม่มีที่อยู่)" : c);
   if (lab.cod > 0) lines.push("เก็บเงินปลายทาง " + formatMoney(lab.cod) + " บาท");
   lines.push("(" + lab.refs.join(", ") + " · " + lab.pieces + " ชิ้น)");
   if (lab.remark) lines.push("หมายเหตุ: " + lab.remark);
@@ -20860,26 +20970,40 @@ function openShipCombine_(rows) {
 function openShipPrint_(labels) {
   shipPrintLabels = labels;
   document.getElementById("shipPrintStartSlot").value = "0";
-  renderShipPrint_();
   document.getElementById("shipPrintModal").classList.remove("hidden");
+  renderShipPrint_();
+}
+
+function shipPrintPer_() {
+  const v = Number(document.getElementById("shipPrintPerPage").value);
+  return v === 2 || v === 4 ? v : 8;
 }
 
 function renderShipPrint_() {
   const start = Number(document.getElementById("shipPrintStartSlot").value) || 0;
   const showItems = document.getElementById("shipPrintShowItems").checked;
-  const per = document.getElementById("shipPrintPerPage").value === "2" ? 2 : 4;
+  const per = shipPrintPer_();
+  try { localStorage.setItem("pos_ship_per_page", String(per)); } catch (e) { /* ignore */ }
   const slotSel = document.getElementById("shipPrintStartSlot");
   Array.from(slotSel.options).forEach((o) => { o.hidden = Number(o.value) >= per; });
   const startSlot = Math.min(start, per - 1);
+  if (startSlot !== start) slotSel.value = String(startSlot);
   const slots = [];
   for (let i = 0; i < startSlot; i++) slots.push(null);
   shipPrintLabels.forEach((l) => slots.push(l));
   while (slots.length % per) slots.push(null);
   const pages = [];
   for (let i = 0; i < slots.length; i += per) pages.push(slots.slice(i, i + per));
-  document.getElementById("shipLabelPrintArea").innerHTML = pages.map((pg) =>
-    `<div class="ship-page${per === 2 ? " two" : ""}">${pg.map((l) => shipLabelHtml_(l, showItems && !(l && l.hideItems))).join("")}</div>`).join("");
-  document.getElementById("shipPrintInfo").textContent = "— " + shipPrintLabels.length + " ใบ · " + pages.length + " แผ่น";
+  const area = document.getElementById("shipLabelPrintArea");
+  area.innerHTML = pages.map((pg) =>
+    `<div class="ship-page p${per}">${pg.map((l) => shipLabelHtml_(l, showItems && !(l && l.hideItems), per)).join("")}</div>`).join("");
+  shipFitLabels_(area);
+  const zoom = document.getElementById("shipPrintZoom");
+  const outer = document.getElementById("shipPrintZoomOuter");
+  outer.style.width = Math.ceil(zoom.offsetWidth * 0.62) + "px";
+  outer.style.height = Math.ceil(zoom.offsetHeight * 0.62) + "px";
+  const noAddr = shipPrintLabels.filter((l) => shipAddrJunk_(shipCleanAddr_(l.address))).length;
+  document.getElementById("shipPrintInfo").textContent = "— " + shipPrintLabels.length + " ใบ · " + pages.length + " แผ่น" + (noAddr ? " · ⚠️ ไม่มีที่อยู่ " + noAddr + " ใบ" : "");
 }
 
 function printShipLabels_() {
@@ -20899,56 +21023,106 @@ function printShipLabels_() {
 
 /* ---------------- รูปใบปะหน้า (Canvas) ---------------- */
 function drawShipLabelCanvas_(lab) {
-  const W = 360, PAD = 18, SCALE = 2;
+  const W = 360, PAD = 14, SCALE = 2, HDR = 46;
   const FONT = "'Segoe UI', Tahoma, 'Noto Sans Thai', 'Leelawadee UI', sans-serif";
   const shop = lab.sender || shipCurrentSender_();
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   const font = (size, weight) => (weight || "400") + " " + size + "px " + FONT;
+  const cAddr = shipCleanAddr_(lab.address);
+  const junk = shipAddrJunk_(cAddr);
+  const z = junk ? { body: "", zip: "" } : shipSplitZip_(cAddr);
+  const IW = W - PAD * 2;
+  let totalH = 0;
   function layout(draw) {
     let y = 0;
-    const lines = (str, size, weight, color, x, maxW, lh) => {
-      ctx.font = font(size, weight);
-      const ls = preCustImgWrap_(ctx, str, maxW);
-      ls.forEach((ln) => {
-        if (draw) { ctx.font = font(size, weight); ctx.fillStyle = color; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(ln, x, y + lh / 2); }
-        y += lh;
-      });
+    const text = (str, size, weight, color, x, yy, align) => {
+      if (!draw) return;
+      ctx.font = font(size, weight); ctx.fillStyle = color; ctx.textAlign = align || "left"; ctx.textBaseline = "middle"; ctx.fillText(str, x, yy);
     };
-    // header
-    if (draw) { ctx.fillStyle = "#0f766e"; ctx.fillRect(0, 0, W, 40); ctx.fillStyle = "#fff"; ctx.font = font(15, "800"); ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.fillText("ใบปะหน้า · " + shop.name, PAD, 20);
-      ctx.font = font(11, "600"); ctx.textAlign = "right"; ctx.fillText((lab.boxTotal > 1 ? "กล่อง " + lab.boxNo + "/" + lab.boxTotal + " · " : "") + (lab.refs.length > 1 ? "รวม " + lab.refs.length + " บิล" : lab.refs[0]), W - PAD, 20); }
-    y = 52;
-    lines("ผู้รับ", 12, "800", "#0f766e", PAD, W - PAD * 2, 18);
-    lines(lab.name || "-", 22, "800", "#111827", PAD, W - PAD * 2, 30);
-    if (lab.phone) lines("📞 " + lab.phone, 19, "800", "#111827", PAD, W - PAD * 2, 28);
-    y += 2;
-    lines(lab.address || "(ยังไม่มีที่อยู่)", 16, "400", "#111827", PAD, W - PAD * 2, 24);
+    const lines = (str, size, weight, color, lh, maxW) => {
+      ctx.font = font(size, weight);
+      const ls = preCustImgWrap_(ctx, str, maxW || IW);
+      ls.forEach((ln) => { text(ln, size, weight, color, PAD, y + lh / 2); y += lh; });
+      return ls;
+    };
+    // หัว: "📦 ใบปะหน้า" ซ้าย · เลขบิล + กล่อง x/y ขวา (2 บรรทัด)
+    if (draw) { ctx.fillStyle = "#0f766e"; ctx.fillRect(0, 0, W, HDR); }
+    text("📦 ใบปะหน้า", 15, "800", "#ffffff", PAD, HDR / 2);
+    ctx.font = font(15, "800");
+    const leftW = ctx.measureText("📦 ใบปะหน้า").width + 16;
+    let refTxt = lab.refs.length > 1 ? "รวม " + lab.refs.length + " บิล" : (lab.refs[0] || "");
+    ctx.font = font(11, "600");
+    while (refTxt.length > 4 && ctx.measureText(refTxt).width > W - PAD * 2 - leftW) refTxt = refTxt.slice(0, -2) + "…";
+    const boxTxt = lab.boxTotal > 1 ? "กล่อง " + lab.boxNo + "/" + lab.boxTotal : "";
+    if (boxTxt) { text(refTxt, 11, "600", "#ffffff", W - PAD, 15, "right"); text(boxTxt, 12, "800", "#ffffff", W - PAD, 32, "right"); }
+    else text(refTxt, 11, "600", "#ffffff", W - PAD, HDR / 2, "right");
+    y = HDR + 12;
+    // ผู้รับ
+    lines("ผู้รับ", 11, "800", "#0f766e", 16);
+    lines(shipRecipName_(lab.name) || "-", 22, "900", "#111827", 29);
+    if (lab.phone) lines("📞 " + shipFmtPhone_(lab.phone), 19, "800", "#111827", 27);
+    y += 3;
+    if (junk) {
+      lines(SHIP_NOADDR_TXT, 15, "800", "#b91c1c", 22);
+    } else {
+      const ls = lines(z.body, 16, "400", "#111827", 23);
+      if (z.zip) {
+        ctx.font = font(16, "400");
+        const lastW = ls.length ? ctx.measureText(ls[ls.length - 1] + " ").width : 0;
+        ctx.font = font(19, "900");
+        const zw = ctx.measureText(z.zip).width;
+        if (ls.length && lastW + zw <= IW) text(z.zip, 19, "900", "#111827", PAD + lastW, y - 23 / 2);
+        else { text(z.zip, 19, "900", "#111827", PAD, y + 13); y += 26; }
+      }
+    }
     if (lab.cod > 0) {
       y += 8;
       const t = "เก็บเงินปลายทาง ฿" + formatMoney(lab.cod);
       ctx.font = font(16, "900");
       const w = ctx.measureText(t).width + 18;
-      if (draw) { ctx.strokeStyle = "#b91c1c"; ctx.lineWidth = 2; ctx.strokeRect(PAD, y, w, 30); ctx.fillStyle = "#b91c1c"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(t, PAD + 9, y + 15); }
+      if (draw) { ctx.strokeStyle = "#b91c1c"; ctx.lineWidth = 2; ctx.strokeRect(PAD, y, w, 30); }
+      text(t, 16, "900", "#b91c1c", PAD + 9, y + 15);
       y += 30;
     }
+    // ป้าย: กล่อง x/y · หมายเหตุ
+    if (boxTxt || lab.remark) y += 10;
+    if (boxTxt) {
+      ctx.font = font(13, "800");
+      const w = ctx.measureText(boxTxt).width + 16;
+      if (draw) { ctx.fillStyle = "#111827"; ctx.fillRect(PAD, y, w, 22); }
+      text(boxTxt, 13, "800", "#ffffff", PAD + 8, y + 11);
+      y += 22 + (lab.remark ? 6 : 0);
+    }
+    if (lab.remark) {
+      ctx.font = font(13, "800");
+      const ls = preCustImgWrap_(ctx, "📝 " + lab.remark, IW - 16);
+      const h = ls.length * 19 + 6;
+      const w = Math.min(IW, Math.max.apply(null, ls.map((l) => ctx.measureText(l).width)) + 16);
+      if (draw) { ctx.fillStyle = "#ede9fe"; ctx.fillRect(PAD, y, w, h); }
+      ls.forEach((ln, i) => text(ln, 13, "800", "#5b21b6", PAD + 8, y + 3 + i * 19 + 9.5));
+      y += h;
+    }
     y += 12;
-    if (draw) { ctx.fillStyle = "#e5e7eb"; ctx.fillRect(PAD, y, W - PAD * 2, 1); }
-    y += 8;
-    lines("ผู้ส่ง " + shop.name + (shop.phone ? " · โทร " + shop.phone : ""), 12, "600", "#374151", PAD, W - PAD * 2, 18);
-    if (shop.address) lines(shop.address, 11, "400", "#4b5563", PAD, W - PAD * 2, 16);
-    lines(lab.refs.join(", ") + " · " + (lab.itemCount ? lab.itemCount + " รายการ / " : "") + lab.pieces + " ชิ้น", 12, "400", "#4b5563", PAD, W - PAD * 2, 18);
+    // ผู้ส่ง (บล็อกเทา)
+    if (draw) { ctx.fillStyle = "#f8fafc"; ctx.fillRect(0, y, W, totalH - y); ctx.fillStyle = "#e5e7eb"; ctx.fillRect(0, y, W, 1); }
+    y += 10;
+    lines("ผู้ส่ง", 11, "800", "#6b7280", 16);
+    lines(shop.name, 17, "800", "#111827", 24);
+    const sd = [shop.phone ? "โทร " + shop.phone : "", shop.address || ""].filter(Boolean).join(" · ");
+    if (sd) lines(sd, 14, "400", "#374151", 20);
+    y += 2;
+    lines(shipRefsTxt_(lab) + " · " + shipCountTxt_(lab), 12, "400", "#6b7280", 18);
     const it = lab.hideItems ? "" : lab.items.map((i) => i.name + " ×" + i.qty).join(", ");
-    if (it) lines(it, 12, "400", "#4b5563", PAD, W - PAD * 2, 18);
-    if (lab.remark) lines("📝 " + lab.remark, 12, "600", "#6d28d9", PAD, W - PAD * 2, 18);
-    return y + PAD;
+    if (it) lines(it, 12, "400", "#6b7280", 18);
+    return y + 12;
   }
-  const H = Math.ceil(layout(false));
-  canvas.width = W * SCALE; canvas.height = H * SCALE;
+  totalH = Math.ceil(layout(false));
+  canvas.width = W * SCALE; canvas.height = totalH * SCALE;
   ctx.scale(SCALE, SCALE);
-  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, totalH);
   layout(true);
-  ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 1; ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
+  ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 1; ctx.strokeRect(0.5, 0.5, W - 1, totalH - 1);
   return canvas;
 }
 
@@ -21123,8 +21297,12 @@ function openBillLabelModal_() {
   const cust = bill.customerCode ? findCustomerByCode(bill.customerCode) : null;
   let addr = String(bill.customerAddress || "").trim();
   let src = addr ? "(จากบิล)" : "";
-  if (!addr && cust && cust.address) { addr = String(cust.address).trim(); src = "(จากข้อมูลลูกค้า " + bill.customerCode + ")"; }
-  if (!addr) src = "(ยังไม่มี — พิมพ์ได้)";
+  if (!addr && cust && cust.address) {
+    const ca = shipCleanAddr_(cust.address);
+    if (shipAddrJunk_(ca)) src = "(ข้อมูลลูกค้า " + bill.customerCode + " เป็น \"" + ca + "\" ไม่ใช่ที่อยู่ — พิมพ์เอง)";
+    else { addr = ca; src = "(จากข้อมูลลูกค้า " + bill.customerCode + ")"; }
+  }
+  if (!addr && !src) src = "(ยังไม่มี — พิมพ์ได้)";
   document.getElementById("billLabelRef").textContent = bill.isDraft ? "ฉบับร่าง" : (bill.billId || "");
   document.getElementById("billLabelName").value = bill.customerName || (cust && cust.name) || "";
   document.getElementById("billLabelPhone").value = bill.customerPhone || (cust && cust.phone) || "";
@@ -21170,11 +21348,12 @@ function setupBillLabel_() {
   document.getElementById("billLabelModal").addEventListener("click", (e) => { if (e.target.id === "billLabelModal") e.target.classList.add("hidden"); });
   document.getElementById("billLabelPrintBtn").addEventListener("click", () => {
     const labs = billLabelsFromModal_();
-    if (!labs[0].address && !confirm("ยังไม่มีที่อยู่ผู้รับ — พิมพ์ต่อไหม?")) return;
+    if (shipAddrJunk_(shipCleanAddr_(labs[0].address)) && !confirm("ยังไม่มีที่อยู่ผู้รับ — พิมพ์ต่อไหม?")) return;
     document.getElementById("shipPrintShowItems").checked = !labs[0].hideItems;
     openShipPrint_(labs);
   });
   document.getElementById("billLabelImgBtn").addEventListener("click", () => openShipImg_(billLabelsFromModal_()[0]));
+  try { const pp = localStorage.getItem("pos_ship_per_page"); if (pp === "4" || pp === "2" || pp === "8") document.getElementById("shipPrintPerPage").value = pp; } catch (e) { /* ignore */ }
   document.getElementById("shipPrintPerPage").addEventListener("change", renderShipPrint_);
   setupShipSender_();
 }
