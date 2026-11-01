@@ -176,6 +176,7 @@ async function login(pin) {
   else if (h.startsWith("round=") && !isStore()) openRound(decodeURIComponent(h.slice(6)));
   else if (h.startsWith("bill=")) openBill(decodeURIComponent(h.slice(5)));
   else if (h.startsWith("sup=") && !isStore()) openSup(decodeURIComponent(h.slice(4)));
+  else if (h.startsWith("ordered=") && !isStore()) { const id = decodeURIComponent(h.slice(8)); await go("orders"); location.hash = ""; ordMarkForm(id); }   // ลิงก์ "สั่งแล้ว" จาก LINE (v3.16)
   else go(isStore() ? "bills" : "home");
 }
 document.getElementById("loginBtn").onclick = async () => {
@@ -1364,7 +1365,7 @@ async function openSup(id) {
     const r = R.round, o = R.offers[0] || {};
     const custCodes = [...new Set(R.lines.filter(l => l.code !== SHOP_CODE).map(l => l.code))];
     const sx = spFindSup(r.supplierId, r.supplier);
-    S.sp = { roundId: r.roundId, isEdit: true, status: r.status, supplier: sx ? (sx.nick || sx.name) : r.supplier, supplierId: sx ? sx.id : "", offerNo: o.offerNo || "", title: o.title || r.line || "", type: r.type,
+    S.sp = { roundId: r.roundId, isEdit: true, status: r.status, orderedAt: r.orderedAt || "", orderedBy: r.orderedBy || "", orderRef: r.orderRef || "", orderNote: r.orderNote || "", supplier: sx ? (sx.nick || sx.name) : r.supplier, supplierId: sx ? sx.id : "", offerNo: o.offerNo || "", title: o.title || r.line || "", type: r.type,
       closeAt: String(r.closeAt || "").slice(0, 10), jpLaunch: r.jpLaunch, arrive: r.arrive, remindDays: r.remindDays || "3,1", notes: r.notes || "",
       fileName: o.fileName || "(กรอกเอง)", received: R.lines.some(l => l.received > 0),
       cust: custCodes.map(c => ({ code: c, name: (R.lines.find(l => l.code === c) || {}).customer || c })),
@@ -1401,6 +1402,8 @@ function renderSup() {
       <h3 class="font-bold mr-auto">${m.isEdit ? "บิลซัพ " + esc(m.supplier + " " + m.offerNo) : "กรอกบิลซัพใหม่"} ${m.isEdit ? chip(m.status) : ""}</h3>
       <span class="text-xs muted">${S.products ? "Product_ID " + fmt(S.products.size) + " รายการ (อ่านอย่างเดียว)" : '<i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลด Product_ID'}</span>
       <button class="btn btn-w btn-s" onclick="pickFiles('.xlsx,.xlsm,.xls', false, f => spImportFile(f[0]))"><i class="fa-solid fa-file-excel"></i> อ่านจากไฟล์ซัพ (.xlsx)</button>
+      ${m.isEdit && ["ร่าง", "เปิดรับ"].includes(m.status) ? `<button class="btn btn-p btn-s" onclick="ordMarkForm(${jsq(m.roundId)})" title="สั่งซัพแล้ว → ส่งซัพแล้ว + หยุดเตือน LINE"><i class="fa-solid fa-check"></i> สั่งของแล้ว</button>` : ""}
+      ${m.isEdit && m.orderedAt ? `<a href="#" class="text-xs text-teal-700 font-semibold" onclick="ordMarkForm(${jsq(m.roundId)}); return false" title="แก้ / ยกเลิก">สั่งแล้ว ${ordShort(m.orderedAt)} · ${esc(m.orderedBy)} <i class="fa-solid fa-pen text-[10px]"></i></a>` : ""}
       ${m.isEdit ? `<select class="sel" title="สถานะบิล" onchange="spStatus(this.value)">${ROUND_STATUS.map(s => `<option ${s === m.status ? "selected" : ""}>${s}</option>`).join("")}</select>
         <button class="btn btn-w btn-s" title="สรุป / ส่งซัพ / คอนเฟิร์ม / ติดตาม" onclick="openRound(${jsq(m.roundId)})"><i class="fa-solid fa-list-check"></i> หน้ารอบ</button>
         ${isAdmin() ? `<button class="btn btn-d btn-s" title="ลบบิล" onclick="spDelete()"><i class="fa-solid fa-trash"></i></button>` : ""}` : ""}
@@ -2564,7 +2567,7 @@ function orderAlerts(rounds) {
       detail: `คาดว่าของเข้า ${etaText(o)} · ได้ ${fmt(o.got)} / สั่ง ${fmt(o.qty)} · ค้าง ${fmt(o.open)} ชิ้น` }));
     if (["ร่าง", "เปิดรับ"].includes(r.status) && r.closeAt) {
       const d = daysTo(r.closeAt);
-      if (d !== null && d <= 7) out.push({ k: "close", hot: d <= 3, sort: d, act: edit, btn: r.isSup ? "เปิดบิล" : "เปิดรอบ",
+      if (d !== null && d <= 7) out.push({ k: "close", hot: d <= 3, sort: d, act: edit, btn: r.isSup ? "เปิดบิล" : "เปิดรอบ", act2: `ordMarkForm(${id})`, btn2: "สั่งของแล้ว",
         title: `${r.name} · ปิดสั่ง ${fmtDate(r.closeAt)}`,
         detail: (d < 0 ? `เลยวันปิดมา ${-d} วัน — ยังไม่ได้ส่งซัพ` : d === 0 ? "ปิดวันนี้" : `อีก ${d} วัน`) + (r.status === "ร่าง" ? " · ยังเป็นร่าง" : "") +
           ` · ร้าน ${fmt(r.shopPcs)} / WS ${fmt(r.wsPcs)} ชิ้น` });
@@ -2609,7 +2612,7 @@ function homeAlertsHtml() {
     ${list.length ? list.map(a => `<div class="flex flex-wrap items-center gap-3 py-2 px-2 rounded-lg border mb-1.5 ${a.hot ? "border-red-200 bg-red-50/60" : "border-gray-100"}">
         <span class="chip ${AL_KIND[a.k][1]}">${AL_KIND[a.k][0]}</span>
         <div class="flex-1 min-w-[220px]"><div class="font-semibold">${esc(a.title)}</div><div class="text-xs text-gray-600">${esc(a.detail)}</div></div>
-        <button class="btn btn-w btn-s" onclick="${a.act}">${a.btn}</button></div>`).join("")
+        ${a.act2 ? `<button class="btn btn-p btn-s" onclick="${a.act2}"><i class="fa-solid fa-check"></i> ${a.btn2}</button>` : ""}<button class="btn btn-w btn-s" onclick="${a.act}">${a.btn}</button></div>`).join("")
       : `<div class="text-sm muted py-3 text-center">ไม่มีเรื่องต้องตาม</div>`}
     <div class="text-[11px] muted mt-2">เลยกำหนด = ส่งซัพแล้วแต่ยังค้าง และพ้นเดือนที่คาดว่าของเข้า · ใกล้ปิดสั่ง = เหลือ ≤ 7 วัน (≤ 3 วันขึ้นสีแดง) · แจ้งเตือนอยู่หน้านี้เท่านั้น ไม่ส่ง LINE</div>
   </div>`;
@@ -2684,7 +2687,9 @@ function ordRow(r) {
   const offTxt = r.isSup ? esc((r.sb && r.sb.offerNo) || (offers[0] && offers[0].offerNo) || "—") : offers.map(o => esc(o.offerNo)).join(" · ") || "ยังไม่มี Offer";
   const offNote = r.isSup ? `${fmt(r.items)} รายการ${r.sb && r.sb.arrive ? " · ของเข้า " + spMonth(r.sb.arrive) : ""}${r.firstItem ? " · " + esc(String(r.firstItem).slice(0, 40)) : ""}`
     : `${offers.length} Offer · ${fmt(r.items)} รายการ`;
-  const closeNote = openSt ? (d === null ? (r.status === "ร่าง" ? "ยังไม่ใส่วันปิด" : "") : d < 0 ? `เลยวันปิด ${-d} วัน` : d === 0 ? "ปิดวันนี้" : `อีก ${d} วัน`) : (r.status === "จบ" ? "" : "ส่งซัพแล้ว");
+  const closeNote = openSt ? (d === null ? (r.status === "ร่าง" ? "ยังไม่ใส่วันปิด" : "") : d < 0 ? `เลยวันปิด ${-d} วัน` : d === 0 ? "ปิดวันนี้" : `อีก ${d} วัน`)
+    : r.orderedAt ? `<a href="#" class="text-teal-700 font-semibold" title="แก้วันที่สั่ง / ยกเลิก" onclick="ordMarkForm(${id}); return false">สั่งแล้ว ${ordShort(r.orderedAt)} · ${esc(r.orderedBy)} <i class="fa-solid fa-pen text-[10px]"></i></a>` : (r.status === "จบ" ? "" : "ส่งซัพแล้ว");
+  const markBtn = openSt ? `<button class="btn btn-p btn-s" onclick="ordMarkForm(${id})" title="สั่งซัพแล้ว → เปลี่ยนเป็น ส่งซัพแล้ว + หยุดเตือน LINE"><i class="fa-solid fa-check"></i> สั่งของแล้ว</button> ` : "";
   const btns = r.isSup
     ? `<button class="btn btn-w btn-s" onclick="openSup(${id})" title="แก้สินค้า / ราคา / ยอด"><i class="fa-solid fa-pen"></i> แก้บิล</button>
        <button class="btn btn-w btn-s" onclick="openRound(${id})" title="สรุป ส่งซัพ ความคืบหน้า"><i class="fa-solid fa-list-check"></i> ติดตาม</button>`
@@ -2696,7 +2701,7 @@ function ordRow(r) {
     <td class="num font-mono">${fmt(r.shopPcs)} / ${fmt(r.wsPcs)}</td>
     <td>${progBar(p)}<div class="text-xs text-gray-600 mt-1">${progText(p)}${late ? ` <span class="chip bg-red-100 text-red-700">เลยกำหนด ${late} ${r.isSup ? "บิล" : "Offer"}</span>` : ""}${p && p.done && r.status !== "จบ" ? ` <span class="chip bg-teal-100 text-teal-800">ครบ รอกดจบ</span>` : ""}</div></td>
     <td>${chip(r.status)}</td>
-    <td class="whitespace-nowrap">${btns}</td></tr>`;
+    <td class="whitespace-nowrap">${markBtn}${btns}</td></tr>`;
 }
 
 // ===================================================================
@@ -2807,8 +2812,48 @@ function progBills() {
         <td>${b.status ? chip(b.status) : ""}</td><td><button class="btn btn-w btn-s" onclick="openBill(${jsq(b.billId)})">เปิดบิล</button></td></tr>`).join("")}
       </tbody></table></div>` : `<div class="text-center muted py-6 text-sm">ยังไม่มีบิลของเข้าที่แบ่งให้รอบนี้</div>`}</div>`;
 }
-</script>
-<script>
+// ===================================================================
+//  v3.16 — ปุ่ม "สั่งของแล้ว": เปลี่ยนเป็น ส่งซัพแล้ว + จดวันที่สั่ง → LINE หยุดเตือน · แก้ / ยกเลิกได้
+// ===================================================================
+function ordShort(iso) { const m = /^\d{4}-(\d{2})-(\d{2})/.exec(String(iso || "")); return m ? `${m[2]}/${m[1]}` : esc(iso); }
+function ordFindRound(id) {
+  const b = ((S.boot && S.boot.rounds) || []).find(r => r.roundId === id);
+  if (S.page === "sup" && S.sp && S.sp.roundId === id)   // หน้าบิลซัพ: ใช้ข้อมูลที่เพิ่งโหลด (สดกว่า)
+    return Object.assign({ name: S.sp.supplier + " " + S.sp.offerNo, shopPcs: 0, wsPcs: 0 }, b || {}, { roundId: id, supplier: S.sp.supplier, closeAt: S.sp.closeAt, status: S.sp.status,
+      orderedAt: S.sp.orderedAt || "", orderedBy: S.sp.orderedBy || "", orderRef: S.sp.orderRef || "", orderNote: S.sp.orderNote || "" });
+  return b || (S.round && S.round.round && S.round.round.roundId === id ? S.round.round : null);
+}
+function ordMarkForm(id) {
+  const r = ordFindRound(id); if (!r) return toast("ไม่พบรอบ " + id, true);
+  const done = !!r.orderedAt, d = daysTo(r.closeAt);
+  openModal(`<h3 class="font-bold mb-1">${done ? "แก้ข้อมูลสั่งของ" : "ยืนยัน: สั่งของแล้ว"}</h3>
+    <div class="text-sm mb-3"><b>${esc(r.name)}</b><div class="text-xs muted">${esc(r.supplier)} · ปิดสั่ง ${fmtDate(r.closeAt) || "—"}${d !== null && d < 0 && !done ? ` · <span class="text-red-700">เลยวันปิด ${-d} วัน</span>` : ""} · สั่งรวม ${fmt(n0(r.shopPcs) + n0(r.wsPcs))} ชิ้น (ร้าน ${fmt(r.shopPcs)} · WS ${fmt(r.wsPcs)}) · สถานะ ${esc(r.status)}</div></div>
+    <div class="grid sm:grid-cols-2 gap-2 text-sm">
+      <label>วันที่สั่ง<input id="omDate" type="date" class="inp w-full mt-1" value="${esc(r.orderedAt || todayStr())}"></label>
+      <label>เลขที่ใบสั่ง / อ้างอิง (ถ้ามี)<input id="omRef" class="inp w-full mt-1" placeholder="เช่น เลข PO / แชทซัพ" value="${esc(r.orderRef || "")}"></label>
+      <label class="sm:col-span-2">หมายเหตุ<input id="omNote" class="inp w-full mt-1" placeholder="ถ้ามี" value="${esc(r.orderNote || "")}"></label>
+    </div>
+    <div class="text-xs rounded-lg bg-teal-50 border border-teal-200 px-3 py-2 mt-3">${["ร่าง", "เปิดรับ"].includes(r.status) ? 'สถานะจะเปลี่ยนเป็น <b>ส่งซัพแล้ว</b> → LINE หยุดเตือนบิลนี้' : "สถานะตอนนี้ " + esc(r.status) + " — แก้แค่วันที่ / อ้างอิง"}${done ? ` · บันทึกโดย ${esc(r.orderedBy)}` : ""}</div>
+    <div class="flex flex-wrap justify-end gap-2 mt-3">
+      ${done ? `<button class="btn btn-d mr-auto" onclick="ordMarkSave(${jsq(id)}, true)" title="ล้างข้อมูลสั่ง${r.status === "ส่งซัพแล้ว" ? " + กลับเป็น เปิดรับ (LINE เตือนอีกครั้ง)" : ""}">ยกเลิก "สั่งแล้ว"</button>` : ""}
+      <button class="btn btn-w" onclick="closeModal()">ปิด</button>
+      <button class="btn btn-p" onclick="ordMarkSave(${jsq(id)})"><i class="fa-solid fa-check"></i> ${done ? "บันทึก" : "ยืนยัน สั่งของแล้ว"}</button></div>`);
+}
+async function ordMarkSave(id, undo) {
+  if (undo && !confirm("ยกเลิก \"สั่งของแล้ว\"? (ถ้าสถานะเป็น ส่งซัพแล้ว จะกลับเป็น เปิดรับ และ LINE จะเตือนอีก)")) return;
+  const g = k => (document.getElementById(k) || {}).value || "";
+  await run(async () => {
+    const r = await api("markOrdered", { roundId: id, date: g("omDate"), ref: g("omRef"), note: g("omNote"), undo: !!undo });
+    const R = ordFindRound(id); if (R) Object.assign(R, { status: r.status, orderedAt: r.orderedAt, orderedBy: r.orderedBy, orderRef: r.orderRef, orderNote: r.orderNote });
+    closeModal(); toast(undo ? "ยกเลิกแล้ว — สถานะ " + r.status : "บันทึกแล้ว — " + r.status + " · หยุดเตือน LINE");
+    if (S.sp && S.sp.roundId === id) Object.assign(S.sp, { status: r.status, orderedAt: r.orderedAt, orderedBy: r.orderedBy, orderRef: r.orderRef, orderNote: r.orderNote });
+    if (document.getElementById("ordQ")) renderOrdersList();
+    else if (S.page === "sup" && S.sp && S.sp.roundId === id) renderSup();
+    else if (S.page === "home") go("home");
+    else if (S.round && S.round.round && S.round.round.roundId === id) openRound(id);
+  });
+}
+</script><script>
 // ===================================================================
 //  บิลสินค้าเข้า
 // ===================================================================
