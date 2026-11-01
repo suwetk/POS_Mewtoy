@@ -191,7 +191,8 @@ function isAdmin() { return S.user && S.user.role === "Admin"; }
 async function loadBoot() { S.boot = await api("bootstrap"); }
 const PAGES = [
   { id: "home", icon: "fa-house", label: "หน้าแรก" }, { id: "orders", icon: "fa-file-signature", label: "สั่งซื้อ" },
-  { id: "bills", icon: "fa-truck-ramp-box", label: "บิลสินค้าเข้า" }, { id: "invoices", icon: "fa-file-invoice-dollar", label: "ใบแจ้งหนี้" },
+  { id: "bills", icon: "fa-truck-ramp-box", label: "บิลสินค้าเข้า" }, { id: "payables", icon: "fa-hand-holding-dollar", label: "ค้างจ่ายซัพ" },
+  { id: "invoices", icon: "fa-file-invoice-dollar", label: "ใบแจ้งหนี้" },
   { id: "settings", icon: "fa-sliders", label: "ตั้งค่า" }
 ];
 function renderNav() {
@@ -213,7 +214,7 @@ async function go(page) {
   await run(async () => {
     if (page !== "orders") await loadBoot();   // หน้าสั่งซื้อโหลด bootstrap + supList พร้อมกันเอง
     if (stale(t)) return;
-    await ({ home: renderHome, orders: renderOrders, bills: renderBills, invoices: renderInvoices, settings: renderSettings })[page](v);
+    await ({ home: renderHome, orders: renderOrders, bills: renderBills, payables: renderPayables, invoices: renderInvoices, settings: renderSettings })[page](v);
   });
 }
 window.addEventListener("beforeunload", e => { if (hasDraft()) { e.preventDefault(); e.returnValue = ""; } });
@@ -546,11 +547,14 @@ async function renderHome(v) {
     ${sub ? `<div class="text-xs muted mt-1">${sub}</div>` : ""}</div>`;
   v.innerHTML = `
     ${homeAlertsHtml()}
-    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+    <div class="grid sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
       ${tile("เดือนนี้ · " + monLabel(cur), t0, t0.afterUnconfirmed ? `ยังไม่คอนเฟิร์ม ${money(t0.afterUnconfirmed)}` : "")}
       ${tile("เดือนหน้า · " + monLabel(ymAdd(cur, 1)), t1, t1.afterUnconfirmed ? `ยังไม่คอนเฟิร์ม ${money(t1.afterUnconfirmed)}` : "")}
       ${tile("3 เดือนข้างหน้า (รวม)", t3, monLabel(cur, 1) + " – " + monLabel(ymAdd(cur, 2), 1))}
       <div class="card cursor-pointer" onclick="go('invoices')"><div class="kpi">ยอดค้างรับจาก WS</div><b class="text-lg text-red-600">${money(B.unpaid)}</b><div class="text-xs muted mt-1">ใบแจ้งหนี้ที่ยังไม่ชำระ</div></div>
+      ${(() => { const P = (B.payables || []).filter(p => p.outstanding > 0 && p.status !== "ยกเลิก"), due = P.filter(p => p.dueDate && daysTo(p.dueDate) <= 0);
+        return `<div class="card cursor-pointer" style="background:#fff7ed" onclick="go('payables')"><div class="kpi" style="color:#9a3412">ยอดค้างจ่ายซัพ</div><b class="text-lg" style="color:#9a3412">${money(B.supUnpaid || 0)}</b>
+        <div class="text-xs mt-1 ${due.length ? "text-red-700 font-semibold" : "muted"}">${due.length ? `ถึงกำหนด / เลยกำหนด ${due.length} ใบ` : `${P.length} ใบที่ยังค้าง`}</div></div>`; })()}
     </div>
     <div class="card mb-3">
       <div class="flex flex-wrap items-center gap-2 mb-1">
@@ -2817,14 +2821,14 @@ function renderBills(v) {
       <h2 class="font-bold mr-auto">${isStore() ? "บิลที่ต้องจัดของ" : "บิลสินค้าเข้า (Jan 1, Jan 2, …)"}</h2>
       ${isStore() ? `<button class="btn btn-w" onclick="go('bills')"><i class="fa-solid fa-rotate"></i></button>` : `
       <label class="text-sm muted flex items-center gap-1"><input type="checkbox" ${showDone ? "checked" : ""} onchange="ss('pm_billdone', this.checked?'1':null); renderBills(document.getElementById('view'))"> แสดงที่จบแล้ว</label>
-      <button class="btn btn-p" onclick="pickFiles('.xlsx,.xlsm,.xls', false, fs => run(() => billFile(fs[0])))"><i class="fa-solid fa-file-import"></i> นำเข้าบิลสินค้าเข้า</button>`}
+      <button class="btn btn-p" onclick="pickFiles('.xlsx,.xlsm,.xls,.pdf,.jpg,.jpeg,.png', true, fs => run(() => billFiles(fs)))"><i class="fa-solid fa-file-import"></i> นำเข้าบิลสินค้าเข้า <span class="text-xs font-normal opacity-90">Excel · PDF · รูป</span></button>`}
     </div>
-    ${isStore() ? "" : `<p class="text-xs muted -mt-1 mb-3">รับไฟล์บิล Dreamtoy (Jan 1, …) และไฟล์บิล E-bill (PEAK เช่น K.A.) ที่ได้จากโปรแกรม <b>ebill</b> ในโฟลเดอร์ POS_Mewtoy — ระบบรู้เองว่าเป็นไฟล์แบบไหน</p>`}
+    ${isStore() ? "" : `<p class="text-xs muted -mt-1 mb-3">รับไฟล์บิล Dreamtoy (Jan 1, …), ไฟล์ Excel จากโปรแกรม <b>ebill</b>, <b>PDF / รูปบิล PEAK</b> (อ่าน QR → ส่งให้เครื่องร้านอ่าน) และ <b>ใบแจ้งยอด Pre-order K.A.</b> (→ ค้างจ่ายซัพ) · เลือกหลายไฟล์ได้ — ระบบรู้เองว่าเป็นไฟล์แบบไหน</p>`}
     ${billInboxHtml()}
     ${list.length ? `<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">${list.map(b => `
       <div class="card cursor-pointer hover:ring-2 hover:ring-teal-200" onclick="openBill(${jsq(b.billId)})">
         <div class="flex items-start gap-2"><div class="mr-auto"><div class="font-bold">${esc(b.name)}</div><div class="text-xs muted">${esc(b.supplier)} · ${fmtDate(b.billDate)} · ${esc(b.billId)}</div></div>${chip(b.status)}</div>
-        <div class="text-sm mt-2 muted">${b.pickTotal ? `จัดของ ${b.pickDone}/${b.pickTotal} ร้าน` : "ยังไม่ได้แบ่งของ"}</div>
+        <div class="text-sm mt-2 muted">${b.pickTotal ? `จัดของ ${b.pickDone}/${b.pickTotal} ร้าน` : "ยังไม่ได้แบ่งของ"}</div>${isStore() ? "" : billPayChip(b.billId)}
       </div>`).join("")}</div>` : `<div class="card text-center muted py-10">${isStore() ? "ยังไม่มีบิลที่ต้องจัดของ" : "ยังไม่มีบิล — กด \"นำเข้าบิลสินค้าเข้า\""}</div>`}`;
 }
 // ---------- นำเข้าไฟล์บิล ----------
@@ -4020,10 +4024,11 @@ function parseEbill(wb) {
   g.forEach(r => { for (let c = 0; c < r.length - 1; c++) { const l = hdr(r[c]); if (/\(ตามบิล\)|ผลตรวจ|ราคาในบิลเป็นราคา|หักมัดจำ/.test(l)) T[l] = r[c + 1]; } });
   const tv = k => { const key = Object.keys(T).find(x => x.startsWith(k)); return key ? T[key] : null; };
   return {
-    head: { seller: hdr(H["ผู้ขาย"]), taxId: String(H["เลขผู้เสียภาษี"] || "").replace(/\D/g, ""), docNo: hdr(H["เลขที่เอกสาร"]), date: ebillDate(H["วันที่"]),
+    head: { seller: hdr(H["ผู้ขาย"]), taxId: String(H["เลขผู้เสียภาษี"] || "").replace(/\D/g, ""), docNo: hdr(H["เลขที่เอกสาร"]), date: ebillDate(H["วันที่"]), title: hdr(H["เอกสาร"]),
       ref: hdr(H["อ้างอิง"]), note: hdr(H["หมายเหตุบิล"]), link: hdr(H["ลิงก์ E-bill"]) },
     items,
-    totals: { grand: n0(tv("ยอดรวมทั้งสิ้น")), deposit: n0(tv("หักมัดจำ")), check: hdr(tv("ผลตรวจ")), vatMode: hdr(tv("ราคาในบิลเป็นราคา")) }
+    totals: { grand: n0(tv("ยอดรวมทั้งสิ้น")), deposit: n0(tv("หักมัดจำ")), check: hdr(tv("ผลตรวจ")), vatMode: hdr(tv("ราคาในบิลเป็นราคา")),
+      beforeVat: tv("มูลค่าก่อน VAT"), vat: tv("VAT (ตามบิล)"), wht: tv("หัก ณ ที่จ่าย"), pay: tv("ยอดชำระ") }
   };
 }
 async function ebillOpen(file, wb) {
@@ -4038,6 +4043,7 @@ async function ebillReview(E, file, extra) {
   E.items.forEach((it, k) => { it.m = M.items[k] || {}; it.take = it.qty > 0; it.bcIn = it.m.barcode || it.barcode; });
   S.eb = { file, E, dup: M.dup || [], name: E.head.docNo, billDate: E.head.date, inboxMsgId: (extra && extra.inboxMsgId) || "",
     supplier: M.supplier ? M.supplier.nick || M.supplier.name : E.head.seller.replace(/^บริษัท\s*|\s*จำกัด.*$/g, ""), supFound: !!M.supplier };
+  S.eb.pay = ebPayInit(E, S.eb.supplier);
   renderEbillPend();
 }
 function ebPrice(v) { return v === "" || v == null ? "—" : typeof v === "number" ? fmt(v) : esc(v); }
@@ -4069,6 +4075,7 @@ function renderEbillPend() {
       <span>ยอดท้ายบิล <b>${money(E.totals.grand)}</b></span>
       ${E.totals.check ? `<span class="${/✓/.test(E.totals.check) ? "text-teal-700" : "text-red-600 font-semibold"}">${esc(E.totals.check)}</span>` : ""}
       <span class="text-teal-700">มีคนสั่งรอของ ${waiting} รายการ</span></div>
+    ${ebPayHtml()}
     ${noBc.length ? `<div class="text-xs text-amber-800 bg-amber-50 rounded-lg px-2 py-1 mb-2">${noBc.length} รายการไม่มีบาร์โค้ดในบิลและจับคู่ไม่ได้ — ใส่บาร์โค้ดในช่องสีเหลือง หรือนำเข้าแบบไม่มีบาร์โค้ด (จับคู่ตามชื่อ)</div>` : ""}
     <div class="overflow-auto border rounded-lg" style="max-height:52vh"><table class="g" style="min-width:980px"><thead><tr>
       <th><input type="checkbox" ${E.items.every(i => i.take || i.qty <= 0) ? "checked" : ""} onchange="S.eb.E.items.forEach(i=>i.take=this.checked); renderEbillPend()" aria-label="เลือกทั้งหมด"></th>
@@ -4092,11 +4099,19 @@ async function createEbillBill() {
   if (!P.name.trim()) return toast("ใส่ชื่อบิล", true);
   if (P.dup.length && !confirm(`เลขบิล ${E.head.docNo} เคยนำเข้าแล้ว — นำเข้าซ้ำอีกใบ?`)) return;
   const rows = E.items.filter(i => i.take && i.qty > 0);
+  const PY = P.pay || {};
+  let payable;
+  if (PY.on) {
+    payable = Object.assign(payPayload(Object.assign({}, PY, { supplier: P.supplier })), { seller: E.head.seller, taxId: E.head.taxId, ebill: E.head.link });
+    if (!(payable.due > 0)) return toast("ส่วนการเงิน: ใส่ยอดต้องจ่าย (หรือเอาติ๊ก \"บันทึกเข้าค้างจ่าย\" ออก)", true);
+    const amt = PY.state === "paid" ? payable.due : PY.state === "partial" ? n0(PY.paidAmt) : 0;
+    payable.payments = amt > 0 ? [{ amount: amt, date: PY.paidDate || todayStr(), kind: "ชำระ", note: "บันทึกตอนนำเข้าบิล" }] : [];
+  }
   const notes = [`E-bill ${E.head.docNo}`, E.head.ref ? "อ้างอิง " + E.head.ref : "", E.totals.deposit ? "หักมัดจำ " + fmt2(E.totals.deposit) + " (ก่อน VAT)" : "",
     "ยอดท้ายบิล " + fmt2(E.totals.grand), E.head.note].filter(Boolean).join(" · ");
   await run(async () => {
     const res = await api("createBill", { name: P.name.trim(), billDate: P.billDate, supplier: P.supplier.trim(), fileName: P.file.name, notes,
-      docNo: E.head.docNo, ebill: E.head.link, inboxMsgId: P.inboxMsgId || undefined,
+      docNo: E.head.docNo, ebill: E.head.link, inboxMsgId: P.inboxMsgId || undefined, payable,
       items: rows.map(i => {
         const typed = i.bcIn && i.bcIn !== i.m.barcode, matched = i.m && (i.m.how === "barcode" || i.m.how === "code") && !typed;
         return { key: matched ? i.m.key : undefined, barcode: typed ? i.bcIn : (i.m.barcode || i.barcode), itemCode: i.code, name: i.name, qty: i.qty, cost: i.cost,
@@ -4114,7 +4129,7 @@ async function createEbillBill() {
 function inboxToE(D) {
   const h = D.head || {}, t = D.totals || {}, c = D.check || {};
   return {
-    head: { seller: h.seller || "", taxId: String(h.sellerTaxId || "").replace(/\D/g, ""), docNo: h.docNo || "", date: ebillDate(h.docDate),
+    head: { seller: h.seller || "", taxId: String(h.sellerTaxId || "").replace(/\D/g, ""), docNo: h.docNo || "", date: ebillDate(h.docDate), title: h.title || "",
       ref: h.ref || "", note: h.note || "", link: D.url || "" },
     items: (D.items || []).map((i, k) => {
       const qty = n0(i.qty), price = n0(i.price), disc = n0(i.discount);
@@ -4122,7 +4137,8 @@ function inboxToE(D) {
       return { no: i.no || k + 1, code: i.code || "", barcode: normBarcode(i.barcode), qty, unit: i.unit || "", price, disc,
         cost: i.cost_inc != null ? n0(i.cost_inc) : (qty ? r2(price - disc / qty) : price), costEx: n0(i.cost_exc), name: i.clean_name || i.name || "", note: notes };
     }),
-    totals: { grand: n0(t.grand), deposit: n0(c.deposit != null ? c.deposit : t.deposit), check: c.ok ? "✓ ยอดตรงกับบิล" : "✗ ยอดไม่ตรงกับบิล — เปิดบิลออนไลน์เช็ก", vatMode: c.price_mode || "" }
+    totals: { grand: n0(t.grand), deposit: n0(c.deposit != null ? c.deposit : t.deposit), check: c.ok ? "✓ ยอดตรงกับบิล" : "✗ ยอดไม่ตรงกับบิล — เปิดบิลออนไลน์เช็ก", vatMode: c.price_mode || "",
+      beforeVat: t.beforeVat, vat: t.vat, wht: t.withholding, pay: t.paid }
   };
 }
 function billInboxHtml() {
@@ -4139,6 +4155,7 @@ function billInboxHtml() {
         <div class="flex-1 min-w-[220px]"><div class="font-semibold">${esc(r.docNo || r.fileName)}${h.seller ? ` <span class="text-xs muted font-normal">${esc(String(h.seller).replace(/^บริษัท\s*|\s*จำกัด.*$/g, ""))}</span>` : ""}</div>
           <div class="text-xs text-gray-600">${r.status === "อ่านแล้ว" ? `${its.length} รายการ · ยอด ${money((D.totals || {}).grand)}${(D.check || {}).ok ? " ✓" : " ✗ ยอดไม่ตรง"} · ` : ""}รับ ${esc(String(r.receivedAt || "").slice(5, 16))}${r.userName ? " · " + esc(r.userName) : ""}${r.note ? ` · <span class="${r.status === "มีปัญหา" ? "text-red-700" : "text-amber-700"}">${esc(r.note)}</span>` : ""}</div></div>
         ${r.fileUrl ? `<a class="btn btn-w btn-s" href="${esc(r.fileUrl)}" target="_blank" rel="noopener"><i class="fa-regular fa-image"></i> รูป</a>` : ""}
+        ${r.origUrl ? `<a class="btn btn-w btn-s" href="${esc(r.origUrl)}" target="_blank" rel="noopener"><i class="fa-regular fa-file-pdf"></i> ไฟล์</a>` : ""}
         ${r.status === "อ่านแล้ว" ? `<button class="btn btn-p btn-s" onclick="run(() => ebillFromInbox(${jsq(r.msgId)}))">ตรวจและนำเข้า</button>` : ""}
         ${r.status !== "รออ่าน" ? `<button class="btn btn-w btn-s" onclick="billInboxSkip(${jsq(r.msgId)})" title="ไม่นำเข้า (เช่น รูปซ้ำ / ไม่ใช่บิล)">ข้าม</button>` : ""}
       </div>`; }).join("")}
@@ -4154,5 +4171,485 @@ async function ebillFromInbox(msgId) {
 async function billInboxSkip(msgId) {
   if (!confirm("ข้ามบิลนี้ (ไม่นำเข้า)?")) return;
   await run(async () => { await api("billInboxSkip", { msgId }); S.boot.billInbox = S.boot.billInbox.filter(r => r.msgId !== msgId); toast("ข้ามแล้ว"); renderBills(document.getElementById("view")); });
+}
+// ---------- v3.15: ส่วนการเงินในหน้าต่างตรวจบิล → ค้างจ่ายซัพ ----------
+function ebDocType(title) {
+  const t = String(title || "");
+  return /ใบกำกับ|ใบเสร็จ|tax/i.test(t) ? PAY_DOC_TYPES[0] : /ใบแจ้งหนี้|invoice/i.test(t) ? PAY_DOC_TYPES[1] : PAY_DOC_TYPES[0];
+}
+function ebPayInit(E, supplier) {
+  const t = E.totals || {}, grand = n0(t.grand), wht = n0(t.wht), num = v => v === null || v === undefined || v === "" ? "" : n0(v);
+  const already = ((S.boot && S.boot.payables) || []).some(p => p.status !== "ยกเลิก" && p.docNo && p.docNo === E.head.docNo);
+  return { on: !already, already, state: "open", paidAmt: "", paidDate: todayStr(), supplier, docType: ebDocType(E.head.title), docNo: E.head.docNo, docDate: E.head.date,
+    ref: E.head.ref || "", payType: isDreamtoy(supplier) ? "B" : "A", beforeVat: num(t.beforeVat), vat: num(t.vat), total: grand || "", wht: wht || 0,
+    depositDeducted: n0(t.deposit) || 0, due: t.pay !== null && t.pay !== undefined && t.pay !== "" ? n0(t.pay) : r2(grand - wht), dueDate: "", dueNote: "", note: "" };
+}
+function ebPayHtml() {
+  const PY = S.eb && S.eb.pay; if (!PY) return "";
+  return `<div class="rounded-xl border-2 ${PY.on ? "border-orange-300 bg-orange-50/50" : "border-gray-200"} p-3 mb-2" id="ebPay">
+    <div class="flex flex-wrap items-center gap-3 ${PY.on ? "mb-2" : ""}">
+      <label class="font-semibold flex items-center gap-2"><input type="checkbox" ${PY.on ? "checked" : ""} onchange="S.eb.pay.on=this.checked; renderEbillPend()"> การเงิน — บันทึกเข้า "ค้างจ่ายซัพ"</label>
+      ${PY.already ? `<span class="text-xs text-amber-800">เลขที่ ${esc(PY.docNo)} มีในค้างจ่ายแล้ว — ปิดไว้ให้ (กันซ้ำ)</span>` : ""}
+      ${PY.on ? `<span class="flex flex-wrap gap-3 text-sm ml-auto">
+        ${[["open", "ยังไม่จ่าย"], ["paid", "จ่ายแล้ว"], ["partial", "จ่ายบางส่วน"]].map(([k, l]) => `<label class="flex items-center gap-1"><input type="radio" name="ebPaySt" ${PY.state === k ? "checked" : ""} onchange="S.eb.pay.state='${k}'; renderEbillPend()"> ${l}</label>`).join("")}</span>` : ""}
+    </div>
+    ${PY.on ? `${payFormHtml(PY, "S.eb.pay", { noSupplier: true })}
+      ${PY.state !== "open" ? `<div class="grid sm:grid-cols-4 gap-2 mt-2 text-sm">
+        ${PY.state === "partial" ? `<label>ยอดที่จ่ายแล้ว<input class="inp w-full mt-1 text-right" value="${esc(PY.paidAmt)}" oninput="S.eb.pay.paidAmt=this.value"></label>` : ""}
+        <label>วันที่จ่าย<input type="date" class="inp w-full mt-1" value="${esc(PY.paidDate)}" onchange="S.eb.pay.paidDate=this.value"></label></div>` : ""}` : ""}
+  </div>`;
+}
+</script>
+<script>
+// ===================================================================
+//  v3.15 — ค้างจ่ายซัพ (เฟส 1)
+//   · ปุ่ม "นำเข้าบิลสินค้าเข้า" รับ PDF / รูป ได้ด้วย:
+//       - PDF/รูปบิล PEAK → หน้าเว็บหา QR → ส่งรูปหน้าที่มี QR เข้า "บิลรอตรวจ" (เครื่องร้านอ่านต่อเหมือนรูปจาก LINE) + เก็บไฟล์ต้นฉบับ
+//       - ใบแจ้งยอด Pre-order K.A. (PDF จาก Google Sheets มีตัวหนังสือ) → อ่านตรง → บันทึกค้างจ่าย (ของยังไม่มา ไม่สร้างบิลสินค้าเข้า)
+//   · หน้าต่างตรวจบิล E-bill มีส่วน "การเงิน" → นำเข้าแล้วขึ้นค้างจ่าย
+//   · เมนู "ค้างจ่ายซัพ": ภาพรวม แยกซัพ → บิล · อายุหนี้ · Excel ให้บัญชี · บันทึกจ่าย · เพิ่มเอง (กฎวันโอน Dreamtoy)
+// ===================================================================
+const PAY_DOC_TYPES = ["ใบกำกับภาษี / ใบเสร็จ", "ใบแจ้งหนี้", "ใบแจ้งยอด Pre-order", "Invoice (ไม่มี VAT)", "อื่น ๆ"];
+const PAY_TYPES = { A: "A · โอนก่อนส่งของ", B: "B · ส่งก่อน จ่ายทีหลัง" };
+Object.assign(STATUS_COLOR, { "ค้างจ่าย": "bg-orange-100 text-orange-800", "จ่ายบางส่วน": "bg-amber-100 text-amber-800", "จ่ายแล้ว": "bg-teal-100 text-teal-800" });
+
+// ---------- โหลดไลบรารีเมื่อต้องใช้ ----------
+const LIB_URL = {
+  pdf: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+  pdfWorker: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js",
+  qr: "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"
+};
+const _libs = {};
+function loadScript(url) {
+  if (!_libs[url]) _libs[url] = new Promise((ok, bad) => {
+    const s = document.createElement("script"); s.src = url; s.onload = ok; s.onerror = () => { delete _libs[url]; bad(new Error("โหลดไลบรารีไม่ได้: " + url)); };
+    document.head.appendChild(s);
+  });
+  return _libs[url];
+}
+async function ensurePdf() { await loadScript(LIB_URL.pdf); window.pdfjsLib.GlobalWorkerOptions.workerSrc = LIB_URL.pdfWorker; return window.pdfjsLib; }
+async function ensureQr() { await loadScript(LIB_URL.qr); return window.jsQR; }
+
+// ---------- PDF / รูป ----------
+async function pdfOpen(file) { const lib = await ensurePdf(); return lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise; }
+/** ข้อความของหน้า เรียงเป็นบรรทัดตามตำแหน่ง (บน → ล่าง, ซ้าย → ขวา) — ช่องในตารางคั่นด้วย " | " */
+async function pdfLines(page) {
+  const tc = await page.getTextContent(), rows = [];
+  tc.items.forEach(it => {
+    const s = String(it.str || ""); if (!s.trim()) return;
+    const x = it.transform[4], y = it.transform[5];
+    let r = rows.find(r => Math.abs(r.y - y) < 3); if (!r) { r = { y, parts: [] }; rows.push(r); }
+    r.parts.push({ x, s: s.trim() });
+  });
+  return rows.sort((a, b) => b.y - a.y).map(r => r.parts.sort((a, b) => a.x - b.x).map(p => p.s).join(" | "));
+}
+async function pdfPageCanvas(page, scale) {
+  const vp = page.getViewport({ scale }), c = document.createElement("canvas");
+  c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+  const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+  await page.render({ canvasContext: g, viewport: vp }).promise;
+  return c;
+}
+function canvasQr(c) {
+  const g = c.getContext("2d"), tries = [[0, 0, c.width, c.height]];
+  // QR มักอยู่มุมขวาบน/ล่าง — ลองครอปครึ่งหน้าเพิ่ม (เล็กลง = เร็ว + ชัดขึ้น)
+  const hw = Math.floor(c.width / 2), hh = Math.floor(c.height / 2);
+  tries.push([hw, 0, c.width - hw, hh], [hw, hh, c.width - hw, c.height - hh], [0, 0, hw, hh], [0, hh, hw, c.height - hh]);
+  for (const [x, y, w, h] of tries) {
+    const d = g.getImageData(x, y, w, h), r = window.jsQR(d.data, w, h, { inversionAttempts: "attemptBoth" });
+    if (r && r.data) return r.data;
+  }
+  return "";
+}
+function blobB64(blob) { return new Promise((ok, bad) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(",")[1]); fr.onerror = bad; fr.readAsDataURL(blob); }); }
+function canvasJpeg(c, q) { return new Promise(ok => c.toBlob(ok, "image/jpeg", q || 0.88)); }
+async function imageCanvas(file, maxSide) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error("เปิดรูปไม่ได้: " + file.name)); i.src = url; });
+    const k = Math.min(1, (maxSide || 2400) / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+    return c;
+  } finally { URL.revokeObjectURL(url); }
+}
+const isPdf = f => /\.pdf$/i.test(f.name) || f.type === "application/pdf";
+const isImg = f => /\.(jpe?g|png)$/i.test(f.name) || /^image\/(jpeg|png)$/.test(f.type);
+const isXls = f => /\.(xlsx|xlsm|xls)$/i.test(f.name);
+
+/** ปุ่ม "นำเข้าบิลสินค้าเข้า" — เลือกได้หลายไฟล์ */
+async function billFiles(files) {
+  const xls = files.filter(isXls), docs = files.filter(f => isPdf(f) || isImg(f)), other = files.filter(f => !isXls(f) && !isPdf(f) && !isImg(f));
+  if (other.length) toast("ข้ามไฟล์ที่ไม่รองรับ: " + other.map(f => f.name).join(", "), true);
+  const forms = [];   // ไฟล์ที่ต้องเปิดหน้าต่างตรวจ (Excel / ใบแจ้งยอด Pre-order) — เปิดทีละไฟล์
+  let sent = 0;
+  for (const f of docs) {
+    try {
+      const r = await billDocFile(f);
+      if (r.form) forms.push(r.form); else if (r.sent) sent++;
+    } catch (e) { console.error(e); toast(f.name + ": " + (e.message || e), true); }
+  }
+  if (sent) { S.boot = S.boot || {}; renderBills(document.getElementById("view")); toast(`ส่ง ${sent} ไฟล์เข้า "บิลรอตรวจ" แล้ว — เครื่องร้านจะอ่านให้ (ไม่เกิน ~10 นาที)`); }
+  xls.forEach(f => forms.push(() => billFile(f)));
+  if (forms.length > 1) toast(`เปิดตรวจทีละไฟล์ — ไฟล์อื่น (${forms.length - 1}) เลือกใหม่อีกครั้งหลังบันทึก`, true);
+  if (forms.length) await forms[0]();
+}
+/** PDF / รูป 1 ไฟล์ → {sent} หรือ {form} */
+async function billDocFile(file) {
+  if (isPdf(file)) {
+    const doc = await pdfOpen(file);
+    const first = await pdfLines(await doc.getPage(1));
+    const pre = kaPreorderParse(first);
+    if (pre) return { form: () => preorderReview(pre, file) };
+    await ensureQr();
+    for (let p = 1; p <= Math.min(doc.numPages, 12); p++) {
+      const page = await doc.getPage(p), c = await pdfPageCanvas(page, 2.2), qr = canvasQr(c);
+      if (qr && /^https?:\/\//.test(qr)) { await inboxUpload(file, c, qr); return { sent: true }; }
+    }
+    if (!confirm(`${file.name}\nไม่เจอ QR ในไฟล์นี้ (และไม่ใช่ใบแจ้งยอด Pre-order ที่ระบบรู้จัก)\n\nส่งหน้า 1 ให้เครื่องร้านลองอ่านอีกที?`)) return {};
+    await inboxUpload(file, await pdfPageCanvas(await doc.getPage(1), 2.2), "");
+    return { sent: true };
+  }
+  await ensureQr();
+  const c = await imageCanvas(file, 2400), qr = canvasQr(c);
+  if (!qr && !confirm(`${file.name}\nหน้าเว็บอ่าน QR ในรูปไม่เจอ — ส่งให้เครื่องร้านลองอ่าน (ตัวอ่านเก่งกว่า) ไหม?`)) return {};
+  await inboxUpload(file, c, qr);
+  return { sent: true };
+}
+async function inboxUpload(file, canvas, qr) {
+  const jpg = await canvasJpeg(canvas, 0.88);
+  const payload = { fileName: file.name.replace(/\.[^.]+$/, "") + ".jpg", mime: "image/jpeg", b64: await blobB64(jpg), qr: qr || "", origName: file.name };
+  if (isPdf(file)) {   // PDF: เก็บไฟล์ต้นฉบับไว้ให้บัญชี (รูป: รูปที่ส่งอ่านคือเอกสารอยู่แล้ว)
+    if (file.size > 25e6) toast(file.name + ": ไฟล์ใหญ่เกิน 25MB — ไม่เก็บต้นฉบับ", true);
+    else Object.assign(payload, { origB64: await blobB64(file), origMime: "application/pdf" });
+  }
+  const r = await api("billInboxUpload", payload);
+  if (S.boot) S.boot.billInbox = r.inbox;
+  return r;
+}
+
+// ---------- ใบแจ้งยอด Pre-order K.A. (MT-SHIP-…) ----------
+const KA_MONEY = /^[฿]?-?[\d,]+\.\d{2}$/;
+function kaNum(s) { return n0(String(s || "").replace(/[฿,\s]/g, "")); }
+/** IV มัดจำ "MT31/3/26" → 2026-03-31 */
+function kaIvDate(iv) { const m = /MT\s*(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i.exec(iv || ""); if (!m) return ""; const y = m[3].length === 2 ? 2000 + +m[3] : +m[3]; return `${y}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`; }
+/** lines = ข้อความหน้า 1 → { docNo, items, totals, bank } หรือ null ถ้าไม่ใช่ใบแบบนี้ */
+function kaPreorderParse(lines) {
+  const all = lines.join("\n");
+  const docM = /MT-SHIP-[\d/]+/i.exec(all);
+  if (!docM || !/pre-?order/i.test(all)) return null;
+  // ตัดเป็นโทเคน (ช่องตาราง) เรียงตามอ่าน
+  const tok = []; lines.forEach(l => l.split(" | ").forEach(t => { t = t.trim(); if (t) tok.push(t); }));
+  const items = [];
+  for (let i = 0; i < tok.length; i++) {
+    const m = /^(\d{12,14})\)\s*(.*)$/.exec(tok[i]);   // "4934054084944) GRANDE SCALE …"
+    if (!m) continue;
+    const code = /^[A-Z]{1,4}\d{2,5}$/i.test(tok[i - 1] || "") ? tok[i - 1] : "";
+    let name = m[2], j = i + 1;
+    // ชื่อยาวต่อบรรทัด (ไม่ใช่ตัวเลข/รหัส/IV)
+    while (j < tok.length && !/^[฿]?[\d,]+(\.\d+)?$/.test(tok[j]) && !/^(\d{12,14})\)/.test(tok[j]) && !/^[A-Z]{1,4}\d{2,5}$/i.test(tok[j]) && !/^MT\d/i.test(tok[j]) && !/^(Y|Total)$/i.test(tok[j])) { name += " " + tok[j]; j++; }
+    const nums = [], ivs = [];
+    while (j < tok.length && !/^(\d{12,14})\)/.test(tok[j]) && !/^Total$/i.test(tok[j])) {
+      if (/^MT\d{1,2}\/\d{1,2}\/\d{2,4}$/i.test(tok[j])) ivs.push(tok[j]);
+      else if (/^[฿]?[\d,]+(\.\d+)?$/.test(tok[j])) nums.push(tok[j]);
+      else if (/^[A-Z]{1,4}\d{2,5}$/i.test(tok[j]) && /^(\d{12,14})\)/.test(tok[j + 1] || "")) break;
+      j++;
+    }
+    // ชื่อที่ถูกตัด + จำนวนติดท้าย เช่น "…COMPETITIVE S6"
+    let glued = null; const gm = /^(.*\D)(\d{1,3})$/.exec(name);
+    const money = nums.filter(x => /\.\d{2}$/.test(x)).map(kaNum), ints = nums.filter(x => !/\.\d{2}$/.test(x)).map(kaNum);
+    let qty, price = 0, depPcs = 0, total = 0, dep = 0, bal = 0;
+    if (money.length >= 5) {
+      [price, depPcs, total, dep, bal] = money.slice(-5);
+      qty = price ? Math.round(total / price) : (ints[0] || 0);
+      if (!ints.length && gm && +gm[2] === qty) glued = gm;
+    } else { qty = ints[0] || (gm ? +gm[2] : 0); if (!ints.length && gm) glued = gm; }
+    if (glued) name = glued[1];
+    items.push({ code, barcode: m[1], name: name.replace(/\s+/g, " ").trim(), qty, price, depPcs, total, deposit: dep, balance: bal, iv: ivs[0] || "",
+      bonus: !price && /bonus/i.test(name) });
+  }
+  if (!items.length) return null;
+  const ti = tok.findIndex(t => /^Total$/i.test(t)), tm = ti >= 0 ? tok.slice(ti + 1, ti + 8).filter(t => KA_MONEY.test(t)).map(kaNum) : [];
+  const sum = k => r2(items.reduce((s, x) => s + x[k], 0));
+  const totals = { total: tm[0] != null ? tm[0] : sum("total"), deposit: tm[1] != null ? tm[1] : sum("deposit"), balance: tm[2] != null ? tm[2] : sum("balance") };
+  totals.ok = Math.abs(sum("total") - totals.total) < 0.06 && Math.abs(sum("deposit") - totals.deposit) < 0.06 && Math.abs(r2(totals.total - totals.deposit) - totals.balance) < 0.06;
+  const after = re => { const i = tok.findIndex(t => re.test(t)); return i < 0 ? "" : (tok[i].split(":").slice(1).join(":").trim() || tok[i + 1] || ""); };
+  const bank = { bank: (tok.find(t => /^BANK OF|ธนาคาร/i.test(t)) || ""), name: after(/^Bank Account\s*:?/i), no: after(/^Account No\.?\s*:?/i) };
+  // มัดจำแยกตามใบ IV
+  const byIv = {}; items.forEach(x => { if (x.deposit && x.iv) byIv[x.iv] = r2((byIv[x.iv] || 0) + x.deposit); });
+  return { docNo: docM[0], items, totals, bank, deposits: Object.keys(byIv).map(iv => ({ iv, amount: byIv[iv], date: kaIvDate(iv) })).sort((a, b) => a.date < b.date ? -1 : 1) };
+}
+async function preorderReview(pre, file) {
+  let sup = "K.A. BRAND";
+  try { const M = await api("ebillMatch", { seller: pre.bank.name || "K.A BRAND", items: [] }); if (M.supplier) sup = M.supplier.nick || M.supplier.name; } catch (e) {}
+  const m = /MT-SHIP-(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i.exec(pre.docNo);
+  const docDate = m ? `${m[3].length === 2 ? 2000 + +m[3] : m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` : todayStr();
+  S.pf = { mode: "preorder", file, pre, supplier: sup, docType: "ใบแจ้งยอด Pre-order", docNo: pre.docNo, docDate, ref: "", payType: "A",
+    total: pre.totals.total, beforeVat: r2(pre.totals.total / 1.07), vat: r2(pre.totals.total - pre.totals.total / 1.07), wht: 0, depositDeducted: 0,
+    due: pre.totals.total, dueDate: "", dueNote: "ก่อนส่งของ", note: [pre.bank.bank, pre.bank.name, pre.bank.no].filter(Boolean).join(" · "),
+    deps: pre.deposits.map(d => ({ on: true, iv: d.iv, amount: d.amount, date: d.date })) };
+  renderPreorderReview();
+}
+function renderPreorderReview() {
+  const P = S.pf, pre = P.pre, depSum = r2(P.deps.filter(d => d.on).reduce((s, d) => s + n0(d.amount), 0));
+  openModal(`<h3 class="font-bold mb-1"><i class="fa-solid fa-file-invoice text-teal-700"></i> ใบแจ้งยอด Pre-order → ค้างจ่ายซัพ</h3>
+    <div class="text-xs muted mb-2">${esc(P.file.name)} · อ่านตัวหนังสือใน PDF · ของยังไม่มา → บันทึกเป็นค้างจ่ายอย่างเดียว (ไม่สร้างบิลสินค้าเข้า)</div>
+    <div class="text-sm mb-2 ${pre.totals.ok ? "text-teal-700" : "text-red-600 font-semibold"}">${pre.totals.ok ? "✓ ยอดรวมรายการตรงกับท้ายใบ" : "✗ ยอดรวมรายการไม่ตรงกับท้ายใบ — ตรวจตัวเลขก่อนบันทึก"}</div>
+    ${payFormHtml(P)}
+    <div class="font-semibold text-sm mt-3 mb-1">มัดจำที่จ่ายไปแล้ว (แยกตามใบ IV) — บันทึกเป็น "จ่ายแล้ว"</div>
+    <div class="overflow-auto border rounded-lg mb-2"><table class="g"><thead><tr><th></th><th>ใบมัดจำ (IV)</th><th>วันที่</th><th class="num">ยอด</th></tr></thead><tbody>
+      ${P.deps.map((d, k) => `<tr><td><input type="checkbox" ${d.on ? "checked" : ""} onchange="S.pf.deps[${k}].on=this.checked; renderPreorderReview()" aria-label="มัดจำ ${esc(d.iv)}"></td>
+        <td class="font-mono">${esc(d.iv)}</td><td><input type="date" class="inp" value="${esc(d.date)}" onchange="S.pf.deps[${k}].date=this.value" aria-label="วันที่จ่าย ${esc(d.iv)}"></td>
+        <td class="num"><input class="qin" style="width:110px" value="${d.amount}" onchange="S.pf.deps[${k}].amount=n0(this.value); renderPreorderReview()" aria-label="ยอดมัดจำ ${esc(d.iv)}"></td></tr>`).join("")}
+      <tr class="font-semibold"><td></td><td colspan="2">รวมมัดจำ</td><td class="num">${fmt2(depSum)}</td></tr></tbody></table></div>
+    <div class="text-sm mb-2">ยอดใบ ${money(P.due)} − มัดจำ ${money(depSum)} = <b class="text-orange-700">ค้างจ่าย ${money(r2(n0(P.due) - depSum))}</b></div>
+    <details class="mb-2"><summary class="text-sm text-teal-700 cursor-pointer">รายการสินค้า ${pre.items.length} แถว</summary>
+      <div class="overflow-auto border rounded-lg mt-1" style="max-height:40vh"><table class="g"><thead><tr><th>รหัส</th><th>บาร์โค้ด</th><th>สินค้า</th><th class="num">จำนวน</th><th class="num">ราคา/ชิ้น</th><th class="num">ยอดเต็ม</th><th class="num">มัดจำ</th><th>IV</th><th class="num">คงเหลือ</th></tr></thead><tbody>
+      ${pre.items.map(x => `<tr class="${x.bonus ? "text-gray-500" : ""}"><td class="font-mono text-xs">${esc(x.code)}</td><td class="font-mono text-xs">${esc(x.barcode)}</td><td>${esc(x.name)}</td>
+        <td class="num">${fmt(x.qty)}</td><td class="num">${x.price ? fmt2(x.price) : "0"}</td><td class="num">${x.total ? fmt2(x.total) : ""}</td><td class="num">${x.deposit ? fmt2(x.deposit) : ""}</td>
+        <td class="font-mono text-xs">${esc(x.iv)}</td><td class="num">${x.balance ? fmt2(x.balance) : ""}</td></tr>`).join("")}
+      </tbody></table></div></details>
+    <div class="flex justify-end gap-2 mt-3"><button class="btn btn-w" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-p" onclick="savePreorder()">บันทึกค้างจ่าย</button></div>`, true);
+}
+async function savePreorder() {
+  const P = S.pf;
+  const items = P.pre.items.map(x => ({ code: x.code, barcode: x.barcode, name: x.name, qty: x.qty, price: x.price, total: x.total, deposit: x.deposit, iv: x.iv }));
+  const payments = P.deps.filter(d => d.on && n0(d.amount) > 0).map(d => ({ amount: d.amount, date: d.date, kind: "มัดจำ", ref: d.iv }));
+  await run(async () => {
+    let fileId = "";
+    if (P.file.size <= 25e6) {   // เก็บ PDF ต้นฉบับไว้กับรายการ
+      const up = await api("payableFile", { name: P.file.name, mime: P.file.type || "application/pdf", b64: await blobB64(P.file) }).catch(() => null);
+      fileId = up && up.fileId || "";
+    }
+    const r = await api("payableSave", { payable: Object.assign(payPayload(P), { items, payments, fileId }) });
+    closeModal(); toast("บันทึกค้างจ่ายแล้ว · " + r.payableId);
+    go("payables");
+  });
+}
+
+// ---------- ฟอร์มการเงิน (ใช้ร่วม: Pre-order / E-bill / เพิ่มเอง) ----------
+function payFormHtml(P, prefix, opts) {
+  opts = opts || {};
+  const o = prefix || "S.pf", redraw = o === "S.pf" ? (P.mode === "preorder" ? "renderPreorderReview()" : "renderPayForm()") : "renderEbillPend()";
+  const inp = (k, label, extra, recalc) => `<label class="text-sm">${label}<input class="inp w-full mt-1 ${extra || ""}" value="${esc(P[k] == null ? "" : P[k])}" oninput="${o}.${k}=this.value"${recalc ? ` onchange="payRecalc(${o}); ${redraw}"` : ""}></label>`;
+  const numInp = (k, label) => inp(k, label, "text-right", k === "total" || k === "wht");
+  return `<div class="grid sm:grid-cols-4 gap-2">
+      ${opts.noSupplier ? "" : `<label class="text-sm">ซัพ *<input class="inp w-full mt-1" value="${esc(P.supplier || "")}" oninput="${o}.supplier=this.value" list="paySupList"></label>`}
+      <label class="text-sm">ประเภทเอกสาร<select class="sel w-full mt-1" onchange="${o}.docType=this.value">${PAY_DOC_TYPES.map(t => `<option ${t === P.docType ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></label>
+      ${inp("docNo", "เลขที่เอกสาร", "font-mono")}
+      <label class="text-sm">วันที่เอกสาร<input type="date" class="inp w-full mt-1" value="${esc(P.docDate || "")}" onchange="${o}.docDate=this.value"></label>
+      <label class="text-sm">แบบจ่าย<select class="sel w-full mt-1" onchange="${o}.payType=this.value">${Object.keys(PAY_TYPES).map(k => `<option value="${k}" ${k === P.payType ? "selected" : ""}>${PAY_TYPES[k]}</option>`).join("")}</select></label>
+      <label class="text-sm">กำหนดจ่าย (วันที่)<input type="date" class="inp w-full mt-1" value="${esc(P.dueDate || "")}" onchange="${o}.dueDate=this.value"></label>
+      ${inp("dueNote", "กำหนดจ่าย (ข้อความ)")}
+      ${inp("ref", "อ้างอิง")}
+    </div>
+    <div class="grid grid-cols-2 sm:grid-cols-6 gap-2 mt-2">
+      ${numInp("beforeVat", "มูลค่าก่อน VAT")}${numInp("vat", "VAT")}${numInp("total", "รวมทั้งสิ้น")}${numInp("wht", "หัก ณ ที่จ่าย")}${numInp("depositDeducted", "หักมัดจำในบิล (ก่อน VAT)")}
+      <label class="text-sm font-semibold">ยอดต้องจ่ายทั้งใบ *<input class="inp w-full mt-1 text-right font-bold" value="${esc(P.due == null ? "" : P.due)}" oninput="${o}.due=this.value"></label>
+    </div>
+    <label class="text-sm block mt-2">หมายเหตุบัญชี<input class="inp w-full mt-1" value="${esc(P.note || "")}" oninput="${o}.note=this.value"></label>
+    <datalist id="paySupList">${paySupplierNames().map(s => `<option value="${esc(s)}">`).join("")}</datalist>`;
+}
+/** เปลี่ยนรวมทั้งสิ้น / หัก ณ ที่จ่าย → ยอดต้องจ่าย = รวม − หัก ณ ที่จ่าย (ถ้ายังไม่แก้เอง) */
+function payRecalc(P) { if (!P) return; const t = n0(P.total), w = n0(P.wht); if (t) P.due = r2(t - w); }
+function paySupplierNames() {
+  const s = {}; ((S.boot && S.boot.payables) || []).forEach(p => { if (p.supplier) s[p.supplier] = 1; });
+  ((S.boot && S.boot.bills) || []).forEach(b => { if (b.supplier) s[b.supplier] = 1; });
+  return Object.keys(s).sort();
+}
+function payPayload(P) {
+  return { supplier: String(P.supplier || "").trim(), seller: P.seller || "", taxId: P.taxId || "", docType: P.docType, docNo: String(P.docNo || "").trim(), docDate: P.docDate,
+    ref: P.ref || "", payType: P.payType, beforeVat: n0(P.beforeVat), vat: n0(P.vat), total: n0(P.total), wht: n0(P.wht), depositDeducted: n0(P.depositDeducted),
+    due: r2(n0(P.due)), dueDate: P.dueDate || "", dueNote: P.dueNote || "", note: P.note || "", ebill: P.ebill || "" };
+}
+/** กฎ Dreamtoy: ส่งของ จ.–พ. → โอนวันถัดไป · พฤ.–อา. → โอนวันจันทร์ · ก่อน 10:00 */
+function dtPayDate(shipIso) {
+  if (!shipIso) return "";
+  const d = new Date(String(shipIso).slice(0, 10) + "T00:00:00+07:00"), wd = new Date(d.getTime() + 7 * 3600e3).getUTCDay();   // 0=อา.
+  const add = wd >= 1 && wd <= 3 ? 1 : wd === 4 ? 4 : wd === 5 ? 3 : wd === 6 ? 2 : 1;
+  return new Date(d.getTime() + add * 86400e3 + 7 * 3600e3).toISOString().slice(0, 10);
+}
+const isDreamtoy = s => /dream\s*toy|ดรีม\s*ทอย/i.test(String(s || ""));
+
+// ---------- หน้า "ค้างจ่ายซัพ" ----------
+async function renderPayables(v) {
+  const t = S.nav, D = await api("payableList");
+  if (stale(t)) return;
+  S.payList = D.payables; S.payToday = D.today || todayStr();
+  S.payF = S.payF || { sup: "", st: "open", mon: "", q: "" };
+  payPaint(v);
+}
+function payBucket(p, today) {
+  if (p.outstanding <= 0 || !p.dueDate) return "later";
+  const d = daysTo(p.dueDate);
+  return d > 0 ? "later" : d === 0 ? "today" : d >= -7 ? "late7" : "late";
+}
+function payPaint(v) {
+  v = v || document.getElementById("view");
+  const F = S.payF, all = S.payList || [], live = all.filter(p => p.status !== "ยกเลิก");
+  const list = all.filter(p => (!F.sup || p.supplier === F.sup) && (F.st === "all" || (F.st === "open" ? p.outstanding > 0 && p.status !== "ยกเลิก" : F.st === "paid" ? p.status === "จ่ายแล้ว" : p.status === "ยกเลิก"))
+    && (!F.mon || String(p.docDate).slice(0, 7) === F.mon) && (!F.q || (p.docNo + " " + p.supplier + " " + p.note + " " + (p.items || []).map(i => i.name + " " + i.barcode).join(" ")).toLowerCase().includes(F.q.toLowerCase())));
+  const open = live.filter(p => p.outstanding > 0), sum = a => a.reduce((s, p) => s + p.outstanding, 0);
+  const due0 = open.filter(p => ["today", "late7", "late"].includes(payBucket(p))), soon = open.filter(p => p.dueDate && daysTo(p.dueDate) > 0 && daysTo(p.dueDate) <= 7);
+  const depOpen = open.filter(p => !p.billId).reduce((s, p) => s + (p.payments || []).filter(x => x.kind === "มัดจำ").reduce((a, x) => a + x.amount, 0), 0);
+  const sups = [...new Set(all.map(p => p.supplier))].sort(), mons = [...new Set(all.map(p => String(p.docDate).slice(0, 7)).filter(Boolean))].sort().reverse();
+  const groups = {}; list.forEach(p => (groups[p.supplier] = groups[p.supplier] || []).push(p));
+  const gNames = Object.keys(groups).sort((a, b) => sum(groups[b]) - sum(groups[a]));
+  const aging = { later: 0, today: 0, late7: 0, late: 0 }; open.forEach(p => aging[payBucket(p)] += p.outstanding);
+  const dueText = p => p.dueDate ? `${fmtDate(p.dueDate)}${p.dueNote ? " · " + esc(p.dueNote) : ""}` : esc(p.dueNote || "—");
+  const dueCls = p => { const b = payBucket(p); return b === "today" || b === "late7" || b === "late" ? "text-red-700 font-semibold" : ""; };
+  v.innerHTML = `
+    <div class="flex flex-wrap items-center gap-2 mb-3">
+      <h2 class="font-bold mr-auto">ค้างจ่ายซัพ <span class="text-xs muted font-normal">บิลจริงที่ยังไม่ได้จ่าย · เอาบิลเข้าที่เมนู <a href="#" onclick="go('bills'); return false">บิลสินค้าเข้า</a></span></h2>
+      <button class="btn btn-w" onclick="payAddForm()"><i class="fa-solid fa-plus"></i> เพิ่มค้างจ่ายเอง</button>
+      <button class="btn btn-w" onclick="payExcel()"><i class="fa-solid fa-file-excel text-green-600"></i> Excel (บัญชี)</button>
+    </div>
+    <div class="flex flex-wrap gap-2 items-end mb-3 text-sm">
+      <label>ซัพ<br><select class="sel" onchange="S.payF.sup=this.value; payPaint()"><option value="">ทั้งหมด</option>${sups.map(s => `<option ${s === F.sup ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></label>
+      <label>สถานะ<br><select class="sel" onchange="S.payF.st=this.value; payPaint()">${[["open", "ยังค้างจ่าย"], ["paid", "จ่ายแล้ว"], ["void", "ยกเลิก"], ["all", "ทั้งหมด"]].map(([k, l]) => `<option value="${k}" ${k === F.st ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+      <label>เดือนเอกสาร<br><select class="sel" onchange="S.payF.mon=this.value; payPaint()"><option value="">ทุกเดือน</option>${mons.map(m => `<option value="${m}" ${m === F.mon ? "selected" : ""}>${esc(monLabel(m))}</option>`).join("")}</select></label>
+      <label class="flex-1 min-w-[180px]">ค้นหา<br><input class="inp w-full" placeholder="เลขที่เอกสาร / ชื่อสินค้า / บาร์โค้ด" value="${esc(F.q)}" onchange="S.payF.q=this.value; payPaint()"></label>
+    </div>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+      <div class="card" style="background:#fff7ed"><div class="kpi" style="color:#9a3412">ค้างจ่ายทั้งหมด</div><b class="text-xl" style="color:#9a3412">${money(sum(open))}</b><div class="text-xs" style="color:#9a3412">${open.length} ใบ</div></div>
+      <div class="card ${due0.length ? "bg-red-50" : ""}"><div class="kpi ${due0.length ? "text-red-700" : ""}">ถึงกำหนดวันนี้ / เลยกำหนด</div><b class="text-xl ${due0.length ? "text-red-700" : ""}">${due0.length} ใบ</b><div class="text-xs ${due0.length ? "text-red-700" : "muted"}">${due0.length ? money(sum(due0)) : "—"}</div></div>
+      <div class="card"><div class="kpi">ถึงกำหนดใน 7 วัน</div><b class="text-xl">${soon.length} ใบ</b><div class="text-xs muted">${soon.length ? money(sum(soon)) : "—"}</div></div>
+      <div class="card"><div class="kpi">มัดจำจ่ายแล้ว (ของยังไม่มา)</div><b class="text-xl">${money(depOpen)}</b><div class="text-xs muted">ใบแจ้งยอด Pre-order ที่ยังค้าง</div></div>
+    </div>
+    <div class="card mb-3">
+      ${gNames.length ? `<div class="overflow-auto"><table class="g" style="min-width:1000px"><thead><tr><th>ซัพ / เลขที่เอกสาร</th><th>ประเภท</th><th>วันที่</th><th class="num">ยอดต้องจ่าย</th><th class="num">จ่ายแล้ว</th><th class="num">ค้างจ่าย</th><th>กำหนดจ่าย</th><th>สถานะ</th><th></th></tr></thead><tbody>
+      ${gNames.map(g => { const L = groups[g], os = sum(L), near = L.filter(p => p.outstanding > 0 && p.dueDate).map(p => p.dueDate).sort()[0];
+        return `<tr class="bg-gray-50"><td colspan="3" class="font-bold">${esc(g)} <span class="text-xs muted font-normal">${L.length} ใบ${near ? " · ใกล้สุด " + fmtDate(near) : ""}</span></td>
+          <td class="num font-semibold">${fmt2(L.reduce((s, p) => s + p.due, 0))}</td><td class="num text-teal-700">${fmt2(L.reduce((s, p) => s + p.paid, 0))}</td><td class="num font-bold" style="color:#9a3412">${fmt2(os)}</td><td colspan="3"></td></tr>
+        ${L.map(p => `<tr>
+          <td class="pl-6"><a href="#" class="font-mono font-semibold" onclick="payDetail(${jsq(p.payableId)}); return false">${esc(p.docNo || p.payableId)}</a>
+            <div class="text-xs muted">${p.billId ? `บิล <a href="#" onclick="openBill(${jsq(p.billId)}); return false">${esc(payBillName(p.billId))}</a>` : (p.items || []).length ? `${p.items.length} รายการ · ของยังไม่มา` : ""}${p.fileUrl ? ` · <a href="${esc(p.fileUrl)}" target="_blank" rel="noopener">ไฟล์</a>` : ""}${p.ebill ? ` · <a href="${esc(p.ebill)}" target="_blank" rel="noopener">E-bill</a>` : ""}</div></td>
+          <td class="text-xs">${esc(p.docType)}${p.payType ? `<div class="muted">${esc(p.payType === "B" ? "ส่งก่อน จ่ายทีหลัง" : "โอนก่อนส่ง")}</div>` : ""}</td>
+          <td>${fmtDate(p.docDate)}</td><td class="num">${fmt2(p.due)}</td><td class="num text-teal-700">${p.paid ? fmt2(p.paid) : "—"}</td>
+          <td class="num font-semibold" style="color:#9a3412">${p.outstanding ? fmt2(p.outstanding) : "—"}</td>
+          <td class="${dueCls(p)}">${dueText(p)}</td><td>${chip(p.status)}</td>
+          <td class="text-right whitespace-nowrap">${p.outstanding > 0 ? `<button class="btn btn-p btn-s" onclick="apPayForm(${jsq(p.payableId)})">บันทึกจ่าย</button>` : ""}
+            <button class="btn btn-w btn-s" onclick="payDetail(${jsq(p.payableId)})">ดู</button></td></tr>`).join("")}`; }).join("")}
+      <tr class="font-bold bg-teal-50/60"><td colspan="3">รวม (ตามตัวกรอง)</td><td class="num">${fmt2(list.reduce((s, p) => s + (p.status === "ยกเลิก" ? 0 : p.due), 0))}</td><td class="num">${fmt2(list.reduce((s, p) => s + (p.status === "ยกเลิก" ? 0 : p.paid), 0))}</td><td class="num" style="color:#9a3412">${fmt2(sum(list))}</td><td colspan="3"></td></tr>
+      </tbody></table></div>` : `<div class="text-center muted py-8 text-sm">${all.length ? "ไม่มีรายการตามตัวกรอง" : "ยังไม่มีรายการค้างจ่าย — นำเข้าบิลที่เมนู บิลสินค้าเข้า (PDF / รูป / Excel) หรือกด \"เพิ่มค้างจ่ายเอง\""}</div>`}
+    </div>
+    <div class="card"><h3 class="font-bold mb-2">อายุหนี้ (ยอดค้างจ่าย)</h3>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-sm">
+        <div class="rounded-xl border px-3 py-2">ยังไม่ถึงกำหนด / ไม่มีวันที่<div class="text-lg font-bold">${money(aging.later)}</div></div>
+        <div class="rounded-xl border px-3 py-2 ${aging.today ? "border-red-200 bg-red-50 text-red-700" : ""}">ถึงกำหนดวันนี้<div class="text-lg font-bold">${money(aging.today)}</div></div>
+        <div class="rounded-xl border px-3 py-2 ${aging.late7 ? "border-red-200 bg-red-50 text-red-700" : ""}">เลย 1–7 วัน<div class="text-lg font-bold">${money(aging.late7)}</div></div>
+        <div class="rounded-xl border px-3 py-2 ${aging.late ? "border-red-200 bg-red-50 text-red-700" : ""}">เลยเกิน 7 วัน<div class="text-lg font-bold">${money(aging.late)}</div></div>
+      </div></div>`;
+}
+function payBillName(id) { const b = ((S.boot && S.boot.bills) || []).find(x => x.billId === id); return b ? b.name : id; }
+function payFind(id) { return (S.payList || []).find(p => p.payableId === id); }
+function payDetail(id) {
+  const p = payFind(id); if (!p) return;
+  openModal(`<h3 class="font-bold mb-1">${esc(p.supplier)} · <span class="font-mono">${esc(p.docNo || p.payableId)}</span> ${chip(p.status)}</h3>
+    <div class="text-xs muted mb-3">${esc(p.payableId)} · ${esc(p.docType)} · ${fmtDate(p.docDate)}${p.ref ? " · อ้างอิง " + esc(p.ref) : ""} · บันทึกโดย ${esc(p.createdBy)} ${esc(String(p.createdAt).slice(0, 16))}</div>
+    <div class="grid sm:grid-cols-2 gap-3 text-sm mb-3">
+      <div class="rounded-xl border p-3">${[["มูลค่าก่อน VAT", p.beforeVat], ["VAT", p.vat], ["รวมทั้งสิ้น", p.total], ["หัก ณ ที่จ่าย", p.wht], ["หักมัดจำในบิล (ก่อน VAT)", p.depositDeducted]].map(([k, x]) => `<div class="flex justify-between"><span>${k}</span><span>${fmt2(x)}</span></div>`).join("")}
+        <div class="flex justify-between font-bold border-t mt-1 pt-1"><span>ยอดต้องจ่าย</span><span>${money(p.due)}</span></div>
+        <div class="flex justify-between text-teal-700"><span>จ่ายแล้ว</span><span>${money(p.paid)}</span></div>
+        <div class="flex justify-between font-bold" style="color:#9a3412"><span>ค้างจ่าย</span><span>${money(p.outstanding)}</span></div></div>
+      <div class="rounded-xl border p-3"><div>แบบจ่าย: ${esc(PAY_TYPES[p.payType] || p.payType || "—")}</div><div>กำหนดจ่าย: ${p.dueDate ? fmtDate(p.dueDate) : "—"} ${esc(p.dueNote || "")}</div>
+        ${p.billId ? `<div>บิลสินค้าเข้า: <a href="#" onclick="closeModal(); openBill(${jsq(p.billId)}); return false">${esc(payBillName(p.billId))}</a></div>` : ""}
+        ${p.fileUrl ? `<div><a href="${esc(p.fileUrl)}" target="_blank" rel="noopener">เปิดไฟล์บิล</a></div>` : ""}${p.ebill ? `<div><a href="${esc(p.ebill)}" target="_blank" rel="noopener">เปิด E-bill</a></div>` : ""}
+        ${p.note ? `<div class="text-gray-600 mt-1">${esc(p.note)}</div>` : ""}</div>
+    </div>
+    <div class="font-semibold text-sm mb-1">การจ่าย (${(p.payments || []).length})</div>
+    ${(p.payments || []).length ? `<table class="g mb-3"><thead><tr><th>วันที่</th><th>ประเภท</th><th>เลขใบ / อ้างอิง</th><th>วิธี</th><th class="num">ยอด</th><th>หมายเหตุ</th><th>โดย</th></tr></thead><tbody>
+      ${p.payments.map(x => `<tr><td>${fmtDate(x.date)}</td><td>${esc(x.kind)}</td><td class="font-mono text-xs">${esc(x.ref)}</td><td>${esc(x.method)}</td><td class="num">${fmt2(x.amount)}</td><td class="text-xs">${esc(x.note)}</td><td class="text-xs muted">${esc(x.by)}</td></tr>`).join("")}</tbody></table>` : `<div class="text-sm muted mb-3">ยังไม่มี</div>`}
+    ${(p.items || []).length ? `<details class="mb-3"><summary class="text-sm text-teal-700 cursor-pointer">รายการสินค้า ${p.items.length} แถว</summary><div class="overflow-auto border rounded-lg mt-1" style="max-height:40vh"><table class="g"><thead><tr><th>รหัส</th><th>บาร์โค้ด</th><th>สินค้า</th><th class="num">จำนวน</th><th class="num">ราคา/ชิ้น</th><th class="num">ยอด</th><th class="num">มัดจำ</th><th>IV</th></tr></thead><tbody>
+      ${p.items.map(x => `<tr><td class="font-mono text-xs">${esc(x.code)}</td><td class="font-mono text-xs">${esc(x.barcode)}</td><td>${esc(x.name)}</td><td class="num">${fmt(x.qty)}</td><td class="num">${fmt2(x.price)}</td><td class="num">${x.total ? fmt2(x.total) : ""}</td><td class="num">${x.deposit ? fmt2(x.deposit) : ""}</td><td class="font-mono text-xs">${esc(x.iv || "")}</td></tr>`).join("")}</tbody></table></div></details>` : ""}
+    <div class="flex flex-wrap justify-end gap-2">${isAdmin() && p.status !== "ยกเลิก" ? `<button class="btn btn-d mr-auto" onclick="payVoid(${jsq(p.payableId)})">ยกเลิกรายการ</button>` : ""}
+      <button class="btn btn-w" onclick="payEdit(${jsq(p.payableId)})">แก้ข้อมูล</button>
+      ${p.outstanding > 0 ? `<button class="btn btn-p" onclick="apPayForm(${jsq(p.payableId)})">บันทึกจ่าย</button>` : ""}<button class="btn btn-w" onclick="closeModal()">ปิด</button></div>`, true);
+}
+function apPayForm(id) {
+  const p = payFind(id); if (!p) return;
+  openModal(`<h3 class="font-bold mb-1">บันทึกจ่าย · ${esc(p.supplier)} <span class="font-mono">${esc(p.docNo)}</span></h3>
+    <div class="text-sm muted mb-3">ค้างจ่าย ${money(p.outstanding)}${p.dueDate || p.dueNote ? " · กำหนด " + (p.dueDate ? fmtDate(p.dueDate) : "") + " " + esc(p.dueNote || "") : ""}</div>
+    <div class="grid sm:grid-cols-2 gap-2 text-sm">
+      <label>ยอดที่จ่าย *<input id="ppAmt" class="inp w-full mt-1 text-right font-bold" value="${p.outstanding}"></label>
+      <label>วันที่จ่าย<input id="ppDate" type="date" class="inp w-full mt-1" value="${todayStr()}"></label>
+      <label>ประเภท<select id="ppKind" class="sel w-full mt-1"><option>ชำระ</option><option>มัดจำ</option></select></label>
+      <label>เลขใบ / อ้างอิง<input id="ppRef" class="inp w-full mt-1" placeholder="เช่น เลข IV / เลขอ้างอิงการโอน"></label>
+      <label>วิธีจ่าย<select id="ppMethod" class="sel w-full mt-1"><option>โอน</option><option>เงินสด</option><option>เช็ค</option><option>อื่น ๆ</option></select></label>
+      <label>หมายเหตุ<input id="ppNote" class="inp w-full mt-1" placeholder="เช่น บัญชีที่โอนออก"></label>
+    </div>
+    <p class="text-xs muted mt-2">แนบสลิป + เลือกบัญชีร้าน/บัญชีซัพ จะมาในเฟส 2</p>
+    <div class="flex justify-end gap-2 mt-3"><button class="btn btn-w" onclick="closeModal()">ยกเลิก</button><button class="btn btn-p" onclick="payPay(${jsq(id)})">บันทึกจ่าย</button></div>`);
+}
+async function payPay(id) {
+  const g = k => document.getElementById(k).value;
+  const amt = n0(String(g("ppAmt")).replace(/,/g, ""));
+  if (!(amt > 0)) return toast("ใส่ยอดที่จ่าย", true);
+  const p = payFind(id); if (p && amt > p.outstanding + 0.005 && !confirm(`ยอดที่จ่าย ${money(amt)} มากกว่ายอดค้าง ${money(p.outstanding)} — บันทึกต่อ?`)) return;
+  await run(async () => {
+    await api("payablePay", { payableId: id, amount: amt, date: g("ppDate"), kind: g("ppKind"), ref: g("ppRef"), method: g("ppMethod"), note: g("ppNote") });
+    closeModal(); toast("บันทึกจ่ายแล้ว"); go("payables");
+  });
+}
+async function payVoid(id) {
+  const why = prompt("ยกเลิกรายการค้างจ่ายนี้ — เหตุผล?"); if (why === null) return;
+  await run(async () => { await api("payableVoid", { payableId: id, reason: why }); closeModal(); toast("ยกเลิกแล้ว"); go("payables"); });
+}
+/** ฟอร์มเพิ่มเอง / แก้ข้อมูล */
+function payAddForm(seed) {
+  S.pf = Object.assign({ mode: "add", supplier: "", docType: PAY_DOC_TYPES[1], docNo: "", docDate: todayStr(), ref: "", payType: "A", beforeVat: "", vat: "", total: "", wht: "",
+    depositDeducted: "", due: "", dueDate: "", dueNote: "", note: "", billId: "", paidNow: false }, seed || {});
+  renderPayForm();
+}
+function payEdit(id) {
+  const p = payFind(id); if (!p) return;
+  payAddForm({ mode: "edit", payableId: id, supplier: p.supplier, docType: p.docType, docNo: p.docNo, docDate: p.docDate, ref: p.ref, payType: p.payType || "A",
+    beforeVat: p.beforeVat, vat: p.vat, total: p.total, wht: p.wht, depositDeducted: p.depositDeducted, due: p.due, dueDate: p.dueDate, dueNote: p.dueNote, note: p.note, billId: p.billId });
+}
+function renderPayForm() {
+  const P = S.pf, dt = isDreamtoy(P.supplier) && P.payType === "B";
+  const bills = ((S.boot && S.boot.bills) || []).slice(0, 60);
+  openModal(`<h3 class="font-bold mb-1">${P.mode === "edit" ? "แก้ข้อมูลค้างจ่าย " + esc(P.payableId) : "เพิ่มค้างจ่ายเอง"}</h3>
+    <div class="text-xs muted mb-3">ใช้กับบิลที่ไม่ได้มาจากไฟล์ เช่น Invoice Dreamtoy · ${P.mode === "edit" ? "แก้ได้เฉพาะข้อมูลหัว (การจ่ายแก้ไม่ได้)" : ""}</div>
+    ${payFormHtml(P)}
+    ${dt ? `<div class="rounded-lg bg-teal-50 border border-teal-200 text-sm px-3 py-2 mt-2">กฎ Dreamtoy: ส่งของ จ.–พ. → โอนวันถัดไป · พฤ.–อา. → โอนวันจันทร์ · ก่อน 10:00
+      <button class="btn btn-w btn-s ml-2" onclick="S.pf.dueDate=dtPayDate(S.pf.docDate); S.pf.dueNote='ก่อน 10:00'; renderPayForm()">คิดวันโอนจากวันที่เอกสาร (= วันส่งของ)</button></div>` : ""}
+    ${P.mode === "add" ? `<div class="grid sm:grid-cols-2 gap-2 mt-2 text-sm">
+      <label>ผูกกับบิลสินค้าเข้า<select class="sel w-full mt-1" onchange="S.pf.billId=this.value"><option value="">— ไม่ผูก —</option>${bills.map(b => `<option value="${esc(b.billId)}" ${b.billId === P.billId ? "selected" : ""}>${esc(b.name)} · ${esc(b.supplier)} · ${fmtDate(b.billDate)}</option>`).join("")}</select></label>
+      <label class="flex items-center gap-2 mt-5"><input type="checkbox" ${P.paidNow ? "checked" : ""} onchange="S.pf.paidNow=this.checked"> จ่ายแล้ว (บันทึกจ่ายเต็มจำนวนวันนี้)</label></div>` : ""}
+    <div class="flex justify-end gap-2 mt-3"><button class="btn btn-w" onclick="closeModal()">ยกเลิก</button><button class="btn btn-p" onclick="paySaveForm()">บันทึก</button></div>`, true);
+}
+async function paySaveForm() {
+  const P = S.pf, body = payPayload(P);
+  if (!body.supplier) return toast("ใส่ชื่อซัพ", true);
+  if (!(body.due > 0)) return toast("ใส่ยอดต้องจ่าย", true);
+  await run(async () => {
+    if (P.mode === "edit") await api("payableSave", { payableId: P.payableId, payable: body });
+    else await api("payableSave", { payable: Object.assign(body, { billId: P.billId || "", payments: P.paidNow ? [{ amount: body.due, date: todayStr(), kind: "ชำระ" }] : [] }) });
+    closeModal(); toast("บันทึกแล้ว"); go("payables");
+  });
+}
+function payExcel() {
+  const L = S.payList || [];
+  const wb = XLSX.utils.book_new();
+  const head = ["รหัส", "ซัพ", "ชื่อผู้ขาย", "เลขผู้เสียภาษี", "ประเภทเอกสาร", "เลขที่", "วันที่เอกสาร", "อ้างอิง", "แบบจ่าย", "ก่อน VAT", "VAT", "รวมทั้งสิ้น", "หัก ณ ที่จ่าย",
+    "หักมัดจำในบิล", "ยอดต้องจ่าย", "จ่ายแล้ว", "ค้างจ่าย", "กำหนดจ่าย", "กำหนด (ข้อความ)", "สถานะ", "บิลสินค้าเข้า", "ไฟล์บิล", "E-bill", "หมายเหตุ"];
+  const rows = L.map(p => [p.payableId, p.supplier, p.seller, p.taxId, p.docType, p.docNo, p.docDate, p.ref, p.payType, p.beforeVat, p.vat, p.total, p.wht, p.depositDeducted,
+    p.due, p.paid, p.outstanding, p.dueDate, p.dueNote, p.status, p.billId ? payBillName(p.billId) : "", p.fileUrl, p.ebill, p.note]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([head].concat(rows)), "บิลค้างจ่าย");
+  const pays = []; L.forEach(p => (p.payments || []).forEach(x => pays.push([p.supplier, p.docNo, p.payableId, x.date, x.kind, x.ref, x.method, x.amount, x.note, x.by])));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["ซัพ", "เลขที่เอกสาร", "รหัส", "วันที่จ่าย", "ประเภท", "เลขใบ/อ้างอิง", "วิธี", "ยอด", "หมายเหตุ", "โดย"]].concat(pays)), "การจ่าย");
+  const its = []; L.forEach(p => (p.items || []).forEach(x => its.push([p.supplier, p.docNo, x.code, x.barcode, x.name, x.qty, x.price, x.total, x.deposit, x.iv || ""])));
+  if (its.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["ซัพ", "เลขที่เอกสาร", "รหัส", "บาร์โค้ด", "สินค้า", "จำนวน", "ราคา/ชิ้น", "ยอด", "มัดจำ", "IV"]].concat(its)), "รายการ Pre-order");
+  XLSX.writeFile(wb, `ค้างจ่ายซัพ_${todayStr()}.xlsx`);
+}
+/** ชิปค้างจ่ายบนการ์ดบิล */
+function billPayChip(billId) {
+  const P = ((S.boot && S.boot.payables) || []).filter(p => p.billId === billId && p.status !== "ยกเลิก");
+  if (!P.length) return "";
+  const out = P.reduce((s, p) => s + p.outstanding, 0), p0 = P[0];
+  return out > 0 ? `<div class="text-xs mt-2 flex flex-wrap items-center gap-1">${chip(P.some(p => p.paid > 0) ? "จ่ายบางส่วน" : "ค้างจ่าย")} <b style="color:#9a3412">${money(out)}</b>${p0.dueDate ? ` <span class="muted">กำหนด ${fmtDate(p0.dueDate)}</span>` : p0.dueNote ? ` <span class="muted">${esc(p0.dueNote)}</span>` : ""}</div>`
+    : `<div class="text-xs mt-2">${chip("จ่ายแล้ว")}</div>`;
 }
 </script>
