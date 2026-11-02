@@ -4192,7 +4192,7 @@ function inboxToE(D) {
       return { no: i.no || k + 1, code: i.code || "", barcode: normBarcode(i.barcode), qty, unit: i.unit || "", price, disc,
         cost: i.cost_inc != null ? n0(i.cost_inc) : (qty ? r2(price - disc / qty) : price), costEx: n0(i.cost_exc), name: i.clean_name || i.name || "", note: notes };
     }),
-    totals: { grand: n0(t.grand), deposit: n0(c.deposit != null ? c.deposit : t.deposit), check: c.ok ? "✓ ยอดตรงกับบิล" : "✗ ยอดไม่ตรงกับบิล — เปิดบิลออนไลน์เช็ก", vatMode: c.price_mode || "",
+    totals: { grand: n0(t.grand), deposit: n0(c.deposit != null ? c.deposit : t.deposit), check: c.ok ? "✓ ยอดตรงกับบิล" + (D.reader === "AI" ? " (AI อ่าน)" : "") : "✗ " + ((c.problems || []).join(" · ") || "ยอดไม่ตรงกับบิล") + " — เปิดไฟล์ / บิลออนไลน์เช็ก", vatMode: c.price_mode || "",
       beforeVat: t.beforeVat, vat: t.vat, wht: t.withholding, pay: t.paid }
   };
 }
@@ -4202,17 +4202,18 @@ function billInboxHtml() {
   const st = { "อ่านแล้ว": "bg-teal-100 text-teal-800", "มีปัญหา": "bg-red-100 text-red-700", "รออ่าน": "bg-gray-100 text-gray-700" };
   return `<div class="card mb-3 border border-teal-200" id="billInbox">
     <div class="flex flex-wrap items-center gap-2 mb-2"><h3 class="font-bold mr-auto"><i class="fa-brands fa-line text-green-600"></i> บิลรอตรวจจาก LINE (${L.length})</h3>
-      <span class="text-xs muted">ส่งรูปบิลในกลุ่ม + พิมพ์ Sอ่านบิล → เครื่องร้านอ่านให้ → ตรวจแล้วนำเข้าที่นี่</span></div>
+      <span class="text-xs muted">${S.boot.aiOn ? "อัปโหลด PDF / รูป หรือส่งรูปในกลุ่ม → AI อ่านให้ (ตรวจตัวเลขก่อนนำเข้า)" : "ส่งรูปบิลในกลุ่ม + พิมพ์ Sอ่านบิล → เครื่องร้านอ่านให้"} → ตรวจแล้วนำเข้าที่นี่</span></div>
     ${L.map(r => {
       const D = r.data || {}, h = D.head || {}, its = D.items || [];
       return `<div class="flex flex-wrap items-center gap-3 py-2 px-2 rounded-lg border mb-1.5 ${r.status === "มีปัญหา" ? "border-red-200 bg-red-50/50" : "border-gray-100"}">
-        <span class="chip ${st[r.status] || ""}">${esc(r.status === "รออ่าน" ? "รอเครื่องอ่าน" : r.status)}</span>
+        <span class="chip ${st[r.status] || ""}">${esc(r.status === "รออ่าน" ? "รอเครื่องอ่าน" : r.status)}</span>${(r.data || {}).reader === "AI" ? `<span class="chip bg-violet-100 text-violet-800">AI</span>` : ""}
         <div class="flex-1 min-w-[220px]"><div class="font-semibold">${esc(r.docNo || r.fileName)}${h.seller ? ` <span class="text-xs muted font-normal">${esc(String(h.seller).replace(/^บริษัท\s*|\s*จำกัด.*$/g, ""))}</span>` : ""}</div>
           <div class="text-xs text-gray-600">${r.status === "อ่านแล้ว" ? `${its.length} รายการ · ยอด ${money((D.totals || {}).grand)}${(D.check || {}).ok ? " ✓" : " ✗ ยอดไม่ตรง"} · ` : ""}รับ ${esc(String(r.receivedAt || "").slice(5, 16))}${r.userName ? " · " + esc(r.userName) : ""}${r.note ? ` · <span class="${r.status === "มีปัญหา" ? "text-red-700" : "text-amber-700"}">${esc(r.note)}</span>` : ""}</div></div>
         ${r.fileUrl ? `<a class="btn btn-w btn-s" href="${esc(r.fileUrl)}" target="_blank" rel="noopener"><i class="fa-regular fa-image"></i> รูป</a>` : ""}
         ${r.origUrl ? `<a class="btn btn-w btn-s" href="${esc(r.origUrl)}" target="_blank" rel="noopener"><i class="fa-regular fa-file-pdf"></i> ไฟล์</a>` : ""}
         ${r.status === "อ่านแล้ว" ? `<button class="btn btn-p btn-s" onclick="run(() => ebillFromInbox(${jsq(r.msgId)}))">ตรวจและนำเข้า</button>` : ""}
-        ${r.status !== "รออ่าน" ? `<button class="btn btn-w btn-s" onclick="billInboxSkip(${jsq(r.msgId)})" title="ไม่นำเข้า (เช่น รูปซ้ำ / ไม่ใช่บิล)">ข้าม</button>` : ""}
+        ${r.status === "รออ่าน" && S.boot.aiOn ? `<button class="btn btn-p btn-s" onclick="billInboxAi(${jsq(r.msgId)}, this)" title="ให้ AI อ่านบิลนี้เลย (ไม่ต้องรอเครื่องร้าน)"><i class="fa-solid fa-wand-magic-sparkles"></i> อ่านด้วย AI</button>` : ""}
+        <button class="btn btn-w btn-s" onclick="billInboxSkip(${jsq(r.msgId)})" title="ไม่นำเข้า (เช่น รูปซ้ำ / ไม่ใช่บิล)">ข้าม</button>
       </div>`; }).join("")}
   </div>`;
 }
@@ -4297,6 +4298,17 @@ function ebLinkHtml() {
     </div>
     <div class="text-xs mt-2"><a href="#" onclick="S.eb.pay.mode='new'; renderEbillPend(); return false">ไม่ใช่ใบนี้ → บันทึกเป็นค้างจ่ายใหม่แทน</a></div>`;
 }
+// v3.18: ให้ AI อ่านบิลที่ค้าง "รอเครื่องอ่าน"
+async function billInboxAi(msgId, btn) {
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังอ่าน…'; }
+  await run(async () => {
+    const r = await api("billInboxAiRead", { msgId });
+    S.boot.billInbox = r.inbox;
+    toast(r.error ? "AI อ่านไม่ได้: " + r.error : r.status === "อ่านแล้ว" ? `อ่านแล้ว: ${r.docNo || ""}${r.note ? " · " + r.note : ""}` : "อ่านแล้วแต่มีปัญหา: " + (r.note || ""), !!r.error || r.status !== "อ่านแล้ว");
+    renderBills(document.getElementById("view"));
+  });
+  if (btn && document.body.contains(btn)) { btn.disabled = false; btn.textContent = "อ่านด้วย AI"; }
+}
 </script>
 <script>
 // ===================================================================
@@ -4380,14 +4392,16 @@ async function billFiles(files) {
   const xls = files.filter(isXls), docs = files.filter(f => isPdf(f) || isImg(f)), other = files.filter(f => !isXls(f) && !isPdf(f) && !isImg(f));
   if (other.length) toast("ข้ามไฟล์ที่ไม่รองรับ: " + other.map(f => f.name).join(", "), true);
   const forms = [];   // ไฟล์ที่ต้องเปิดหน้าต่างตรวจ (Excel / ใบแจ้งยอด Pre-order) — เปิดทีละไฟล์
-  let sent = 0;
+  let sent = 0, aiRead = 0, aiBad = [];
   for (const f of docs) {
     try {
       const r = await billDocFile(f);
-      if (r.form) forms.push(r.form); else if (r.sent) sent++;
+      if (r.form) forms.push(r.form); else if (r.sent) { sent++; const a = r.res && r.res.ai; if (a && a.status === "อ่านแล้ว" && !a.error) { aiRead++; if (a.note) aiBad.push(f.name + ": " + a.note); } else if (a) aiBad.push(f.name + ": " + (a.error || a.note || a.status)); }
     } catch (e) { console.error(e); toast(f.name + ": " + (e.message || e), true); }
   }
-  if (sent) { S.boot = S.boot || {}; renderBills(document.getElementById("view")); toast(`ส่ง ${sent} ไฟล์เข้า "บิลรอตรวจ" แล้ว — เครื่องร้านจะอ่านให้ (ไม่เกิน ~10 นาที)`); }
+  if (sent) { S.boot = S.boot || {}; renderBills(document.getElementById("view"));
+    toast(aiRead === sent && !aiBad.length ? `AI อ่านแล้ว ${aiRead} ไฟล์ — กด "ตรวจและนำเข้า"` : aiRead || aiBad.length ? `AI อ่านแล้ว ${aiRead}/${sent} ไฟล์${aiBad.length ? " · " + aiBad.join(" · ") : ""}`
+      : `ส่ง ${sent} ไฟล์เข้า "บิลรอตรวจ" แล้ว — เครื่องร้านจะอ่านให้ (ไม่เกิน ~10 นาที)`, aiBad.length > 0); }
   xls.forEach(f => forms.push(() => billFile(f)));
   if (forms.length > 1) toast(`เปิดตรวจทีละไฟล์ — ไฟล์อื่น (${forms.length - 1}) เลือกใหม่อีกครั้งหลังบันทึก`, true);
   if (forms.length) await forms[0]();
@@ -4402,17 +4416,15 @@ async function billDocFile(file) {
     await ensureQr();
     for (let p = 1; p <= Math.min(doc.numPages, 12); p++) {
       const page = await doc.getPage(p), c = await pdfPageCanvas(page, 2.2), qr = canvasQr(c);
-      if (qr && /^https?:\/\//.test(qr)) { await inboxUpload(file, c, qr); return { sent: true }; }
+      if (qr && /^https?:\/\//.test(qr)) { return { sent: true, res: await inboxUpload(file, c, qr) }; }
     }
-    if (!confirm(`${file.name}\nไม่เจอ QR ในไฟล์นี้ (และไม่ใช่ใบแจ้งยอด Pre-order ที่ระบบรู้จัก)\n\nส่งหน้า 1 ให้เครื่องร้านลองอ่านอีกที?`)) return {};
-    await inboxUpload(file, await pdfPageCanvas(await doc.getPage(1), 2.2), "");
-    return { sent: true };
+    if (!(S.boot && S.boot.aiOn) && !confirm(`${file.name}\nไม่เจอ QR ในไฟล์นี้ (และไม่ใช่ใบแจ้งยอด Pre-order ที่ระบบรู้จัก)\n\nส่งหน้า 1 ให้เครื่องร้านลองอ่านอีกที?`)) return {};
+    return { sent: true, res: await inboxUpload(file, await pdfPageCanvas(await doc.getPage(1), 2.2), "") };
   }
   await ensureQr();
   const c = await imageCanvas(file, 2400), qr = canvasQr(c);
-  if (!qr && !confirm(`${file.name}\nหน้าเว็บอ่าน QR ในรูปไม่เจอ — ส่งให้เครื่องร้านลองอ่าน (ตัวอ่านเก่งกว่า) ไหม?`)) return {};
-  await inboxUpload(file, c, qr);
-  return { sent: true };
+  if (!qr && !(S.boot && S.boot.aiOn) && !confirm(`${file.name}\nหน้าเว็บอ่าน QR ในรูปไม่เจอ — ส่งให้เครื่องร้านลองอ่าน (ตัวอ่านเก่งกว่า) ไหม?`)) return {};
+  return { sent: true, res: await inboxUpload(file, c, qr) };
 }
 async function inboxUpload(file, canvas, qr) {
   const jpg = await canvasJpeg(canvas, 0.88);
@@ -4808,7 +4820,7 @@ async function slipRead(file) {
     const img = await slipImage(file), url = URL.createObjectURL(file);
     const r = await api("slipRead", Object.assign({ name: file.name, supplier: S.slip.supplier }, img));
     const p = r.parsed || {};
-    S.slip = Object.assign(S.slip, { read: true, previewUrl: url, fileId: r.fileId, fileUrl: r.fileUrl, text: r.text, ocrError: r.ocrError, dup: r.dup, knownTo: r.knownTo || [],
+    S.slip = Object.assign(S.slip, { read: true, previewUrl: url, fileId: r.fileId, fileUrl: r.fileUrl, text: r.text, ocrError: r.ocrError, reader: r.reader || "", dup: r.dup, knownTo: r.knownTo || [],
       amount: p.amount || "", date: p.date || todayStr(), time: p.time || "", ref: p.ref || "", from: p.from || "", to: p.to || "", memo: p.memo || "", short: "open", allocs: {} });
     if (!S.slip.supplier) { const open = (S.payList || []).filter(x => x.outstanding > 0); const best = {}; open.forEach(x => best[x.supplier] = (best[x.supplier] || 0) + 1);
       S.slip.supplier = Object.keys(best).sort((a, b) => best[b] - best[a])[0] || ""; }
@@ -4831,6 +4843,7 @@ function slipPaint() {
   const f = (k, l, extra) => `<label class="text-sm">${l}<input class="inp w-full mt-1 ${extra || ""}" value="${esc(s[k])}" onchange="S.slip.${k}=this.value${k === "amount" ? "; slipAutoAlloc(); setTimeout(slipPaint)" : ""}"></label>`;
   openModal(`<h3 class="font-bold mb-1">บันทึกจ่าย · สลิปโอน</h3>
     ${s.dup ? `<div class="rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm px-3 py-2 mb-2">สลิปเลขที่รายการ ${esc(s.ref)} บันทึกไปแล้ว (${esc(s.dup.slipId)} · ${fmtDate(s.dup.date)} · ${money(s.dup.amount)})</div>` : ""}
+    ${s.reader === "AI" ? `<div class="text-xs text-violet-700 mb-2" id="slipReader"><i class="fa-solid fa-wand-magic-sparkles"></i> AI อ่านสลิปนี้ — เทียบยอด / เลขที่รายการกับรูปก่อนบันทึก</div>` : ""}
     ${s.ocrError ? `<div class="rounded-lg border border-amber-200 bg-amber-50 text-amber-800 text-sm px-3 py-2 mb-2">อ่านสลิปอัตโนมัติไม่ได้: ${esc(s.ocrError)} — กรอกเองได้</div>` : ""}
     <div class="grid sm:grid-cols-3 gap-3 mb-3">
       <a href="${esc(s.fileUrl || s.previewUrl)}" target="_blank" rel="noopener" class="block border rounded-xl overflow-hidden bg-gray-50"><img src="${esc(s.previewUrl)}" alt="สลิป" style="width:100%;max-height:340px;object-fit:contain"></a>
