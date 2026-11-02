@@ -740,10 +740,31 @@ async function login() {
     document.body.classList.toggle("is-master", !!u.master);
     $("userLabel").textContent = u.name + (u.master ? " (Master)" : "");
     $("loginBox").classList.add("hidden");
-    busy(false); await loadAll(); showTab("single");
+    busy(false); await loadAll(); showTab("single"); pmImport();
   } catch (e) { busy(false); $("loginErr").textContent = e.message; }
 }
+/* ------------------------------ รับรายการจาก PM (ปุ่ม "ส่งเข้า PI" ในบิลสินค้าเข้า) ------------------------------ */
+function pmImport() {
+  let raw = ""; try { raw = sessionStorage.getItem("pi_pm_import") || ""; sessionStorage.removeItem("pi_pm_import"); } catch (e) {}
+  if (!raw) return;
+  try {
+    const json = decodeURIComponent(escape(atob(raw.replace(/-/g, "+").replace(/_/g, "/"))));
+    const P = JSON.parse(json), skip = [], add = [];
+    (P.items || []).forEach((it) => {
+      if (!it || (it.op !== "add" && it.op !== "update") || !it.fields) return;
+      const bc = normBc(it.op === "add" ? it.fields.Barcode : it.barcode);
+      if (!bc) return;
+      if (it.op === "add" && (S.byBc.has(bc) || queued(bc))) { skip.push(bc); return; }
+      if (it.op === "update" && !S.byBc.has(bc)) { skip.push(bc); return; }
+      add.push({ op: it.op, fields: it.fields, barcode: it.op === "update" ? bc : undefined, linkTo: it.linkTo || "", label: (it.label || "") + " · จาก PM " + (P.ref || ""), note: it.note || ("PM " + (P.ref || "")) });
+    });
+    if (add.length) addQ(add);
+    $("qPanel").classList.remove("hidden");
+    toast(`รับ ${add.length} รายการจาก PM (${P.ref || ""}) เข้าคิวแล้ว — ตรวจแล้วกด "บันทึกทั้งหมดลงชีต"` + (skip.length ? ` · ข้าม ${skip.length} (มีแล้ว/อยู่ในคิว)` : ""));
+  } catch (e) { toast("อ่านรายการจาก PM ไม่ได้: " + e.message, "err"); }
+}
 function init() {
+  try { if (location.hash.indexOf("#pm=") === 0) { sessionStorage.setItem("pi_pm_import", location.hash.slice(4)); history.replaceState(null, "", location.pathname + location.search); } } catch (e) {}
   $("cfgUrl").value = S.url;
   try { const p = sessionStorage.getItem("pi_pin"); if (p && S.url) { $("pinIn").value = p; login(); } } catch (e) {}
   $("loginBtn").onclick = login; $("pinIn").onkeydown = (e) => { if (e.key === "Enter") login(); };
