@@ -4202,14 +4202,14 @@ function billInboxHtml() {
   const st = { "อ่านแล้ว": "bg-teal-100 text-teal-800", "มีปัญหา": "bg-red-100 text-red-700", "รออ่าน": "bg-gray-100 text-gray-700" };
   return `<div class="card mb-3 border border-teal-200" id="billInbox">
     <div class="flex flex-wrap items-center gap-2 mb-2"><h3 class="font-bold mr-auto"><i class="fa-brands fa-line text-green-600"></i> บิลรอตรวจจาก LINE (${L.length})</h3>
-      <span class="text-xs muted">${S.boot.aiOn ? "อัปโหลด PDF / รูป หรือส่งรูปในกลุ่ม → AI อ่านให้ (ตรวจตัวเลขก่อนนำเข้า)" : "ส่งรูปบิลในกลุ่ม + พิมพ์ Sอ่านบิล → เครื่องร้านอ่านให้"} → ตรวจแล้วนำเข้าที่นี่</span></div>
+      <span class="text-xs muted">${S.boot.aiOn ? "อัปโหลด PDF / รูป หรือส่งรูป / PDF ในกลุ่ม + Sอ่านบิล → AI อ่านให้ (ตรวจตัวเลขก่อนนำเข้า)" : "ส่งรูปบิลในกลุ่ม + พิมพ์ Sอ่านบิล → เครื่องร้านอ่านให้"} → ตรวจแล้วนำเข้าที่นี่</span></div>
     ${L.map(r => {
       const D = r.data || {}, h = D.head || {}, its = D.items || [];
       return `<div class="flex flex-wrap items-center gap-3 py-2 px-2 rounded-lg border mb-1.5 ${r.status === "มีปัญหา" ? "border-red-200 bg-red-50/50" : "border-gray-100"}">
         <span class="chip ${st[r.status] || ""}">${esc(r.status === "รออ่าน" ? "รอเครื่องอ่าน" : r.status)}</span>${(r.data || {}).reader === "AI" ? `<span class="chip bg-violet-100 text-violet-800">AI</span>` : ""}
         <div class="flex-1 min-w-[220px]"><div class="font-semibold">${esc(r.docNo || r.fileName)}${h.seller ? ` <span class="text-xs muted font-normal">${esc(String(h.seller).replace(/^บริษัท\s*|\s*จำกัด.*$/g, ""))}</span>` : ""}</div>
           <div class="text-xs text-gray-600">${r.status === "อ่านแล้ว" ? `${its.length} รายการ · ยอด ${money((D.totals || {}).grand)}${(D.check || {}).ok ? " ✓" : " ✗ ยอดไม่ตรง"} · ` : ""}รับ ${esc(String(r.receivedAt || "").slice(5, 16))}${r.userName ? " · " + esc(r.userName) : ""}${r.note ? ` · <span class="${r.status === "มีปัญหา" ? "text-red-700" : "text-amber-700"}">${esc(r.note)}</span>` : ""}</div></div>
-        ${r.fileUrl ? `<a class="btn btn-w btn-s" href="${esc(r.fileUrl)}" target="_blank" rel="noopener"><i class="fa-regular fa-image"></i> รูป</a>` : ""}
+        ${r.fileUrl && r.fileId !== r.origFileId ? `<a class="btn btn-w btn-s" href="${esc(r.fileUrl)}" target="_blank" rel="noopener"><i class="fa-regular fa-image"></i> รูป</a>` : ""}
         ${r.origUrl ? `<a class="btn btn-w btn-s" href="${esc(r.origUrl)}" target="_blank" rel="noopener"><i class="fa-regular fa-file-pdf"></i> ไฟล์</a>` : ""}
         ${r.status === "อ่านแล้ว" ? `<button class="btn btn-p btn-s" onclick="run(() => ebillFromInbox(${jsq(r.msgId)}))">ตรวจและนำเข้า</button>` : ""}
         ${r.status === "รออ่าน" && S.boot.aiOn ? `<button class="btn btn-p btn-s" onclick="billInboxAi(${jsq(r.msgId)}, this)" title="ให้ AI อ่านบิลนี้เลย (ไม่ต้องรอเครื่องร้าน)"><i class="fa-solid fa-wand-magic-sparkles"></i> อ่านด้วย AI</button>` : ""}
