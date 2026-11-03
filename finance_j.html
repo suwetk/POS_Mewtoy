@@ -140,9 +140,9 @@ const fmt0 = (n) => (n || 0).toLocaleString("th-TH", { maximumFractionDigits: 0 
 const r2 = (n) => Math.round(n * 100) / 100;
 const pad = (n) => String(n).padStart(2, "0");
 const iso = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
-const TH_M = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-const TH_D = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
-const thDate = (k) => { const [y, m, d] = k.split("-").map(Number); return d + " " + TH_M[m - 1] + " " + String(y + 543).slice(2); };
+const TH_M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const TH_D = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const thDate = (k) => { const [y, m, d] = k.split("-").map(Number); return d + " " + TH_M[m - 1] + " " + String(y).slice(2); };
 const dow = (k) => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d).getDay(); };
 const M_NAME = { cash: "เงินสด", xfer: "โอน", card: "บัตร", copay: "คนละครึ่ง", other: "อื่นๆ" };
 const SRC_NAME = { sale: "บิลขาย", deposit: "มัดจำ", ws: "WS" };
@@ -303,7 +303,7 @@ function renderShell() {
     <div class="quick"><button class="btn" id="btnReload">↻ โหลดใหม่</button><button class="btn" id="btnSettings">⚙️ ตั้งค่า</button><button class="btn" id="btnXlsx">📊 Excel</button><button class="btn" onclick="window.print()">🖨️ พิมพ์</button></div></header>
   <div class="filters">
     <span class="seg" id="mode"><button data-m="month">เลือกเดือน</button><button data-m="range">เลือกช่วงวันที่</button></span>
-    <label class="f" id="fMonth">เดือน <select id="month">${months.map((m) => { const [y, mm] = m.split("-").map(Number); return `<option value="${m}">${TH_M[mm - 1]} ${y + 543}</option>`; }).join("")}</select></label>
+    <label class="f" id="fMonth">เดือน <select id="month">${months.map((m) => { const [y, mm] = m.split("-").map(Number); return `<option value="${m}">${TH_M[mm - 1]} ${String(y).slice(2)}</option>`; }).join("")}</select></label>
     <span id="fRange"><label class="f">จาก <input type="date" id="from"></label> <label class="f">ถึง <input type="date" id="to"></label></span>
     <span class="quick" id="quick"><button data-q="today">วันนี้</button><button data-q="yday">เมื่อวาน</button><button data-q="7">7 วันล่าสุด</button><button data-q="thism">เดือนนี้</button><button data-q="lastm">เดือนก่อน</button></span>
     <label class="f">สาขา <select id="branch"><option value="">ทุกสาขา</option></select></label>
