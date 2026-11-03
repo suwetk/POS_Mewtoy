@@ -13,6 +13,7 @@
     --card-c: #5b3fd1; --xfer-c: #1d63c9; --cash-c: #2f8a4e; --half-c: #c2410c;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 'IBM Plex Sans Thai', 'Segoe UI', Tahoma, sans-serif; }
   .wrap { max-width: 1180px; margin: 0 auto; padding: 18px 16px 48px; }
   header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
@@ -93,6 +94,14 @@
   .login { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px; width: 100%; max-width: 340px; display: grid; gap: 12px; }
   .login input { font-size: 22px; letter-spacing: .3em; text-align: center; padding: 10px; }
   .err { color: var(--bad); font-size: 13px; min-height: 18px; }
+  .ldst { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 12.5px; color: var(--mute); min-height: 20px; flex-wrap: wrap; }
+  .ldbar { flex: 1; min-width: 120px; max-width: 360px; height: 4px; background: #e5ece9; border-radius: 4px; overflow: hidden; }
+  .ldbar span { display: block; height: 100%; width: 30%; background: var(--brand); animation: ldmv 1.1s infinite ease-in-out; }
+  @keyframes ldmv { 0% { margin-left: -30%; } 100% { margin-left: 100%; } }
+  @media (prefers-reduced-motion: reduce) { .ldbar span { animation: none; width: 100%; opacity: .5; } }
+  .dim { opacity: .45; pointer-events: none; transition: opacity .2s; }
+  input.changed { border-color: #d97706; background: #fffbeb; }
+  #applyRange.pulse { box-shadow: 0 0 0 3px #fcd34d; }
   .loading { position: fixed; inset: 0; background: rgba(243,245,244,.6); display: grid; place-items: center; z-index: 50; font-weight: 600; color: var(--brand); }
   .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: #14201c; color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 60; }
   .modal { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: grid; place-items: center; z-index: 40; padding: 16px; }
@@ -173,9 +182,9 @@ function buildIndex() {
   const byDay = {}; const branches = {};
   D.recs.forEach((r) => {
     r.key = r.id + "#" + r.method;
-    r.origAcct = r.acct;
+    if (r.origAcct === undefined) r.origAcct = r.acct;
     const f = fixBy[r.key]; r.fix = f || null;
-    if (f && r.method === "xfer") r.acct = f.to;
+    r.acct = f && r.method === "xfer" ? f.to : r.origAcct;
     (byDay[r.date] = byDay[r.date] || []).push(r);
     if (r.branch) branches[r.branch] = true;
   });
@@ -304,11 +313,13 @@ function renderShell() {
   <div class="filters">
     <span class="seg" id="mode"><button data-m="month">เลือกเดือน</button><button data-m="range">เลือกช่วงวันที่</button></span>
     <label class="f" id="fMonth">เดือน <select id="month">${months.map((m) => { const [y, mm] = m.split("-").map(Number); return `<option value="${m}">${TH_M[mm - 1]} ${String(y).slice(2)}</option>`; }).join("")}</select></label>
-    <span id="fRange"><label class="f">จาก <input type="date" id="from"></label> <label class="f">ถึง <input type="date" id="to"></label></span>
+    <span id="fRange"><label class="f">จาก <input type="date" id="from"></label> <label class="f">ถึง <input type="date" id="to"></label>
+      <button class="btn pri" id="applyRange" type="button" disabled>ดูข้อมูล</button></span>
     <span class="quick" id="quick"><button data-q="today">วันนี้</button><button data-q="yday">เมื่อวาน</button><button data-q="7">7 วันล่าสุด</button><button data-q="thism">เดือนนี้</button><button data-q="lastm">เดือนก่อน</button></span>
     <label class="f">สาขา <select id="branch"><option value="">ทุกสาขา</option></select></label>
     <span class="range-txt" id="rangeTxt"></span>
   </div>
+  <div class="ldst" id="loadStatus"></div>
   <div class="kpis" id="kpis"></div>
   <div class="tabs" id="tabs"><button data-t="over">ภาพรวมรายวัน</button><button data-t="card">💳 บัตรเครดิต <span class="cnt" id="cardCnt" hidden></span></button><button data-t="bank">🏦 เงินเข้าแต่ละธนาคาร <span class="cnt" id="bankCnt" hidden></span></button></div>
   <div class="panel" id="panel"><p class="muted">กำลังโหลด…</p></div>
@@ -317,8 +328,17 @@ function renderShell() {
   setMode(st.mode);
   $$("#mode button").forEach((x) => x.onclick = () => { setMode(x.dataset.m); load(); });
   $("#month").onchange = () => { st.month = $("#month").value; st.open = null; load(); };
-  $("#from").onchange = () => { st.from = $("#from").value; load(); };
-  $("#to").onchange = () => { st.to = $("#to").value; load(); };
+  // ช่วงวันที่: เลือก "จาก" "ถึง" ให้ครบก่อน แล้วกด "ดูข้อมูล" (หรือ Enter) ถึงจะโหลด
+  ["#from", "#to"].forEach((id) => {
+    $(id).oninput = rangeDirty; $(id).onchange = rangeDirty;
+    $(id).onkeydown = (e) => { if (e.key === "Enter" && !$("#applyRange").disabled) $("#applyRange").click(); };
+  });
+  $("#applyRange").onclick = () => {
+    let f = $("#from").value, t = $("#to").value;
+    if (!f || !t) { toast("เลือกวันที่ให้ครบทั้ง 2 ช่อง"); return; }
+    if (f > t) { const x = f; f = t; t = x; $("#from").value = f; $("#to").value = t; }
+    st.from = f; st.to = t; st.open = null; rangeDirty(); load();
+  };
   $("#branch").onchange = (e) => { st.branch = e.target.value; render(); };
   $$("#quick button").forEach((x) => x.onclick = () => {
     const q = x.dataset.q, t = new Date(TODAY);
@@ -328,29 +348,73 @@ function renderShell() {
     st.open = null; load();
   });
   $$("#tabs button").forEach((x) => x.onclick = () => { st.tab = x.dataset.t; st.open = null; render(); });
-  $("#btnReload").onclick = () => load();
+  $("#btnReload").onclick = () => load(true);
   $("#btnSettings").onclick = openSettings;
   $("#btnXlsx").onclick = exportXlsx;
 }
-function setMode(m) { st.mode = m; $$("#mode button").forEach((x) => x.classList.toggle("on", x.dataset.m === m)); $("#fMonth").hidden = m !== "month"; $("#fRange").hidden = m !== "range"; }
+function setMode(m) { st.mode = m; $$("#mode button").forEach((x) => x.classList.toggle("on", x.dataset.m === m)); $("#fMonth").hidden = m !== "month"; $("#fRange").hidden = m !== "range"; rangeDirty(); }
+function rangeDirty() {
+  const f = $("#from"), t = $("#to"), b = $("#applyRange"); if (!f || !b) return;
+  const ch = f.value !== st.from || t.value !== st.to;
+  f.classList.toggle("changed", f.value !== st.from); t.classList.toggle("changed", t.value !== st.to);
+  b.disabled = !ch; b.classList.toggle("pulse", ch);
+}
 
+/* ---- โหลดทีละเดือน + จำไว้ในเครื่อง (2026-11-03-d) ----
+   G.months[yyyy-MM] = รายการเงินเข้าของเดือนนั้น · เปลี่ยนวันที่ภายในเดือนที่โหลดแล้ว = กรองในเครื่อง ทันที
+   ยอดที่พิมพ์ / ย้ายบัญชี เก็บรวมใน G (key มีวันที่อยู่แล้ว) · ↻ โหลดใหม่ = force ทุกเดือนในช่วง */
+const G = { months: {}, bankIn: {}, settle: {}, fixes: {}, accounts: [], settings: {}, salesName: "", version: "" };
+function monthsIn(a, b) {
+  const out = []; let y = Number(a.slice(0, 4)), m = Number(a.slice(5, 7));
+  const ey = Number(b.slice(0, 4)), em = Number(b.slice(5, 7));
+  while (y < ey || (y === ey && m <= em)) { out.push(y + "-" + pad(m)); m++; if (m > 12) { m = 1; y++; } }
+  return out;
+}
+function mergeMonth_(mo, d) {
+  G.months[mo] = { recs: d.recs, loadedAt: d.loadedAt, cached: d.cached };
+  const own = (k) => k.slice(0, 7) === mo;
+  Object.keys(G.bankIn).forEach((k) => { if (own(k)) delete G.bankIn[k]; }); Object.assign(G.bankIn, d.bankIn);
+  Object.keys(G.settle).forEach((k) => { if (own(k)) delete G.settle[k]; }); Object.assign(G.settle, d.settle);
+  Object.keys(G.fixes).forEach((id) => { if (own(G.fixes[id].date)) delete G.fixes[id]; }); d.fixes.forEach((f) => { G.fixes[f.fixId] = f; });
+  G.accounts = d.accounts; G.settings = d.settings; G.salesName = d.salesName; G.version = d.version; st.user = d.user;
+}
+function compose() {
+  const [a, b] = range();
+  const recs = [];
+  monthsIn(a, b).forEach((mo) => { const M = G.months[mo]; if (M) M.recs.forEach((r) => { if (r.date >= a && r.date <= b) recs.push(r); }); });
+  st.data = { accounts: G.accounts, settings: G.settings, salesName: G.salesName, user: st.user, recs: recs,
+    bankIn: G.bankIn, settle: G.settle, fixes: Object.values(G.fixes).filter((f) => f.date >= a && f.date <= b) };
+  buildIndex();
+  if (!st.acct || bankAccts().indexOf(st.acct) === -1) st.acct = (G.accounts.find((x) => x.isDefault) || G.accounts[0] || { id: "" }).id;
+  const bs = $("#branch"); const cur = st.branch;
+  bs.innerHTML = '<option value="">ทุกสาขา</option>' + IDX.branches.map((x) => `<option>${esc(x)}</option>`).join("");
+  bs.value = IDX.branches.indexOf(cur) !== -1 ? cur : ""; st.branch = bs.value;
+  $("#whoLine").textContent = "ผู้ใช้: " + st.user + " · ยอดจาก " + G.salesName + " เทียบยอดเข้าบัญชีจริง";
+  $("#footLine").textContent = G.version + " · อ่านไฟล์ POS อย่างเดียว ไม่แก้บิล";
+  render();
+}
+function statusIdle(instant) {
+  const [a, b] = range();
+  const info = monthsIn(a, b).map((mo) => G.months[mo]).filter(Boolean).map((M) => M.loadedAt.slice(11, 16));
+  const oldest = info.sort()[0] || "";
+  $("#loadStatus").innerHTML = (instant ? "⚡ ขึ้นทันทีจากข้อมูลที่โหลดไว้แล้ว · " : "") + "ข้อมูลจาก POS ณ " + esc(oldest) + " น. · กด ↻ โหลดใหม่ ถ้าต้องการยอดล่าสุด";
+}
 let loadSeq = 0;
-async function load() {
+async function load(force) {
   const [a, b] = range(); const my = ++loadSeq;
-  loading(true);
+  const need = monthsIn(a, b).filter((mo) => force || !G.months[mo]);
+  if (!need.length) { compose(); statusIdle(true); return; }
+  ["#panel", "#kpis"].forEach((id) => $(id).classList.add("dim"));
+  $("#loadStatus").innerHTML = `<span>กำลังโหลด ${need.map((mo) => TH_M[Number(mo.slice(5)) - 1] + " " + mo.slice(2, 4)).join(", ")}…</span><span class="ldbar"><span></span></span>`;
   try {
-    const d = await call("getData", { from: a, to: b });
+    const res = await Promise.all(need.map((mo) => call("getMonth", { month: mo, force: !!force }).then((d) => [mo, d])));
+    res.forEach(([mo, d]) => mergeMonth_(mo, d));
     if (my !== loadSeq) return;
-    st.data = d; st.user = d.user; buildIndex();
-    if (!st.acct || bankAccts().indexOf(st.acct) === -1) st.acct = (st.data.accounts.find((x) => x.isDefault) || st.data.accounts[0] || { id: "" }).id;
-    const bs = $("#branch"); const cur = st.branch;
-    bs.innerHTML = '<option value="">ทุกสาขา</option>' + IDX.branches.map((x) => `<option>${esc(x)}</option>`).join("");
-    bs.value = IDX.branches.indexOf(cur) !== -1 ? cur : ""; st.branch = bs.value;
-    $("#whoLine").textContent = "ผู้ใช้: " + d.user + " · ยอดจาก " + d.salesName + " เทียบยอดเข้าบัญชีจริง";
-    $("#footLine").textContent = "โหลดเมื่อ " + d.loadedAt + " · " + d.version + " · อ่านไฟล์ POS อย่างเดียว ไม่แก้บิล";
-    render();
-  } catch (e) { if (e.message !== "SESSION_EXPIRED") toast("โหลดไม่สำเร็จ: " + e.message); }
-  finally { if (my === loadSeq) loading(false); }
+    compose(); statusIdle(false);
+  } catch (e) {
+    if (my === loadSeq) $("#loadStatus").textContent = e.message === "SESSION_EXPIRED" ? "" : "โหลดไม่สำเร็จ: " + e.message + " — กด ↻ โหลดใหม่";
+    if (e.message !== "SESSION_EXPIRED") toast("โหลดไม่สำเร็จ: " + e.message);
+  } finally { if (my === loadSeq) ["#panel", "#kpis"].forEach((id) => { const el = $(id); if (el) el.classList.remove("dim"); }); }
 }
 
 function render() {
@@ -519,17 +583,17 @@ function wirePanel(p) {
   $$("button[data-undo]", p).forEach((bt) => bt.onclick = async (e) => {
     e.stopPropagation();
     if (!confirm("ยกเลิกการแก้บัญชีรายการนี้? (กลับไปใช้บัญชีตามบิลเดิม)")) return;
-    try { await call("undoFix", { fixId: bt.dataset.undo }); toast("ยกเลิกแล้ว"); load(); } catch (err) { toast(err.message); }
+    try { await call("undoFix", { fixId: bt.dataset.undo }); delete G.fixes[bt.dataset.undo]; toast("ยกเลิกแล้ว"); compose(); } catch (err) { toast(err.message); }
   });
 }
 async function saveFix(r, to) {
-  if (to === r.origAcct) { if (r.fix) { try { await call("undoFix", { fixId: r.fix.fixId }); toast("กลับเป็นบัญชีเดิมแล้ว"); load(); } catch (e) { toast(e.message); } } return; }
+  if (to === r.origAcct) { if (r.fix) { try { await call("undoFix", { fixId: r.fix.fixId }); delete G.fixes[r.fix.fixId]; toast("กลับเป็นบัญชีเดิมแล้ว"); compose(); } catch (e) { toast(e.message); } } return; }
   if (!confirm(`ย้าย ${r.id} ฿${fmt(r.amount)} ไปบัญชี ${short(to)}?\n(บันทึกในไฟล์ตรวจยอด ไม่แก้บิลใน POS)`)) { render(); return; }
   try {
     const res = await call("saveFix", { date: r.date, ref: r.key, amount: r.amount, from: r.origAcct, to: to, note: "" });
-    if (r.fix) st.data.fixes = st.data.fixes.filter((f) => f.fixId !== r.fix.fixId);
-    st.data.fixes.push({ fixId: res.fixId, date: r.date, ref: r.key, amount: r.amount, from: r.origAcct, to: to, by: st.user, at: "" });
-    st.data.recs.forEach((x) => { x.acct = x.origAcct; }); buildIndex(); toast("ย้ายบัญชีแล้ว"); render();
+    if (r.fix) delete G.fixes[r.fix.fixId];
+    G.fixes[res.fixId] = { fixId: res.fixId, date: r.date, ref: r.key, amount: r.amount, from: r.origAcct, to: to, by: st.user, at: "" };
+    toast("ย้ายบัญชีแล้ว"); compose();
   } catch (e) { toast("บันทึกไม่สำเร็จ: " + e.message); }
 }
 
@@ -555,7 +619,11 @@ function openSettings() {
   $("#sSave", m).onclick = async () => {
     const e2 = {}; $$("select[data-edc]", m).forEach((s) => { if (s.value) e2[s.dataset.edc] = s.value; });
     const payload = { CARD_FEE_PCT: $("#sFee", m).value, FEE_TOLERANCE_PCT: $("#sFeeTol", m).value, TOLERANCE: $("#sTol", m).value, EDC_ACCOUNTS: e2, COPAY_ACCOUNT: $("#sCopay", m).value };
-    try { await call("saveSettings", { settings: payload }); m.remove(); toast("บันทึกการตั้งค่าแล้ว"); load(); } catch (err) { toast(err.message); }
+    try {
+      await call("saveSettings", { settings: payload }); m.remove(); toast("บันทึกการตั้งค่าแล้ว");
+      ["CARD_FEE_PCT", "FEE_TOLERANCE_PCT", "TOLERANCE"].forEach((k) => { G.settings[k] = String(Number(payload[k])); });
+      G.settings.EDC_ACCOUNTS = payload.EDC_ACCOUNTS; G.settings.COPAY_ACCOUNT = payload.COPAY_ACCOUNT; compose();
+    } catch (err) { toast(err.message); }
   };
 }
 
