@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="th">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ตรวจยอดบัตร × การเงิน</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --bg: #f3f5f4; --card: #ffffff; --ink: #14201c; --mute: #5d6b66; --line: #dfe5e2;
+    --brand: #0f6b5c; --brand-soft: #e3f1ed;
+    --ok: #157347; --ok-soft: #e4f4ea; --warn: #a15c00; --warn-soft: #fdf1dc; --bad: #b42318; --bad-soft: #fde8e6;
+    --card-c: #5b3fd1; --xfer-c: #1d63c9; --cash-c: #2f8a4e; --half-c: #c2410c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 'IBM Plex Sans Thai', 'Segoe UI', Tahoma, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 18px 16px 48px; }
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+  .who { color: var(--mute); font-size: 13px; }
+  .filters { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; gap: 12px 18px; flex-wrap: wrap; align-items: center; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; background: #fff; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; color: var(--ink); }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--brand); color: #fff; font-weight: 600; }
+  label.f { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--mute); }
+  input, select { font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid #c9d3cf; border-radius: 7px; background: #fff; color: var(--ink); }
+  input:focus, select:focus, button:focus-visible { outline: 2px solid #7cc4b4; outline-offset: 1px; }
+  .quick { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+  .quick button { border: 1px solid var(--line); background: #f8faf9; border-radius: 99px; padding: 3px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+  .quick button:hover { border-color: var(--brand); color: var(--brand); }
+  .range-txt { margin-left: auto; font-weight: 600; font-size: 13px; color: var(--brand); }
+  .kpis { display: grid; grid-template-columns: 1.3fr repeat(5, 1fr); gap: 10px; margin: 14px 0; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+  .kpi .k { font-size: 12px; color: var(--mute); display: flex; align-items: center; gap: 6px; }
+  .kpi .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .kpi .v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .kpi .s { font-size: 12px; color: var(--mute); }
+  .kpi.total { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .kpi.total .k, .kpi.total .s { color: #cfe9e2; }
+  .bar { height: 10px; border-radius: 6px; overflow: hidden; display: flex; background: rgba(255,255,255,.2); margin: 4px 0 2px; }
+  .bar span { height: 100%; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-top: 6px; overflow-x: auto; }
+  .tabs button { border: 0; background: none; font: inherit; font-weight: 600; padding: 9px 14px; cursor: pointer; color: var(--mute); border-bottom: 2.5px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+  .tabs button.on { color: var(--brand); border-bottom-color: var(--brand); }
+  .tabs .cnt { font-size: 11px; padding: 0 6px; border-radius: 99px; margin-left: 4px; background: var(--bad-soft); color: var(--bad); }
+  .panel { background: var(--card); border: 1px solid var(--line); border-top: 0; border-radius: 0 0 12px 12px; padding: 14px; }
+  .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .panel-head p { margin: 0; color: var(--mute); font-size: 13px; }
+  .btn { border: 1px solid var(--brand); background: #fff; color: var(--brand); border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn.pri { background: var(--brand); color: #fff; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .tw { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  th { text-align: right; color: var(--mute); font-weight: 600; font-size: 12px; padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; background: #fafcfb; }
+  th.l, td.l { text-align: left; }
+  td { padding: 7px 8px; border-bottom: 1px solid #eef2f0; text-align: right; white-space: nowrap; }
+  tr.day { cursor: pointer; }
+  tr.day:hover td { background: #f6faf8; }
+  tr.sum td { font-weight: 700; background: #f3f7f5; border-top: 1.5px solid #c9d3cf; }
+  tr.detail > td { background: #fbfcfc; padding: 0 8px 10px 24px; text-align: left; white-space: normal; }
+  .weekend { color: var(--mute); }
+  .pill { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 1px 8px; border-radius: 99px; white-space: nowrap; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.mute { background: #eef1f0; color: var(--mute); }
+  td input.amt { width: 120px; text-align: right; font-variant-numeric: tabular-nums; }
+  td input.amt.empty { border-color: #e6b866; background: #fffaf0; }
+  td input.amt.saving { opacity: .55; }
+  .muted { color: var(--mute); }
+  .neg { color: var(--bad); }
+  .sub { font-size: 11.5px; color: var(--mute); }
+  .bills { width: auto; min-width: 60%; margin-top: 6px; }
+  .bills td, .bills th { padding: 3px 10px; font-size: 12px; background: transparent; }
+  .bills td.desc { white-space: normal; max-width: 360px; color: var(--mute); }
+  .src { font-size: 10.5px; font-weight: 700; padding: 0 6px; border-radius: 99px; background: #eef1f0; color: var(--mute); }
+  .src.deposit { background: #fce7f3; color: #9d174d; }
+  .src.ws { background: #e0f2fe; color: #075985; }
+  .acct { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .acct button.a { border: 1px solid var(--line); border-left: 4px solid var(--ac); border-radius: 10px; padding: 10px 12px; text-align: left; background: #fff; font: inherit; color: inherit; cursor: pointer; }
+  .acct button.a.on { background: var(--brand-soft); border-color: var(--brand); border-left-color: var(--ac); box-shadow: 0 0 0 1px var(--brand); }
+  .acct b { font-size: 17px; font-variant-numeric: tabular-nums; }
+  .bdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .sug { border: 1.5px solid #f2b8b5; background: #fff8f7; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
+  .sug-h { font-size: 14px; margin-bottom: 6px; }
+  .sug-r { display: grid; grid-template-columns: 1.2fr 1.4fr auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px dashed #f2cfcc; font-size: 13px; }
+  .sug-r.done { color: var(--ok); }
+  .sug-a { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .mono { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .hint { color: var(--bad); font-weight: 600; }
+  .center { display: grid; place-items: center; min-height: 70vh; }
+  .login { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px; width: 100%; max-width: 340px; display: grid; gap: 12px; }
+  .login input { font-size: 22px; letter-spacing: .3em; text-align: center; padding: 10px; }
+  .err { color: var(--bad); font-size: 13px; min-height: 18px; }
+  .loading { position: fixed; inset: 0; background: rgba(243,245,244,.6); display: grid; place-items: center; z-index: 50; font-weight: 600; color: var(--brand); }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: #14201c; color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 60; }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: grid; place-items: center; z-index: 40; padding: 16px; }
+  .modal > div { background: #fff; border-radius: 12px; width: 100%; max-width: 520px; max-height: 90vh; overflow: auto; padding: 18px; display: grid; gap: 10px; }
+  .modal h3 { margin: 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; align-items: center; }
+  select.fixsel { font-size: 12px; padding: 2px 4px; }
+  @media (max-width: 980px) { .kpis { grid-template-columns: repeat(2, 1fr); } .kpi.total { grid-column: 1 / -1; } .range-txt { margin-left: 0; width: 100%; } }
+  @media (max-width: 700px) { .sug-r { grid-template-columns: 1fr; } .sug-a { justify-content: flex-start; } }
+  @media print { .filters, .tabs .cnt, header .quick, .sug-a, .no-print { display: none !important; } body { background: #fff; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* =================== ตัวเชื่อมกับ Apps Script =================== */
+let TOKEN = "";
+try { TOKEN = sessionStorage.getItem("fc_token") || ""; } catch (e) { /* ignore */ }
+function call(action, payload) {
+  return new Promise((resolve, reject) => {
+    google.script.run
+      .withSuccessHandler((r) => {
+        if (r && r.ok) return resolve(r);
+        const msg = (r && r.error) || "เกิดข้อผิดพลาด";
+        if (msg === "SESSION_EXPIRED") { setToken(""); renderLogin("หมดเวลาใช้งาน ใส่ PIN ใหม่"); }
+        reject(new Error(msg));
+      })
+      .withFailureHandler(reject)
+      .api(Object.assign({ action: action, token: TOKEN }, payload || {}));
+  });
+}
+function setToken(t) { TOKEN = t; try { t ? sessionStorage.setItem("fc_token", t) : sessionStorage.removeItem("fc_token"); } catch (e) { /* ignore */ } }
+
+/* =================== util =================== */
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = (n) => (n || 0).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt0 = (n) => (n || 0).toLocaleString("th-TH", { maximumFractionDigits: 0 });
+const r2 = (n) => Math.round(n * 100) / 100;
+const pad = (n) => String(n).padStart(2, "0");
+const iso = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+const TH_M = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+const TH_D = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
+const thDate = (k) => { const [y, m, d] = k.split("-").map(Number); return d + " " + TH_M[m - 1] + " " + String(y + 543).slice(2); };
+const dow = (k) => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d).getDay(); };
+const M_NAME = { cash: "เงินสด", xfer: "โอน", card: "บัตร", copay: "คนละครึ่ง", other: "อื่นๆ" };
+const SRC_NAME = { sale: "บิลขาย", deposit: "มัดจำ", ws: "WS" };
+function toast(msg) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
+function loading(on) { let el = $("#loading"); if (on && !el) { el = document.createElement("div"); el.id = "loading"; el.className = "loading"; el.textContent = "กำลังโหลด…"; document.body.appendChild(el); } if (!on && el) el.remove(); }
+
+/* =================== state =================== */
+const TODAY = new Date();
+const st = { mode: "month", month: iso(TODAY).slice(0, 7), from: iso(new Date(TODAY.getFullYear(), TODAY.getMonth(), 1)), to: iso(TODAY),
+  branch: "", tab: "over", open: null, acct: "", data: null, user: "" };
+const UNASSIGNED = "";   // บัญชี "ไม่ระบุ" (โอนที่ไม่ได้เลือกบัญชีตอนขาย)
+
+function range() {
+  if (st.mode === "month") { const [y, m] = st.month.split("-").map(Number); return [st.month + "-01", st.month + "-" + pad(new Date(y, m, 0).getDate())]; }
+  return st.from <= st.to ? [st.from, st.to] : [st.to, st.from];
+}
+function days() {
+  const [a, b] = range(); const out = []; const end = b < iso(TODAY) ? b : iso(TODAY);
+  for (let d = new Date(a + "T00:00:00"); iso(d) <= end; d.setDate(d.getDate() + 1)) out.push(iso(d));
+  return out;
+}
+
+/* =================== คำนวณ =================== */
+let IDX = null; // index ของข้อมูลที่โหลด
+function buildIndex() {
+  const D = st.data; const fixBy = {};
+  D.fixes.forEach((f) => { fixBy[f.ref] = f; });
+  const byDay = {}; const branches = {};
+  D.recs.forEach((r) => {
+    r.key = r.id + "#" + r.method;
+    r.origAcct = r.acct;
+    const f = fixBy[r.key]; r.fix = f || null;
+    if (f && r.method === "xfer") r.acct = f.to;
+    (byDay[r.date] = byDay[r.date] || []).push(r);
+    if (r.branch) branches[r.branch] = true;
+  });
+  Object.keys(D.settings.EDC_ACCOUNTS || {}).forEach((b) => { branches[b] = true; });
+  IDX = { byDay, branches: Object.keys(branches).sort(), fixBy };
+}
+const feeRate = () => (Number(st.data.settings.CARD_FEE_PCT) || 0) / 100;
+const tol = () => Number(st.data.settings.TOLERANCE) || 1;
+const recsOf = (k, allBranches) => (IDX.byDay[k] || []).filter((r) => allBranches || !st.branch || r.branch === st.branch);
+const acctById = (id) => id === UNASSIGNED ? { id: "", label: "ไม่ระบุบัญชี", bank: "โอนที่ไม่ได้เลือกบัญชีตอนขาย", color: "#9ca3af", accountNo: "" }
+  : (st.data.accounts.find((a) => a.id === id) || { id: id, label: id.charAt(0) === "?" ? id.slice(1) : "บัญชี " + id, bank: "ไม่อยู่ในรายชื่อ", color: "#64748b", accountNo: "" });
+const short = (id) => acctById(id).label.replace(/^ธนาคาร\s*/, "");
+
+function dayAgg(k) {
+  const o = { cash: 0, xfer: 0, card: 0, copay: 0, other: 0, bills: {}, recs: recsOf(k) };
+  o.recs.forEach((r) => { o[r.method] += r.amount; o.bills[r.id] = 1; });
+  o.n = Object.keys(o.bills).length;
+  o.total = o.cash + o.xfer + o.card + o.copay + o.other;
+  return o;
+}
+function cardPos(k, b) { return r2(recsOf(k, true).filter((r) => r.method === "card" && r.branch === b).reduce((s, r) => s + r.amount, 0)); }
+function cardCheck(k) {
+  let pos = 0, settled = 0, missing = 0, any = 0;
+  const brs = st.branch ? [st.branch] : IDX.branches;
+  brs.forEach((b) => {
+    const c = cardPos(k, b); if (!c) return; any++; pos += c;
+    const v = st.data.settle[k + "|" + b];
+    if (!v) missing++; else settled += v.amount;
+  });
+  if (!any) return { pos: 0, status: "none" };
+  if (missing) return { pos, settled, status: missing === any ? "empty" : "partial" };
+  const fee = r2(pos - settled), rate = fee / pos;
+  const ftol = (Number(st.data.settings.FEE_TOLERANCE_PCT) || 0.1) / 100;
+  return { pos, settled, fee, rate, expect: pos * (1 - feeRate()), status: Math.abs(rate - feeRate()) <= ftol + 1e-9 ? "ok" : "diff" };
+}
+const STATUS = { ok: '<span class="pill ok">✓ ตรง</span>', diff: '<span class="pill bad">⚠️ ต่าง</span>', empty: '<span class="pill warn">ยังไม่ใส่ยอด</span>',
+  partial: '<span class="pill warn">ใส่ไม่ครบสาขา</span>', none: '<span class="pill mute">ไม่มีบัตร</span>' };
+
+/* ----- ธนาคาร (รวมทุกสาขาเสมอ — statement ไม่แยกสาขา) ----- */
+function bankAccts() {
+  const ids = st.data.accounts.map((a) => a.id);
+  const extra = {};
+  st.data.recs.forEach((r) => { if (r.method === "xfer" && ids.indexOf(r.acct) === -1) extra[r.acct] = 1; });
+  return ids.concat(Object.keys(extra).sort());
+}
+function expectedIn(k, acctId) {
+  let xfer = 0, card = 0, copay = 0, cardEst = false;
+  const edc = st.data.settings.EDC_ACCOUNTS || {}, cp = st.data.settings.COPAY_ACCOUNT || "";
+  recsOf(k, true).forEach((r) => {
+    if (r.method === "xfer" && r.acct === acctId) xfer += r.amount;
+    if (r.method === "copay" && cp && cp === acctId) copay += r.amount;
+  });
+  if (acctId !== UNASSIGNED) IDX.branches.forEach((b) => {
+    if (String(edc[b] || "") !== acctId) return;
+    const c = cardPos(k, b); if (!c) return;
+    const v = st.data.settle[k + "|" + b];
+    if (v) card += v.amount; else { card += c * (1 - feeRate()); cardEst = true; }
+  });
+  return { xfer: r2(xfer), card: r2(card), copay: r2(copay), cardEst, total: r2(xfer + card + copay) };
+}
+function bankDay(k, acctId) {
+  const e = expectedIn(k, acctId);
+  if (acctId === UNASSIGNED || acctId.charAt(0) === "?") return Object.assign(e, e.total ? { status: "unassigned", diff: -e.total } : { status: "none" });
+  const v = st.data.bankIn[k + "|" + acctId];
+  if (!e.total && !v) return Object.assign(e, { status: "none" });
+  if (!v) return Object.assign(e, { status: "empty" });
+  const diff = r2(v.amount - e.total);
+  return Object.assign(e, { actual: v.amount, diff, status: Math.abs(diff) <= tol() ? "ok" : "diff" });
+}
+const BSTATUS = { ok: '<span class="pill ok">✓ ตรง</span>', diff: '<span class="pill bad">⚠️ ต่าง</span>', empty: '<span class="pill warn">ยังไม่ใส่ยอด</span>',
+  none: '<span class="pill mute">ไม่มีเงินเข้า</span>', unassigned: '<span class="pill warn">รอระบุบัญชี</span>' };
+/* หาบิลที่น่าจะเลือกบัญชีผิด: บัญชีที่ "เข้าเกิน" X บาท ↔ รายการโอนยอด X ในบัญชีที่ "ขาด"/ไม่ระบุ วันเดียวกัน */
+function suggestions(k) {
+  const ds = bankAccts().map((id) => ({ id, r: bankDay(k, id) }));
+  const pos = ds.filter((x) => x.r.status === "diff" && x.r.diff > tol());
+  const neg = ds.filter((x) => (x.r.status === "diff" && x.r.diff < -tol()) || x.r.status === "unassigned");
+  const out = [];
+  pos.forEach((p) => {
+    const cands = [];
+    neg.forEach((n) => recsOf(k, true).forEach((r) => { if (r.method === "xfer" && r.acct === n.id && Math.abs(r.amount - p.r.diff) <= tol()) cands.push(r); }));
+    if (!cands.length) return;
+    const strong = neg.find((n) => Math.abs(n.r.diff + p.r.diff) <= tol());
+    out.push({ k, to: p.id, amt: p.r.diff, cands, strong: !!strong });
+  });
+  return out;
+}
+function bankStats(ds) {
+  const o = { diff: 0, empty: 0, unassigned: 0, per: {} };
+  bankAccts().forEach((id) => {
+    const p = o.per[id] = { exp: 0, act: 0, bad: 0, empty: 0, n: 0 };
+    ds.forEach((k) => { const d = bankDay(k, id); if (d.status === "none") return; p.n++;
+      p.exp += d.total; if (d.actual != null) p.act += d.actual;
+      if (d.status === "diff") { p.bad++; o.diff++; } if (d.status === "empty") { p.empty++; o.empty++; } if (d.status === "unassigned") o.unassigned++; });
+  });
+  return o;
+}
+
+/* =================== หน้าจอ =================== */
+function renderLogin(msg) {
+  $("#app").innerHTML = `<div class="center"><form class="login" id="loginForm">
+    <div><h1 style="font-size:19px">ตรวจยอดบัตร × การเงิน</h1><div class="who">ใส่ PIN เพื่อเข้าใช้งาน</div></div>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" autofocus>
+    <div class="err" id="loginErr">${esc(msg || "")}</div>
+    <button class="btn pri" type="submit">เข้าใช้งาน</button></form></div>`;
+  $("#loginForm").onsubmit = async (e) => {
+    e.preventDefault(); $("#loginErr").textContent = "";
+    try { const r = await call("login", { pin: $("#pin").value }); setToken(r.token); st.user = r.name; renderShell(); load(); }
+    catch (err) { $("#loginErr").textContent = err.message; }
+  };
+}
+
+function renderShell() {
+  const months = []; for (let i = 0; i < 18; i++) { const d = new Date(TODAY.getFullYear(), TODAY.getMonth() - i, 1); months.push(iso(d).slice(0, 7)); }
+  $("#app").innerHTML = `<div class="wrap">
+  <header><div><h1>ตรวจยอดบัตร × การเงิน</h1><div class="who" id="whoLine">ยอดจาก POS เทียบยอดเข้าบัญชีจริง</div></div>
+    <div class="quick"><button class="btn" id="btnReload">↻ โหลดใหม่</button><button class="btn" id="btnSettings">⚙️ ตั้งค่า</button><button class="btn" id="btnXlsx">📊 Excel</button><button class="btn" onclick="window.print()">🖨️ พิมพ์</button></div></header>
+  <div class="filters">
+    <span class="seg" id="mode"><button data-m="month">เลือกเดือน</button><button data-m="range">เลือกช่วงวันที่</button></span>
+    <label class="f" id="fMonth">เดือน <select id="month">${months.map((m) => { const [y, mm] = m.split("-").map(Number); return `<option value="${m}">${TH_M[mm - 1]} ${y + 543}</option>`; }).join("")}</select></label>
+    <span id="fRange"><label class="f">จาก <input type="date" id="from"></label> <label class="f">ถึง <input type="date" id="to"></label></span>
+    <span class="quick" id="quick"><button data-q="today">วันนี้</button><button data-q="yday">เมื่อวาน</button><button data-q="7">7 วันล่าสุด</button><button data-q="thism">เดือนนี้</button><button data-q="lastm">เดือนก่อน</button></span>
+    <label class="f">สาขา <select id="branch"><option value="">ทุกสาขา</option></select></label>
+    <span class="range-txt" id="rangeTxt"></span>
+  </div>
+  <div class="kpis" id="kpis"></div>
+  <div class="tabs" id="tabs"><button data-t="over">ภาพรวมรายวัน</button><button data-t="card">💳 บัตรเครดิต <span class="cnt" id="cardCnt" hidden></span></button><button data-t="bank">🏦 เงินเข้าแต่ละธนาคาร <span class="cnt" id="bankCnt" hidden></span></button></div>
+  <div class="panel" id="panel"><p class="muted">กำลังโหลด…</p></div>
+  <p class="sub" id="footLine" style="margin-top:10px"></p></div>`;
+  $("#month").value = st.month; $("#from").value = st.from; $("#to").value = st.to;
+  setMode(st.mode);
+  $$("#mode button").forEach((x) => x.onclick = () => { setMode(x.dataset.m); load(); });
+  $("#month").onchange = () => { st.month = $("#month").value; st.open = null; load(); };
+  $("#from").onchange = () => { st.from = $("#from").value; load(); };
+  $("#to").onchange = () => { st.to = $("#to").value; load(); };
+  $("#branch").onchange = (e) => { st.branch = e.target.value; render(); };
+  $$("#quick button").forEach((x) => x.onclick = () => {
+    const q = x.dataset.q, t = new Date(TODAY);
+    if (q === "thism" || q === "lastm") { st.month = iso(new Date(t.getFullYear(), t.getMonth() - (q === "lastm" ? 1 : 0), 1)).slice(0, 7); $("#month").value = st.month; setMode("month"); }
+    else { const f = new Date(t); if (q === "yday") { f.setDate(t.getDate() - 1); t.setDate(t.getDate() - 1); } if (q === "7") f.setDate(t.getDate() - 6);
+      st.from = iso(f); st.to = iso(t); $("#from").value = st.from; $("#to").value = st.to; setMode("range"); }
+    st.open = null; load();
+  });
+  $$("#tabs button").forEach((x) => x.onclick = () => { st.tab = x.dataset.t; st.open = null; render(); });
+  $("#btnReload").onclick = () => load();
+  $("#btnSettings").onclick = openSettings;
+  $("#btnXlsx").onclick = exportXlsx;
+}
+function setMode(m) { st.mode = m; $$("#mode button").forEach((x) => x.classList.toggle("on", x.dataset.m === m)); $("#fMonth").hidden = m !== "month"; $("#fRange").hidden = m !== "range"; }
+
+let loadSeq = 0;
+async function load() {
+  const [a, b] = range(); const my = ++loadSeq;
+  loading(true);
+  try {
+    const d = await call("getData", { from: a, to: b });
+    if (my !== loadSeq) return;
+    st.data = d; st.user = d.user; buildIndex();
+    if (!st.acct || bankAccts().indexOf(st.acct) === -1) st.acct = (st.data.accounts.find((x) => x.isDefault) || st.data.accounts[0] || { id: "" }).id;
+    const bs = $("#branch"); const cur = st.branch;
+    bs.innerHTML = '<option value="">ทุกสาขา</option>' + IDX.branches.map((x) => `<option>${esc(x)}</option>`).join("");
+    bs.value = IDX.branches.indexOf(cur) !== -1 ? cur : ""; st.branch = bs.value;
+    $("#whoLine").textContent = "ผู้ใช้: " + d.user + " · ยอดจาก " + d.salesName + " เทียบยอดเข้าบัญชีจริง";
+    $("#footLine").textContent = "โหลดเมื่อ " + d.loadedAt + " · " + d.version + " · อ่านไฟล์ POS อย่างเดียว ไม่แก้บิล";
+    render();
+  } catch (e) { if (e.message !== "SESSION_EXPIRED") toast("โหลดไม่สำเร็จ: " + e.message); }
+  finally { if (my === loadSeq) loading(false); }
+}
+
+function render() {
+  if (!st.data) return;
+  const ds = days(); const [a, b] = range();
+  $("#rangeTxt").textContent = thDate(a) + " – " + thDate(b) + (st.branch ? " · " + st.branch : " · ทุกสาขา");
+  $$("#tabs button").forEach((x) => x.classList.toggle("on", x.dataset.t === st.tab));
+  renderKpis(ds);
+  const p = $("#panel");
+  p.innerHTML = !ds.length ? '<p class="muted">ไม่มีวันในช่วงนี้</p>' : st.tab === "over" ? renderOver(ds) : st.tab === "card" ? renderCard(ds) : renderBank(ds);
+  wirePanel(p);
+}
+
+function renderKpis(ds) {
+  const t = { cash: 0, xfer: 0, card: 0, copay: 0, other: 0, n: 0 };
+  ds.forEach((k) => { const a = dayAgg(k); ["cash", "xfer", "card", "copay", "other", "n"].forEach((f) => (t[f] += a[f])); });
+  const tot = t.cash + t.xfer + t.card + t.copay + t.other; const T = tot || 1;
+  const pct = (v) => (v / T * 100).toFixed(1) + "%";
+  const cc = ds.map(cardCheck); const cBad = cc.filter((c) => c.status === "diff").length, cPend = cc.filter((c) => c.status === "empty" || c.status === "partial").length;
+  const fee = cc.filter((c) => c.status === "ok" || c.status === "diff").reduce((s, c) => s + c.fee, 0);
+  const bk = bankStats(ds);
+  $("#kpis").innerHTML = `
+    <div class="kpi total"><div class="k">ยอดรับเงินรวม</div><div class="v">฿${fmt0(tot)}</div>
+      <div class="bar"><span style="width:${pct(t.cash)};background:#7ed3a0"></span><span style="width:${pct(t.xfer)};background:#8db8f2"></span><span style="width:${pct(t.card)};background:#b8a6f5"></span><span style="width:${pct(t.copay)};background:#f5b48a"></span></div>
+      <div class="s">${fmt0(t.n)} บิล/รายการ · ${ds.length} วัน</div></div>
+    <div class="kpi"><div class="k"><span class="dot" style="background:var(--cash-c)"></span>เงินสด</div><div class="v">฿${fmt0(t.cash)}</div><div class="s">${pct(t.cash)} · หักเงินทอนแล้ว</div></div>
+    <div class="kpi"><div class="k"><span class="dot" style="background:var(--xfer-c)"></span>เงินโอน</div><div class="v">฿${fmt0(t.xfer)}</div><div class="s">${pct(t.xfer)}</div></div>
+    <div class="kpi"><div class="k"><span class="dot" style="background:var(--card-c)"></span>บัตรเครดิต</div><div class="v">฿${fmt0(t.card)}</div><div class="s">${pct(t.card)}${fee ? " · ค่าธรรมเนียมจริง ฿" + fmt(fee) : ""}</div></div>
+    <div class="kpi"><div class="k"><span class="dot" style="background:var(--half-c)"></span>คนละครึ่ง</div><div class="v">฿${fmt0(t.copay)}</div><div class="s">${pct(t.copay)}</div></div>
+    <div class="kpi"><div class="k">สถานะตรวจ</div>
+      <div class="v" style="font-size:15px">${cBad + bk.diff ? `<span class="neg">⚠️ ต่าง ${cBad + bk.diff} จุด</span>` : '<span style="color:var(--ok)">✓ ไม่มีจุดที่ต่าง</span>'}</div>
+      <div class="s">ยังไม่ใส่ยอด: บัตร ${cPend} วัน · ธนาคาร ${bk.empty} ช่อง${bk.unassigned ? " · โอนไม่ระบุบัญชี " + bk.unassigned + " วัน" : ""}</div></div>`;
+  const c = $("#cardCnt"); c.hidden = !(cBad + cPend); c.textContent = cBad + cPend;
+  const b = $("#bankCnt"); const bn = bk.diff + bk.empty + bk.unassigned; b.hidden = !bn; b.textContent = bn;
+}
+
+function billsTable(recs, opts) {
+  opts = opts || {};
+  if (!recs.length) return '<p class="sub">ไม่มีรายการ</p>';
+  const acctOpts = (cur) => bankAccts().filter((id) => id !== UNASSIGNED && id.charAt(0) !== "?").map((id) => `<option value="${esc(id)}"${id === cur ? " selected" : ""}>${esc(short(id))}</option>`).join("");
+  return `<table class="bills"><tr><th class="l">เวลา</th><th class="l">เลขที่</th><th class="l">สาขา</th><th class="l">ช่องทาง</th><th>ยอด</th><th class="l">รายละเอียด</th></tr>${recs.map((x) =>
+    `<tr><td class="l">${x.time}</td><td class="l">${esc(x.id)} <span class="src ${x.src}">${SRC_NAME[x.src]}</span></td><td class="l">${esc(x.branch)}</td>
+      <td class="l">${M_NAME[x.method]}${x.method === "xfer" ? ` · <select class="fixsel no-print" data-ref="${esc(x.key)}" data-date="${x.date}" data-amt="${x.amount}" data-from="${esc(x.origAcct)}">${x.acct === UNASSIGNED ? '<option value="" selected>ไม่ระบุบัญชี</option>' : ""}${x.acct.charAt(0) === "?" ? `<option selected value="${esc(x.acct)}">${esc(x.acct.slice(1))}</option>` : ""}${acctOpts(x.acct)}</select>${x.fix ? ` <span class="pill ok" title="แก้โดย ${esc(x.fix.by)} ${esc(x.fix.at)}">แก้บัญชีแล้ว</span> <button class="btn no-print" style="padding:0 6px;font-size:11px" data-undo="${esc(x.fix.fixId)}">ยกเลิกการแก้</button>` : ""}` : ""}</td>
+      <td>${fmt(x.amount)}</td><td class="l desc">${esc(x.who)}${x.desc ? " · " + esc(x.desc) : ""}</td></tr>`).join("")}</table>`;
+}
+
+function renderOver(ds) {
+  const s = { cash: 0, xfer: 0, card: 0, copay: 0, other: 0, total: 0, n: 0 };
+  const rows = ds.map((k) => {
+    const a = dayAgg(k), c = cardCheck(k); Object.keys(s).forEach((f) => (s[f] += a[f]));
+    return `<tr class="day" data-k="${k}"><td class="l${dow(k) % 6 === 0 ? " weekend" : ""}">${TH_D[dow(k)]} ${thDate(k)}</td><td>${a.n}</td><td>${fmt(a.cash)}</td><td>${fmt(a.xfer)}</td><td>${fmt(a.card)}</td><td>${fmt(a.copay)}</td><td><b>${fmt(a.total)}</b></td><td class="l">${STATUS[c.status]}</td><td class="l">${bankPill(k)}</td></tr>` +
+      (st.open === k ? `<tr class="detail"><td colspan="9">${billsTable(a.recs)}</td></tr>` : "");
+  }).join("");
+  return `<div class="panel-head"><p>คลิกวันเพื่อดูรายการ · ไม่นับบิลยกเลิก · เงินสดหักเงินทอนแล้ว · รวมมัดจำใบจอง (หน้า Pre-Order) และรับชำระ WS</p></div>
+    <div class="tw"><table><thead><tr><th class="l">วันที่</th><th>รายการ</th><th>เงินสด</th><th>โอน</th><th>บัตรเครดิต</th><th>คนละครึ่ง</th><th>รวม</th><th class="l">ตรวจบัตร</th><th class="l">เงินเข้าธนาคาร</th></tr></thead>
+    <tbody>${rows}<tr class="sum"><td class="l">รวม ${ds.length} วัน</td><td>${s.n}</td><td>${fmt(s.cash)}</td><td>${fmt(s.xfer)}</td><td>${fmt(s.card)}</td><td>${fmt(s.copay)}</td><td>${fmt(s.total)}</td><td></td><td></td></tr></tbody></table></div>`;
+}
+function bankPill(k) {
+  if (suggestions(k).length) return '<span class="pill bad">🔎 เลือกบัญชีผิด?</span>';
+  const ds = bankAccts().map((id) => bankDay(k, id)).filter((d) => d.status !== "none");
+  const bad = ds.filter((d) => d.status === "diff").length, em = ds.filter((d) => d.status === "empty").length, un = ds.filter((d) => d.status === "unassigned").length;
+  if (bad) return `<span class="pill bad">⚠️ ต่าง ${bad} ธ.</span>`;
+  if (un) return '<span class="pill warn">โอนไม่ระบุบัญชี</span>';
+  if (em) return `<span class="pill warn">ยังไม่ใส่ ${em} ธ.</span>`;
+  return ds.length ? `<span class="pill ok">✓ ${ds.length} ธ.</span>` : '<span class="pill mute">—</span>';
+}
+
+function renderCard(ds) {
+  const brs = st.branch ? [st.branch] : IDX.branches; const multi = brs.length > 1;
+  const edc = st.data.settings.EDC_ACCOUNTS || {};
+  let sp = 0, ss = 0, sf = 0;
+  const rows = ds.map((k) => {
+    const c = cardCheck(k); if (c.status === "none") return "";
+    sp += c.pos; ss += c.settled || 0; if (c.status === "ok" || c.status === "diff") sf += c.fee;
+    const recs = recsOf(k).filter((r) => r.method === "card");
+    const inputs = brs.map((b) => { const pos = cardPos(k, b); if (!pos) return ""; const v = st.data.settle[k + "|" + b];
+      return `<div>${multi ? `<span class="sub">${esc(b)} ฿${fmt(pos)}</span> ` : ""}<input class="amt card${v ? "" : " empty"}" data-k="${k}" data-b="${esc(b)}" value="${v ? v.amount.toFixed(2) : ""}" placeholder="ยอดเข้าบัญชี" inputmode="decimal" title="${edc[b] ? "เครื่อง " + esc(b) + " → " + esc(short(String(edc[b]))) : "ยังไม่ได้ตั้งว่าเครื่องสาขานี้เข้าบัญชีไหน"}"></div>`; }).join("");
+    const dx = c.status === "ok" || c.status === "diff" ? r2(c.settled - c.expect) || 0 : null;
+    return `<tr class="day" data-k="${k}"><td class="l">${TH_D[dow(k)]} ${thDate(k)}</td><td>${recs.length}</td><td>${fmt(c.pos)}</td><td class="noclick">${inputs}</td>
+      <td>${dx == null ? '<span class="muted">—</span>' : fmt(c.fee) + `<div class="sub">${(c.rate * 100).toFixed(2)}%</div>`}</td>
+      <td>${dx == null ? '<span class="muted">—</span>' : `<span class="${c.status === "diff" ? "neg" : ""}">${dx > 0 ? "+" : ""}${fmt(dx)}</span>`}</td>
+      <td class="l">${STATUS[c.status]}</td></tr>` + (st.open === k ? `<tr class="detail"><td colspan="7">${billsTable(recs)}</td></tr>` : "");
+  }).join("");
+  return `<div class="panel-head"><p>ยอดรูดใน POS เทียบยอดที่เข้าบัญชีจริง (จากสลิปสรุปเครื่อง EDC / statement) · ค่าธรรมเนียมที่ตั้งไว้ <b>${(feeRate() * 100).toFixed(2)}%</b> · ต่างเกิน ${Number(st.data.settings.FEE_TOLERANCE_PCT || 0.1).toFixed(2)}% = ⚠️ · ลบตัวเลขในช่อง = ล้างยอด</p></div>
+    <div class="tw"><table><thead><tr><th class="l">วันที่ขาย</th><th>สลิป</th><th>ยอดรูด (POS)</th><th>ยอดเข้าบัญชี</th><th>ค่าธรรมเนียมจริง</th><th>ต่างจากที่ควรเข้า</th><th class="l">สถานะ</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="7" class="l muted">ไม่มีการรูดบัตรในช่วงนี้</td></tr>'}<tr class="sum"><td class="l">รวม</td><td></td><td>${fmt(sp)}</td><td>${fmt(ss)}</td><td>${fmt(sf)}</td><td></td><td></td></tr></tbody></table></div>`;
+}
+
+function renderBank(ds) {
+  const bs = bankStats(ds); const ids = bankAccts().filter((id) => id !== UNASSIGNED && id.charAt(0) !== "?" ? true : bs.per[id].n > 0);
+  if (ids.indexOf(st.acct) === -1) st.acct = ids[0] || "";
+  const acct = acctById(st.acct); const virt = st.acct === UNASSIGNED || st.acct.charAt(0) === "?";
+  const edc = st.data.settings.EDC_ACCOUNTS || {};
+  const edcs = Object.keys(edc).filter((b) => String(edc[b]) === st.acct);
+  const chips = ids.map((id) => { const a = acctById(id), p = bs.per[id]; const v = id === UNASSIGNED || id.charAt(0) === "?";
+    return `<button class="a${id === st.acct ? " on" : ""}" data-acct="${esc(id)}" style="--ac:${esc(a.color)}">
+      <div class="sub"><span class="bdot" style="background:${esc(a.color)}"></span>${esc(a.label)}${a.accountNo ? " · " + esc(a.accountNo) : ""}</div>
+      ${v ? `<b>฿${fmt(p.exp)}</b> <span class="sub">ยังไม่รู้ว่าเข้าบัญชีไหน</span><div style="margin-top:4px"><span class="pill warn">${p.n} วัน — เลือกบัญชีให้</span></div>`
+          : `<b>฿${fmt(p.act)}</b> <span class="sub">เข้าจริง</span><div class="sub">ควรเข้า ฿${fmt(p.exp)}</div>
+      <div style="margin-top:4px">${p.bad ? `<span class="pill bad">ต่าง ${p.bad} วัน</span> ` : ""}${p.empty ? `<span class="pill warn">ยังไม่ใส่ ${p.empty} วัน</span>` : ""}${!p.bad && !p.empty ? (p.n ? '<span class="pill ok">✓ ตรงทุกวัน</span>' : '<span class="pill mute">ไม่มีเงินเข้า</span>') : ""}</div>`}</button>`; }).join("");
+  let se = 0, sx = 0, sc = 0, sa = 0, sq = 0;
+  const rows = ds.map((k) => {
+    const d = bankDay(k, st.acct); if (d.status === "none") return "";
+    se += d.total; sx += d.xfer; sc += d.card; sq += d.copay; if (d.actual != null) sa += d.actual;
+    const recs = recsOf(k, true).filter((r) => (r.method === "xfer" && r.acct === st.acct) || (r.method === "card" && String(edc[r.branch] || "") === st.acct && !virt) || (r.method === "copay" && st.acct && st.data.settings.COPAY_ACCOUNT === st.acct));
+    return `<tr class="day" data-k="${k}"><td class="l">${TH_D[dow(k)]} ${thDate(k)}</td><td>${fmt(d.xfer)}</td>
+      <td>${d.card ? fmt(d.card) + (d.cardEst ? '<div class="sub">ประมาณ (ยังไม่ใส่ยอดบัตร)</div>' : "") : '<span class="muted">—</span>'}</td>
+      ${st.data.settings.COPAY_ACCOUNT ? `<td>${d.copay ? fmt(d.copay) : '<span class="muted">—</span>'}</td>` : ""}
+      <td><b>${fmt(d.total)}</b></td>
+      <td class="noclick">${virt ? '<span class="sub">คลิกวันแล้วเลือกบัญชีให้รายการ</span>' : `<input class="amt bank${d.actual == null ? " empty" : ""}" data-k="${k}" value="${d.actual == null ? "" : d.actual.toFixed(2)}" placeholder="ยอดเข้าจริง" inputmode="decimal">`}</td>
+      <td>${d.status === "diff" ? `<span class="neg">${d.diff > 0 ? "+" : ""}${fmt(d.diff)}</span><div class="sub">${rowHint(k, d)}</div>` : d.status === "ok" ? fmt(d.diff) : '<span class="muted">—</span>'}</td>
+      <td class="l">${BSTATUS[d.status]}</td></tr>` + (st.open === k ? `<tr class="detail"><td colspan="8">${billsTable(recs)}</td></tr>` : "");
+  }).join("");
+  return `<div class="acct">${chips}</div>${renderSuggest(ds)}
+    <div class="panel-head"><p><b>${esc(acct.label)}${acct.accountNo ? " " + esc(acct.accountNo) : ""}</b> · ${virt ? "รายการโอนที่ไม่ได้เลือกบัญชีตอนขาย — คลิกวัน แล้วเลือกบัญชีที่เงินเข้าจริงในช่องของแต่ละรายการ" :
+      "ควรเข้า = โอนที่เลือกบัญชีนี้" + (edcs.length ? " + บัตรเครื่อง " + edcs.map(esc).join(", ") + " (ยอดที่ใส่ในแท็บบัตร หรือประมาณหลังหักค่าธรรมเนียม)" : "") + (st.data.settings.COPAY_ACCOUNT === st.acct ? " + คนละครึ่ง" : "") + " · พิมพ์ยอดเข้าจริงจาก statement · ต่างเกิน ฿" + tol() + " = ⚠️"}
+      ${st.branch ? " · <b>ยอดธนาคารรวมทุกสาขาเสมอ</b>" : ""}</p></div>
+    <div class="tw"><table><thead><tr><th class="l">วันที่</th><th>โอน (POS)</th><th>บัตร (EDC)</th>${st.data.settings.COPAY_ACCOUNT ? "<th>คนละครึ่ง</th>" : ""}<th>ควรเข้า</th><th>เข้าจริง (statement)</th><th>ต่าง</th><th class="l">สถานะ</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="8" class="l muted">ไม่มีเงินเข้าบัญชีนี้ในช่วงที่เลือก</td></tr>'}<tr class="sum"><td class="l">รวม</td><td>${fmt(sx)}</td><td>${fmt(sc)}</td>${st.data.settings.COPAY_ACCOUNT ? `<td>${fmt(sq)}</td>` : ""}<td>${fmt(se)}</td><td>${virt ? "" : fmt(sa)}</td><td></td><td></td></tr></tbody></table></div>`;
+}
+function rowHint(k, d) {
+  const s = suggestions(k).find((x) => x.to === st.acct || x.cands.some((c) => c.acct === st.acct));
+  if (s) return `<span class="hint">🔎 ${s.to === st.acct ? "น่าจะเป็นเงินของบิลที่เลือก " + esc(short(s.cands[0].acct)) : "เงินน่าจะไปเข้า " + esc(short(s.to))}</span>`;
+  return d.diff > 0 ? "เข้าเกิน — ไม่พบบิลคู่" : "เข้าขาด — ไม่พบบิลคู่";
+}
+function renderSuggest(ds) {
+  const list = [].concat.apply([], ds.map(suggestions));
+  const fixes = st.data.fixes;
+  if (!list.length && !fixes.length) return "";
+  return `<div class="sug">${list.length ? `<div class="sug-h">🔎 น่าจะเลือกบัญชีผิด <b>${list.length}</b> รายการ <span class="sub">— วันเดียวกัน บัญชีหนึ่งเข้าเกิน และมีรายการโอนยอดเท่ากันที่เลือกบัญชีอื่น/ไม่ระบุ</span></div>` : '<div class="sug-h">✓ ไม่พบรายการที่น่าจะเลือกบัญชีผิด</div>'}
+    ${list.map((x) => `<div class="sug-r"><div><b>${thDate(x.k)}</b> · ฿${fmt(x.amt)}${x.strong ? "" : ' <span class="pill warn">ไม่ชัวร์</span>'}<div class="sub">เงินเข้า <b>${esc(short(x.to))}</b> เกินมา · รายการที่ยอดตรง:</div></div>
+      <div>${x.cands.map((c) => `<div><span class="mono">${esc(c.id)}</span> <span class="src ${c.src}">${SRC_NAME[c.src]}</span> <span class="sub">${c.time} · ${esc(c.branch)} · เลือก ${esc(short(c.acct))}</span></div>`).join("")}</div>
+      <div class="sug-a">${x.cands.length === 1 ? `<button class="btn pri" data-sfix="${esc(x.cands[0].key)}" data-k="${x.k}" data-to="${esc(x.to)}">ย้ายไป ${esc(short(x.to))}</button>` : ""}<button class="btn" data-goto="${x.k}" data-acct2="${esc(x.cands[0].acct)}">ดูวันนั้น</button></div></div>`).join("")}
+    ${fixes.length ? `<div class="sub" style="margin-top:6px">แก้บัญชีแล้วในช่วงนี้ ${fixes.length} รายการ:</div>` + fixes.map((f) => `<div class="sug-r done"><div><b>${thDate(f.date)}</b> · ฿${fmt(f.amount)}</div><div class="mono">${esc(f.ref.split("#")[0])}</div><div class="sub">✓ ${esc(short(f.from))} → ${esc(short(f.to))} โดย ${esc(f.by)} · <button class="btn" style="padding:0 6px;font-size:11px" data-undo="${esc(f.fixId)}">ยกเลิก</button></div></div>`).join("") : ""}</div>`;
+}
+
+/* =================== events =================== */
+function wirePanel(p) {
+  $$("tr.day", p).forEach((tr) => tr.onclick = (e) => { if (e.target.closest(".noclick, input, select, button")) return; st.open = st.open === tr.dataset.k ? null : tr.dataset.k; render(); });
+  $$("input.amt", p).forEach((inp) => {
+    inp.onkeydown = (e) => { if (e.key === "Enter") inp.blur(); };
+    inp.onchange = async () => {
+      const raw = inp.value.replace(/[,\s฿]/g, ""); const v = raw === "" ? null : Number(raw);
+      if (raw !== "" && !isFinite(v)) { toast("ตัวเลขไม่ถูกต้อง"); return; }
+      const isCard = inp.classList.contains("card"); const k = inp.dataset.k;
+      const key = k + "|" + (isCard ? inp.dataset.b : st.acct); const store = isCard ? st.data.settle : st.data.bankIn;
+      inp.classList.add("saving");
+      try {
+        await call(isCard ? "saveCardSettle" : "saveBankIn", isCard ? { date: k, branch: inp.dataset.b, amount: v } : { date: k, accountId: st.acct, amount: v });
+        if (v == null) delete store[key]; else store[key] = { amount: r2(v), by: st.user };
+        toast(v == null ? "ล้างยอดแล้ว" : "บันทึกแล้ว"); render();
+      } catch (e) { inp.classList.remove("saving"); toast("บันทึกไม่สำเร็จ: " + e.message); }
+    };
+  });
+  $$("button[data-acct]", p).forEach((bt) => bt.onclick = () => { st.acct = bt.dataset.acct; st.open = null; render(); });
+  $$("button[data-goto]", p).forEach((bt) => bt.onclick = () => { st.acct = bt.dataset.acct2; st.open = bt.dataset.goto; render();
+    const tr = document.querySelector('tr.day[data-k="' + bt.dataset.goto + '"]'); if (tr) tr.scrollIntoView({ block: "center" }); });
+  $$("button[data-sfix]", p).forEach((bt) => bt.onclick = () => {
+    const r = (IDX.byDay[bt.dataset.k] || []).find((x) => x.key === bt.dataset.sfix);
+    if (r) saveFix(r, bt.dataset.to);
+  });
+  $$("select.fixsel", p).forEach((sel) => sel.onchange = () => {
+    const r = (IDX.byDay[sel.dataset.date] || []).find((x) => x.key === sel.dataset.ref);
+    if (r) saveFix(r, sel.value);
+  });
+  $$("button[data-undo]", p).forEach((bt) => bt.onclick = async (e) => {
+    e.stopPropagation();
+    if (!confirm("ยกเลิกการแก้บัญชีรายการนี้? (กลับไปใช้บัญชีตามบิลเดิม)")) return;
+    try { await call("undoFix", { fixId: bt.dataset.undo }); toast("ยกเลิกแล้ว"); load(); } catch (err) { toast(err.message); }
+  });
+}
+async function saveFix(r, to) {
+  if (to === r.origAcct) { if (r.fix) { try { await call("undoFix", { fixId: r.fix.fixId }); toast("กลับเป็นบัญชีเดิมแล้ว"); load(); } catch (e) { toast(e.message); } } return; }
+  if (!confirm(`ย้าย ${r.id} ฿${fmt(r.amount)} ไปบัญชี ${short(to)}?\n(บันทึกในไฟล์ตรวจยอด ไม่แก้บิลใน POS)`)) { render(); return; }
+  try {
+    const res = await call("saveFix", { date: r.date, ref: r.key, amount: r.amount, from: r.origAcct, to: to, note: "" });
+    if (r.fix) st.data.fixes = st.data.fixes.filter((f) => f.fixId !== r.fix.fixId);
+    st.data.fixes.push({ fixId: res.fixId, date: r.date, ref: r.key, amount: r.amount, from: r.origAcct, to: to, by: st.user, at: "" });
+    st.data.recs.forEach((x) => { x.acct = x.origAcct; }); buildIndex(); toast("ย้ายบัญชีแล้ว"); render();
+  } catch (e) { toast("บันทึกไม่สำเร็จ: " + e.message); }
+}
+
+/* =================== ตั้งค่า =================== */
+function openSettings() {
+  const S = st.data.settings; const edc = S.EDC_ACCOUNTS || {};
+  const opts = (cur, blank) => `<option value="">${blank}</option>` + st.data.accounts.map((a) => `<option value="${esc(a.id)}"${String(cur) === a.id ? " selected" : ""}>${esc(a.label)} ${esc(a.accountNo)}</option>`).join("");
+  const m = document.createElement("div"); m.className = "modal";
+  m.innerHTML = `<div><h3>⚙️ ตั้งค่า</h3>
+    <div class="grid2">
+      <label for="sFee">ค่าธรรมเนียมบัตร (%)</label><input id="sFee" value="${esc(S.CARD_FEE_PCT)}" inputmode="decimal">
+      <label for="sFeeTol">ค่าธรรมเนียมต่างได้ไม่เกิน (%)</label><input id="sFeeTol" value="${esc(S.FEE_TOLERANCE_PCT)}" inputmode="decimal">
+      <label for="sTol">ยอดธนาคารต่างได้ไม่เกิน (บาท)</label><input id="sTol" value="${esc(S.TOLERANCE)}" inputmode="decimal">
+    </div>
+    <div><b>เครื่องรูดบัตรแต่ละสาขา เงินเข้าบัญชีไหน</b></div>
+    <div class="grid2">${IDX.branches.map((b) => `<label>สาขา ${esc(b)}</label><select data-edc="${esc(b)}">${opts(edc[b] || "", "— ไม่มีเครื่อง / ไม่นับ —")}</select>`).join("")}</div>
+    <div class="grid2"><label>เงินคนละครึ่งเข้าบัญชี</label><select id="sCopay">${opts(S.COPAY_ACCOUNT || "", "— ไม่นับในยอดธนาคาร —")}</select></div>
+    <p class="sub">รายชื่อบัญชีมาจากหน้า Settings ของ POS · เปลี่ยน PIN ได้ที่ชีต FC_Settings ในไฟล์ Finance_Check</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="sCancel">ยกเลิก</button><button class="btn pri" id="sSave">บันทึก</button></div></div>`;
+  document.body.appendChild(m);
+  $("#sCancel", m).onclick = () => m.remove();
+  m.onclick = (e) => { if (e.target === m) m.remove(); };
+  $("#sSave", m).onclick = async () => {
+    const e2 = {}; $$("select[data-edc]", m).forEach((s) => { if (s.value) e2[s.dataset.edc] = s.value; });
+    const payload = { CARD_FEE_PCT: $("#sFee", m).value, FEE_TOLERANCE_PCT: $("#sFeeTol", m).value, TOLERANCE: $("#sTol", m).value, EDC_ACCOUNTS: e2, COPAY_ACCOUNT: $("#sCopay", m).value };
+    try { await call("saveSettings", { settings: payload }); m.remove(); toast("บันทึกการตั้งค่าแล้ว"); load(); } catch (err) { toast(err.message); }
+  };
+}
+
+/* =================== Excel =================== */
+function exportXlsx() {
+  if (typeof XLSX === "undefined") { toast("โหลดตัวสร้าง Excel ไม่ได้ ลองใหม่"); return; }
+  const ds = days(); const wb = XLSX.utils.book_new(); const [a, b] = range();
+  const over = [["วันที่", "รายการ", "เงินสด", "โอน", "บัตร", "คนละครึ่ง", "รวม"]];
+  ds.forEach((k) => { const x = dayAgg(k); over.push([k, x.n, x.cash, x.xfer, x.card, x.copay, x.total]); });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(over), "ภาพรวม");
+  const card = [["วันที่", "สาขา", "ยอดรูด POS", "ยอดเข้าบัญชี", "ค่าธรรมเนียม", "%"]];
+  ds.forEach((k) => IDX.branches.forEach((br) => { const p = cardPos(k, br); if (!p) return; const v = st.data.settle[k + "|" + br];
+    card.push([k, br, p, v ? v.amount : "", v ? r2(p - v.amount) : "", v ? r2((p - v.amount) / p * 100) : ""]); }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(card), "บัตร");
+  const bank = [["วันที่", "บัญชี", "เลขบัญชี", "โอน POS", "บัตร", "คนละครึ่ง", "ควรเข้า", "เข้าจริง", "ต่าง", "สถานะ"]];
+  const SN = { ok: "ตรง", diff: "ต่าง", empty: "ยังไม่ใส่", unassigned: "ไม่ระบุบัญชี" };
+  ds.forEach((k) => bankAccts().forEach((id) => { const d = bankDay(k, id); if (d.status === "none") return; const ac = acctById(id);
+    bank.push([k, ac.label, ac.accountNo, d.xfer, d.card, d.copay, d.total, d.actual == null ? "" : d.actual, d.diff == null ? "" : d.diff, SN[d.status] || d.status]); }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(bank), "ธนาคาร");
+  const all = [["วันที่", "เวลา", "เลขที่", "ประเภท", "สาขา", "ช่องทาง", "บัญชี", "ยอด", "ผู้รับเงิน", "รายละเอียด", "แก้บัญชี"]];
+  ds.forEach((k) => (IDX.byDay[k] || []).forEach((r) => all.push([r.date, r.time, r.id, SRC_NAME[r.src], r.branch, M_NAME[r.method], r.method === "xfer" ? acctById(r.acct).label : "", r.amount, r.who, r.desc, r.fix ? short(r.fix.from) + " → " + short(r.fix.to) : ""])));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(all), "รายการทั้งหมด");
+  XLSX.writeFile(wb, "FinanceCheck_" + a + "_" + b + ".xlsx");
+}
+
+/* =================== start =================== */
+if (TOKEN) { renderShell(); load(); } else renderLogin();
+</script>
+</body>
+</html>
