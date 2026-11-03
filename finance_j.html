@@ -111,7 +111,7 @@
 <script>
 /* =================== ตัวเชื่อมกับ Apps Script =================== */
 /* ใส่ URL /exec ของ Apps Script (Deploy → Web app) ตรงนี้ก่อนอัป GitHub — หรือกด "ตั้งค่า URL" ในหน้า PIN */
-const API_URL_DEFAULT = "";
+const API_URL_DEFAULT = "https://script.google.com/macros/s/AKfycbzSmQfSnh4GhWwl3ycwp-JeBif7gEgEAHy0sTFENnXPJ4A8f1b1RAtu6Ny-AyPWZEKn/exec";
 let API_URL = API_URL_DEFAULT;
 try { API_URL = localStorage.getItem("fc_api_url") || API_URL_DEFAULT; } catch (e) { /* ignore */ }
 let TOKEN = "";
