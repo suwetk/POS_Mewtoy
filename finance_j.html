@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="th">
 <head>
-<base target="_top">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ตรวจยอดบัตร × การเงิน</title>
@@ -111,20 +110,24 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 /* =================== ตัวเชื่อมกับ Apps Script =================== */
+/* ใส่ URL /exec ของ Apps Script (Deploy → Web app) ตรงนี้ก่อนอัป GitHub — หรือกด "ตั้งค่า URL" ในหน้า PIN */
+const API_URL_DEFAULT = "";
+let API_URL = API_URL_DEFAULT;
+try { API_URL = localStorage.getItem("fc_api_url") || API_URL_DEFAULT; } catch (e) { /* ignore */ }
 let TOKEN = "";
 try { TOKEN = sessionStorage.getItem("fc_token") || ""; } catch (e) { /* ignore */ }
-function call(action, payload) {
-  return new Promise((resolve, reject) => {
-    google.script.run
-      .withSuccessHandler((r) => {
-        if (r && r.ok) return resolve(r);
-        const msg = (r && r.error) || "เกิดข้อผิดพลาด";
-        if (msg === "SESSION_EXPIRED") { setToken(""); renderLogin("หมดเวลาใช้งาน ใส่ PIN ใหม่"); }
-        reject(new Error(msg));
-      })
-      .withFailureHandler(reject)
-      .api(Object.assign({ action: action, token: TOKEN }, payload || {}));
-  });
+async function call(action, payload) {
+  if (!API_URL) throw new Error("ยังไม่ได้ตั้ง URL ของระบบ");
+  let r;
+  try {
+    const res = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(Object.assign({ action: action, token: TOKEN }, payload || {})) });
+    r = await res.json();
+  } catch (e) { throw new Error("ติดต่อระบบไม่ได้ — เช็กอินเทอร์เน็ต / URL ของระบบ"); }
+  if (r && r.ok) return r;
+  const msg = (r && r.error) || "เกิดข้อผิดพลาด";
+  if (msg === "SESSION_EXPIRED") { setToken(""); renderLogin("หมดเวลาใช้งาน ใส่ PIN ใหม่"); }
+  throw new Error(msg);
 }
 function setToken(t) { TOKEN = t; try { t ? sessionStorage.setItem("fc_token", t) : sessionStorage.removeItem("fc_token"); } catch (e) { /* ignore */ } }
 
@@ -276,7 +279,16 @@ function renderLogin(msg) {
     <div><h1 style="font-size:19px">ตรวจยอดบัตร × การเงิน</h1><div class="who">ใส่ PIN เพื่อเข้าใช้งาน</div></div>
     <input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" autofocus>
     <div class="err" id="loginErr">${esc(msg || "")}</div>
-    <button class="btn pri" type="submit">เข้าใช้งาน</button></form></div>`;
+    <button class="btn pri" type="submit">เข้าใช้งาน</button>
+    <button class="btn" type="button" id="btnApiUrl" style="border:0;font-weight:400;font-size:12px">⚙️ ตั้งค่า URL ของระบบ${API_URL ? "" : " (ยังไม่ได้ตั้ง)"}</button></form></div>`;
+  $("#btnApiUrl").onclick = () => {
+    const v = prompt("วาง URL ของ Apps Script (ลงท้าย /exec)", API_URL || "");
+    if (v == null) return;
+    const u = v.trim();
+    if (u && !/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(u)) { $("#loginErr").textContent = "URL ต้องเป็น https://script.google.com/macros/s/…/exec"; return; }
+    API_URL = u || API_URL_DEFAULT; try { u ? localStorage.setItem("fc_api_url", u) : localStorage.removeItem("fc_api_url"); } catch (e) { /* ignore */ }
+    renderLogin(u ? "ตั้ง URL แล้ว" : "");
+  };
   $("#loginForm").onsubmit = async (e) => {
     e.preventDefault(); $("#loginErr").textContent = "";
     try { const r = await call("login", { pin: $("#pin").value }); setToken(r.token); st.user = r.name; renderShell(); load(); }
