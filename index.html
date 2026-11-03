@@ -169,6 +169,43 @@
     #billPreviewPrintArea thead, #storewdPrintArea thead { display: table-header-group; }
     #billPreviewPrintArea tr, #storewdPrintArea tr { break-inside: avoid; page-break-inside: avoid; }
   }
+  /* ===== หน้า Login แบบ B แนวนอน 2 ฝั่ง (2026-11-03, mockup_login.html) =====
+     ซ้าย = สาขาของเครื่องนี้ตัวใหญ่ + ปุ่มเปลี่ยนสาขา · ขวา = PIN
+     ฉากหลังเลื่อนได้ + กล่อง margin:auto → จอเตี้ยกว่ากล่องก็ไม่ตัดหัว/ท้าย */
+  #loginOverlay { display: flex; overflow-y: auto; padding: 16px; }
+  #loginOverlay.hidden { display: none; }
+  .lg-card { margin: auto; width: 100%; max-width: 660px; background: #fff; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,.35); display: grid; grid-template-columns: 280px 1fr; overflow: hidden; }
+  .lg-left { background: #065f46; color: #ecfdf5; padding: 20px 18px 16px; display: flex; flex-direction: column; gap: 12px; }
+  .lg-title { display: flex; align-items: center; gap: 10px; }
+  .lg-title i { font-size: 24px; }
+  .lg-title b { display: block; font-size: 17px; line-height: 1.2; }
+  .lg-title span { font-size: 12px; color: #a7f3d0; }
+  .lg-lbl { font-size: 12px; font-weight: 700; color: #a7f3d0; letter-spacing: .03em; }
+  .lg-now { background: #fff; color: #065f46; border-radius: 14px; padding: 10px 14px 12px; text-align: center; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+  .lg-now .k { font-size: 12px; font-weight: 700; color: #047857; }
+  .lg-now .v { font-size: 52px; font-weight: 900; line-height: 1.05; letter-spacing: .02em; word-break: break-word; }
+  .lg-now .d { font-size: 12px; color: #4b5563; }
+  .lg-now.none { background: #fef3c7; color: #92400e; }
+  .lg-now.none .k, .lg-now.none .d { color: #92400e; }
+  .lg-now.none .v { font-size: 22px; padding: 8px 0 4px; }
+  .lg-brs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .lg-br { border: 1.5px solid rgba(255,255,255,.3); background: rgba(255,255,255,.06); color: #ecfdf5; border-radius: 8px; padding: 4px 10px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .lg-br:hover { background: rgba(255,255,255,.16); }
+  .lg-br.on { background: #a7f3d0; color: #064e3b; border-color: #a7f3d0; cursor: default; }
+  .lg-br small { font-weight: 500; opacity: .8; }
+  .lg-url { margin-top: auto; }
+  .lg-url-btn { border: 0; background: none; color: #a7f3d0; font-size: 12px; cursor: pointer; padding: 0; text-align: left; }
+  .lg-url-btn:hover { color: #fff; }
+  .lg-right { padding: 20px 22px 18px; display: flex; flex-direction: column; justify-content: center; }
+  .lg-right .t { text-align: center; font-weight: 700; color: #374151; }
+  .lg-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 8px; }
+  .lg-pad .pin-key { background: #f3f4f6; border-radius: 10px; padding: 11px 0; font-size: 20px; font-weight: 600; color: #374151; transition: background .15s; }
+  .lg-pad .pin-key:hover { background: #e5e7eb; }
+  .lg-pad .pin-key.lg-del { color: #ef4444; font-size: 14px; }
+  .lg-pad .pin-key.lg-ok { background: #059669; color: #fff; }
+  .lg-pad .pin-key.lg-ok:hover { background: #10b981; }
+  .lg-pad .pin-key:disabled { opacity: .45; cursor: not-allowed; }
+  @media (max-width: 640px) { .lg-card { grid-template-columns: 1fr; max-width: 380px; } .lg-now .v { font-size: 40px; } }
 </style>
 </head>
 
@@ -180,83 +217,40 @@
      Level-1 (cosmetic) half of access control; the real enforcement
      for Settings/Reports happens server-side (see pos_backend.gs).
      ============================================================ -->
-<div id="loginOverlay" class="fixed inset-0 bg-emerald-950/95 z-[100] flex items-center justify-center p-4">
-  <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-xs">
-    <div class="text-center mb-4">
-      <i class="fa-solid fa-cash-register text-3xl text-emerald-600 mb-2"></i>
-      <h2 class="text-lg font-bold text-gray-700">เข้าสู่ระบบ POS</h2>
-      <p class="text-xs text-gray-400 mt-1">ใส่ PIN ของพนักงาน</p>
-    </div>
-
-    <div id="pinDisplay" class="flex justify-center items-center gap-2 mb-2 h-8 font-mono text-2xl tracking-widest text-gray-700"></div>
-    <p id="loginErrorText" class="hidden text-center text-sm text-red-500 mb-2"></p>
-
-    <!-- Persistent, impossible-to-miss warning shown whenever this device
-         has no branch code saved yet — a blank branch makes the backend
-         reject EVERY action (see resolveBranch_ in pos_backend.gs), so
-         staff need this explained clearly up front rather than hitting a
-         confusing "ไม่พบรหัสสาขา" error the first time they try to sell.
-         Toggled by showMissingBranchCodeBanner()/hideMissingBranchCodeBanner(). -->
-    <div id="missingBranchCodeBanner" class="hidden mb-3 rounded-lg border-2 border-amber-400 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-      <i class="fa-solid fa-triangle-exclamation mr-1"></i>
-      ยังไม่ได้ตั้งค่า<strong>รหัสสาขา</strong>สำหรับเครื่องนี้ — กรุณาตั้งค่าด้านล่างก่อนใช้งาน POS
-      มิฉะนั้นจะบันทึกรายการใดๆ ไม่ได้เลย
-    </div>
-
-    <div class="grid grid-cols-3 gap-2 mt-2">
-      <button data-pin="1" class="pin-key bg-gray-100 hover:bg-gray-200 rounded-lg py-4 text-xl font-semibold text-gray-700 transition">1</button>
-      <button data-pin="2" class="pin-key bg-gray-100 hover:bg-gray-200 rounded-lg py-4 text-xl font-semibold text-gray-700 transition">2</button>
-      <button data-pin="3" class="pin-key bg-gray-100 hover:bg-gray-200 rounded-lg py-4 text-xl font-semibold text-gray-700 transition">3</button>
-      <button data-pin="4" class="pin-key bg-gray-100 hover:bg-gray-200 rounded-lg py-4 text-xl font-semibold text-gray-700 transition">4</button>
-      <button data-pin="5" class="pin-key bg-gray-100 hover:bg-gray-200 rounded-lg py-4 text-xl font-semibold text-gray-700 transition">5</button>
-      <button data-pin="6" class="pin-key bg-gray-100 hover:bg-gray-200 rounded-lg py-4 text-xl font-semibold text-gray-700 transition">6</button>
-      <button data-pin="7" class="pin-key bg-gray-100 hover:bg-gray-200 rounded-lg py-4 text-xl font-semibold text-gray-700 transition">7</button>
-      <button data-pin="8" class="pin-key bg-gray-100 hover:bg-gray-200 rounded-lg py-4 text-xl font-semibold text-gray-700 transition">8</button>
-      <button data-pin="9" class="pin-key bg-gray-100 hover:bg-gray-200 rounded-lg py-4 text-xl font-semibold text-gray-700 transition">9</button>
-      <button id="pinClearBtn" class="pin-key bg-gray-100 hover:bg-gray-200 rounded-lg py-4 text-sm font-semibold text-red-500 transition">ลบ</button>
-      <button data-pin="0" class="pin-key bg-gray-100 hover:bg-gray-200 rounded-lg py-4 text-xl font-semibold text-gray-700 transition">0</button>
-      <button id="pinEnterBtn" class="pin-key bg-emerald-600 hover:bg-emerald-500 rounded-lg py-4 text-xl font-semibold text-white transition">
-        <i class="fa-solid fa-check"></i>
-      </button>
-    </div>
-
-    <!-- First-time device setup: the Apps Script URL has to be reachable
-         BEFORE anyone can log in (login itself calls it), so this small
-         config box lives here instead of only inside the (login-gated)
-         Settings tab. Once saved, it's remembered on this device/browser
-         and this box is just for changing it later if ever needed. -->
-    <div class="mt-4 pt-3 border-t text-center">
-      <button id="loginConfigureUrlToggle" type="button" class="text-xs text-gray-400 hover:text-emerald-600 transition">
-        <i class="fa-solid fa-gear mr-1"></i> ตั้งค่า Apps Script URL (ครั้งแรกที่ใช้เครื่องนี้)
-      </button>
-      <div id="loginConfigureUrlBox" class="hidden mt-2 flex gap-2">
-        <input id="loginScriptUrlInput" type="text" autocomplete="off" spellcheck="false"
-               placeholder="https://script.google.com/macros/s/xxxxx/exec"
-               class="w-full border-2 border-gray-200 rounded-lg px-2 py-1.5 text-xs
-                      focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
-        <button id="loginSaveScriptUrlBtn" type="button"
-                class="flex-shrink-0 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg px-3 text-xs font-medium transition">
-          บันทึก
-        </button>
+<div id="loginOverlay" class="fixed inset-0 bg-emerald-950/95 z-[100]">
+  <div class="lg-card">
+    <div class="lg-left">
+      <div class="lg-title"><i class="fa-solid fa-cash-register"></i><div><b>เข้าสู่ระบบ POS</b><span id="loginShopName">Mewtoy</span></div></div>
+      <!-- สาขาของเครื่องนี้ตัวใหญ่ (Wing 3 พ.ย.: "ขยายว่าตอนนี้สาขาไหน") — renderLoginBranch_() -->
+      <div id="loginBranchNow" class="lg-now"><div class="k">เครื่องนี้คือสาขา</div><div class="v" id="loginBranchNowCode">—</div><div class="d" id="loginBranchNowDesc"></div></div>
+      <!-- คำเตือนเครื่องที่ยังไม่ตั้งสาขา — backend ไม่ยอมบันทึกอะไรถ้าสาขาว่าง (resolveBranch_) -->
+      <div id="missingBranchCodeBanner" class="hidden rounded-lg border-2 border-amber-400 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        <i class="fa-solid fa-triangle-exclamation mr-1"></i> กดเลือกสาขาด้านล่างก่อนใช้งาน — ถ้าไม่ตั้ง จะบันทึกรายการใดๆ ไม่ได้
       </div>
+      <div><div class="lg-lbl" id="loginBranchPickLabel">เปลี่ยนสาขาของเครื่องนี้</div><div class="lg-brs" id="loginBranchButtons"></div></div>
+      <div class="lg-url">
+        <button id="loginConfigureUrlToggle" type="button" class="lg-url-btn"><i class="fa-solid fa-gear mr-1"></i> ตั้งค่า Apps Script URL</button>
+        <div id="loginConfigureUrlBox" class="hidden mt-2 flex gap-2">
+          <input id="loginScriptUrlInput" type="text" autocomplete="off" spellcheck="false"
+                 placeholder="https://script.google.com/macros/s/xxxxx/exec"
+                 class="w-full border-2 border-emerald-300 rounded-lg px-2 py-1.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-200">
+          <button id="loginSaveScriptUrlBtn" type="button" class="flex-shrink-0 bg-white text-emerald-800 hover:bg-emerald-50 rounded-lg px-3 text-xs font-bold transition">บันทึก</button>
+        </div>
+      </div>
+      <!-- ช่องตั้งสาขาแบบเดิม (dropdown) — ซ่อนไว้ ฟังก์ชันเดิมยังอ้าง id เหล่านี้ -->
+      <div class="hidden"><button id="loginConfigureBranchToggle" type="button"></button>
+        <div id="loginConfigureBranchBox"><select id="loginBranchCodeInput"></select><button id="loginSaveBranchCodeBtn" type="button"></button></div></div>
     </div>
-
-    <!-- Same idea as the Apps Script URL box above, but for this device's
-         branch code (see resolveBranch_ in pos_backend.gs) — auto-opened
-         by setupLoginBranchCodeConfig() whenever getBranchCode() is empty. -->
-    <div class="mt-2 pt-3 border-t text-center">
-      <button id="loginConfigureBranchToggle" type="button" class="text-xs text-gray-400 hover:text-emerald-600 transition">
-        <i class="fa-solid fa-gear mr-1"></i> ตั้งค่ารหัสสาขา (ครั้งแรกที่ใช้เครื่องนี้)
-      </button>
-      <div id="loginConfigureBranchBox" class="hidden mt-2 flex gap-2">
-        <select id="loginBranchCodeInput"
-               class="w-full border-2 border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white
-                      focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
-        </select>
-        <button id="loginSaveBranchCodeBtn" type="button"
-                class="flex-shrink-0 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg px-3 text-xs font-medium transition">
-          บันทึก
-        </button>
+    <div class="lg-right">
+      <div class="t">ใส่ PIN ของพนักงาน</div>
+      <div id="pinDisplay" class="flex justify-center items-center gap-2 mt-2 h-8 font-mono text-2xl tracking-widest text-gray-700"></div>
+      <p id="loginErrorText" class="hidden text-center text-sm text-red-500 mb-1"></p>
+      <div class="lg-pad">
+        <button data-pin="1" class="pin-key">1</button><button data-pin="2" class="pin-key">2</button><button data-pin="3" class="pin-key">3</button>
+        <button data-pin="4" class="pin-key">4</button><button data-pin="5" class="pin-key">5</button><button data-pin="6" class="pin-key">6</button>
+        <button data-pin="7" class="pin-key">7</button><button data-pin="8" class="pin-key">8</button><button data-pin="9" class="pin-key">9</button>
+        <button id="pinClearBtn" class="pin-key lg-del">ลบ</button><button data-pin="0" class="pin-key">0</button>
+        <button id="pinEnterBtn" class="pin-key lg-ok"><i class="fa-solid fa-check"></i></button>
       </div>
     </div>
   </div>
@@ -306,6 +300,31 @@
   @media (max-width: 1100px) { .navB-cap { display: none; } .navB-tab { padding: 0 8px; } }
   @media (max-width: 900px) { .navB-tab { padding: 0 6px; gap: 5px; font-size: 13px; } .navB-grp { padding: 0 4px; } }
   @media (max-width: 640px) { .navB-logo .ttl { font-size: 15px; } }
+  /* ปุ่ม "🔄 อัปเดตข้อมูล" สินค้า/ลูกค้า บนแถบบน (2026-11-03, แบบ 2 จาก mockup_navsync.html) */
+  .navB-sync { background: rgba(255,255,255,.08); color: #d1fae5; border: 1px solid rgba(255,255,255,.14); }
+  .navB-sync:hover { background: rgba(255,255,255,.15); color: #fff; }
+  .navB-sync.stale { border-color: #f59e0b; color: #fde68a; }
+  .navB-sync.done { border-color: #34d399; background: rgba(52,211,153,.18); }
+  .navB-dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; display: inline-block; flex-shrink: 0; }
+  .navB-dot.stale { background: #f59e0b; }
+  #navSyncWrap { flex-shrink: 0; }
+  @media (max-width: 480px) { .navB-ver { display: none; } .navB-logo { overflow: hidden; } .navB-logo .ttl { font-size: 14px; } }
+  .nsp { position: absolute; top: calc(100% + 6px); right: 0; width: 320px; max-width: calc(100vw - 24px); background: #fff; color: #374151; border-radius: 12px; box-shadow: 0 12px 30px rgba(0,0,0,.22); border: 1px solid #e5e7eb; padding: 12px; z-index: 50; }
+  .nsp h4 { margin: 0 0 6px; font-size: 13px; color: #6b7280; font-weight: 700; }
+  .nsp-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #f1f5f9; }
+  .nsp-row:first-of-type { border-top: 0; }
+  .nsp-ic { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; background: #ecfdf5; color: #047857; flex-shrink: 0; }
+  .nsp-ic.c { background: #eff6ff; color: #1d4ed8; }
+  .nsp-tx { flex: 1; font-size: 13px; line-height: 1.35; min-width: 0; }
+  .nsp-tx b { color: #111827; }
+  .nsp-tx .s { font-size: 11.5px; color: #6b7280; }
+  .nsp-tx .s.stale { color: #b45309; font-weight: 600; }
+  .nsp-btn { border: 1px solid #059669; color: #047857; background: #fff; border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .nsp-btn:hover { background: #ecfdf5; }
+  .nsp-btn:disabled { opacity: .5; cursor: progress; }
+  .nsp-btn.pri { background: #047857; color: #fff; border-color: #047857; width: 100%; padding: 7px; margin-top: 6px; font-size: 13px; }
+  .nsp-btn.pri:hover { background: #065f46; }
+  .nsp-foot { font-size: 11px; color: #9ca3af; margin-top: 8px; }
 </style>
 <nav class="navB">
   <!-- ชั้นบน: โลโก้ + สาขา + ผู้ใช้ + Logout -->
@@ -316,7 +335,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.10.31-a</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.03-b</span>
       </div>
       <div class="flex-1"></div>
 
@@ -329,6 +348,27 @@
            and no Logout or page reload needed to use it. See
            setupBranchIndicator()/populateBranchIndicator() below.
            แบบ B: แสดงเป็นป้ายสีเหลืองอำพันให้เห็นชัดว่าอยู่สาขาไหน. -->
+      <!-- 🔄 อัปเดตข้อมูลสินค้า/ลูกค้า (2026-11-03, Wing เลือกแบบ 2) — ใช้ syncProductData()/syncCustomerData() เดิม
+           จุดเขียว = อัปเดตวันนี้แล้วทั้งคู่ · เหลือง = ยังมีอย่างใดอย่างหนึ่งไม่ได้อัปเดตวันนี้ · ดู setupNavSync_() -->
+      <div id="navSyncWrap" class="relative">
+        <button id="navSyncBtn" type="button" class="navB-pill navB-sync inline-flex transition" title="อัปเดตข้อมูลสินค้า / ลูกค้า" aria-haspopup="true" aria-expanded="false">
+          <span id="navSyncDot" class="navB-dot"></span>
+          <i id="navSyncIcon" class="fa-solid fa-rotate"></i>
+          <span class="hidden md:inline">อัปเดตข้อมูล</span>
+          <i class="fa-solid fa-caret-down text-[10px] opacity-70 hidden md:inline"></i>
+        </button>
+        <div id="navSyncPanel" class="nsp hidden">
+          <h4>ข้อมูลในเครื่องนี้</h4>
+          <div class="nsp-row"><span class="nsp-ic"><i class="fa-solid fa-box"></i></span>
+            <div class="nsp-tx"><b>สินค้า (Product_ID)</b><div class="s" id="navSyncProdInfo"></div></div>
+            <button id="navSyncProdBtn" type="button" class="nsp-btn">อัปเดต</button></div>
+          <div class="nsp-row"><span class="nsp-ic c"><i class="fa-solid fa-address-book"></i></span>
+            <div class="nsp-tx"><b>ลูกค้า (Customer)</b><div class="s" id="navSyncCustInfo"></div></div>
+            <button id="navSyncCustBtn" type="button" class="nsp-btn">อัปเดต</button></div>
+          <button id="navSyncBothBtn" type="button" class="nsp-btn pri"><i class="fa-solid fa-rotate mr-1"></i> อัปเดตทั้งคู่</button>
+          <div class="nsp-foot">ระบบอัปเดตเองวันละครั้งตอนเปิดหน้า · กดเองได้เมื่อมีสินค้า/ลูกค้าใหม่ในชีต · ตะกร้าที่ขายค้างไว้ไม่หาย</div>
+        </div>
+      </div>
       <div id="branchIndicatorWrap" class="relative">
         <button id="branchIndicatorBtn" type="button"
                 class="navB-pill navB-branch transition hidden sm:inline-flex">
@@ -4490,6 +4530,37 @@ function saveBranchCode(code) {
 function populateBranchIndicator() {
   const label = document.getElementById("branchIndicatorLabel");
   if (label) label.textContent = getBranchCode() || "ยังไม่ตั้งค่า";
+  renderLoginBranch_();
+}
+
+/* หน้า Login (แบบ B, 2026-11-03): สาขาของเครื่องนี้ตัวใหญ่ + ปุ่มเปลี่ยนสาขา
+   กดปุ่ม = saveBranchCode() เหมือนช่องสาขาในหน้าตั้งค่า (ถามยืนยันถ้าเปลี่ยนจากสาขาเดิม) */
+function loginBranchDesc_(code) {
+  if (code === STORE_DEVICE_BRANCH_CODE) return "เครื่องเบิกของหน้า Store";
+  if (code === "Website") return "ขายออนไลน์";
+  if (code === "Event") return "ออกบูธ / งานอีเวนต์";
+  return "หน้าร้าน";
+}
+function renderLoginBranch_() {
+  const box = document.getElementById("loginBranchNow");
+  const wrap = document.getElementById("loginBranchButtons");
+  if (!box || !wrap) return;
+  const cur = getBranchCode();
+  box.classList.toggle("none", !cur);
+  document.getElementById("loginBranchNowCode").textContent = cur || "ยังไม่ได้ตั้งสาขา";
+  document.getElementById("loginBranchNowDesc").textContent = cur ? loginBranchDesc_(cur) : "เลือกสาขาด้านล่าง";
+  document.getElementById("loginBranchPickLabel").textContent = cur ? "เปลี่ยนสาขาของเครื่องนี้" : "เลือกสาขาของเครื่องนี้";
+  const shop = document.getElementById("loginShopName");
+  try { if (shop && typeof shopInfoCache !== "undefined" && shopInfoCache && shopInfoCache.name) shop.textContent = shopInfoCache.name; } catch (e) { /* ignore */ }
+  wrap.innerHTML = BRANCH_LIST.concat([STORE_DEVICE_BRANCH_CODE]).map((c) =>
+    `<button type="button" class="lg-br${c === cur ? " on" : ""}" data-branch="${c}">${c}${c === STORE_DEVICE_BRANCH_CODE ? " <small>เบิกของ</small>" : ""}</button>`).join("");
+  wrap.querySelectorAll(".lg-br").forEach((btn) => btn.addEventListener("click", () => {
+    const code = btn.getAttribute("data-branch");
+    const now = getBranchCode();
+    if (code === now) return;
+    if (now && !confirm("เปลี่ยนสาขาของเครื่องนี้จาก " + now + " เป็น " + code + " ?\nบิลที่ขายจากเครื่องนี้หลังจากนี้จะเป็นของสาขา " + code)) return;
+    if (saveBranchCode(code)) hideMissingBranchCodeBanner();
+  }));
 }
 
 // POS-screen branch quick-switch (added 2026-09, see the HTML comment
@@ -4881,8 +4952,10 @@ async function syncProductData() {
 
   const btn = document.getElementById("syncDataBtn");
   const label = document.getElementById("syncBtnLabel");
+  if (navSyncBusy_.p) return; // กำลังซิงค์อยู่แล้ว (กดซ้ำจากแถบบน/Settings)
   btn.disabled = true;
   label.textContent = "กำลังซิงค์...";
+  navSyncBusy_.p = true; renderNavSync_();
 
   try {
     const response = await fetch(scriptUrl, { method: "GET" });
@@ -4905,6 +4978,7 @@ async function syncProductData() {
   } finally {
     btn.disabled = false;
     label.textContent = "ซิงค์ / อัปเดตข้อมูลสินค้า";
+    navSyncBusy_.p = false; renderNavSync_();
   }
 }
 
@@ -4920,8 +4994,10 @@ async function syncCustomerData() {
 
   const btn = document.getElementById("syncCustomerDataBtn");
   const label = document.getElementById("syncCustomerBtnLabel");
+  if (navSyncBusy_.c) return;
   btn.disabled = true;
   label.textContent = "กำลังซิงค์...";
+  navSyncBusy_.c = true; renderNavSync_();
 
   try {
     const url = scriptUrl + (scriptUrl.includes("?") ? "&" : "?") + "type=customers";
@@ -4945,6 +5021,7 @@ async function syncCustomerData() {
   } finally {
     btn.disabled = false;
     label.textContent = "ซิงค์ / อัปเดตข้อมูลลูกค้า";
+    navSyncBusy_.c = false; renderNavSync_();
   }
 }
 
@@ -4980,6 +5057,60 @@ function updateCacheStatusUI() {
 
   document.getElementById("settingsCustomerCacheCount").textContent = customerCount.toLocaleString();
   document.getElementById("settingsCustomerLastSync").textContent = customerLastSyncText;
+  renderNavSync_();
+}
+
+/* ---------- 🔄 ปุ่มอัปเดตข้อมูลบนแถบบน (2026-11-03) ---------- */
+const navSyncBusy_ = { p: false, c: false };
+function navSyncWhen_(key) {
+  const raw = localStorage.getItem(key);
+  const d = raw ? new Date(raw) : null;
+  if (!d || isNaN(d.getTime())) return "ยังไม่เคยอัปเดต";
+  const hm = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  const today = new Date(); const y = new Date(); y.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return "อัปเดตวันนี้ " + hm;
+  if (d.toDateString() === y.toDateString()) return "อัปเดตเมื่อวาน " + hm;
+  return "อัปเดต " + d.getDate() + "/" + (d.getMonth() + 1) + " " + hm;
+}
+function renderNavSync_() {
+  const btn = document.getElementById("navSyncBtn");
+  if (!btn) return;
+  const pStale = needsDailySync_("pos_last_sync"), cStale = needsDailySync_("pos_customer_last_sync");
+  const busy = navSyncBusy_.p || navSyncBusy_.c;
+  btn.classList.toggle("stale", (pStale || cStale) && !busy);
+  document.getElementById("navSyncDot").classList.toggle("stale", pStale || cStale);
+  document.getElementById("navSyncIcon").classList.toggle("fa-spin", busy);
+  btn.title = busy ? "กำลังอัปเดตข้อมูล…" : (pStale || cStale ? "ยังไม่ได้อัปเดตข้อมูลวันนี้ — กดเพื่ออัปเดต" : "อัปเดตข้อมูลสินค้า / ลูกค้า");
+  const pi = document.getElementById("navSyncProdInfo"), ci = document.getElementById("navSyncCustInfo");
+  pi.textContent = navSyncBusy_.p ? "กำลังดึงข้อมูล…" : productMap.size.toLocaleString() + " รายการ · " + navSyncWhen_("pos_last_sync");
+  ci.textContent = navSyncBusy_.c ? "กำลังดึงข้อมูล…" : customerMap.size.toLocaleString() + " รายการ · " + navSyncWhen_("pos_customer_last_sync");
+  pi.classList.toggle("stale", pStale && !navSyncBusy_.p);
+  ci.classList.toggle("stale", cStale && !navSyncBusy_.c);
+  document.getElementById("navSyncProdBtn").disabled = navSyncBusy_.p;
+  document.getElementById("navSyncCustBtn").disabled = navSyncBusy_.c;
+  document.getElementById("navSyncBothBtn").disabled = busy;
+}
+async function navSyncRun_(which) {
+  const before = { p: localStorage.getItem("pos_last_sync"), c: localStorage.getItem("pos_customer_last_sync") };
+  const jobs = [];
+  if (which !== "c") jobs.push(syncProductData());
+  if (which !== "p") jobs.push(syncCustomerData());
+  try { await Promise.all(jobs); } catch (e) { console.error(e); }
+  const ok = (which === "c" || localStorage.getItem("pos_last_sync") !== before.p) && (which === "p" || localStorage.getItem("pos_customer_last_sync") !== before.c);
+  if (ok) { const b = document.getElementById("navSyncBtn"); b.classList.add("done"); setTimeout(() => b.classList.remove("done"), 1500); }
+}
+function setupNavSync_() {
+  const btn = document.getElementById("navSyncBtn"), panel = document.getElementById("navSyncPanel");
+  if (!btn || !panel) return;
+  const close = () => { panel.classList.add("hidden"); btn.setAttribute("aria-expanded", "false"); };
+  btn.addEventListener("click", (e) => { e.stopPropagation(); renderNavSync_(); const open = panel.classList.toggle("hidden") === false; btn.setAttribute("aria-expanded", open ? "true" : "false"); });
+  panel.addEventListener("click", (e) => e.stopPropagation());
+  document.addEventListener("click", close);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  document.getElementById("navSyncProdBtn").addEventListener("click", () => navSyncRun_("p"));
+  document.getElementById("navSyncCustBtn").addEventListener("click", () => navSyncRun_("c"));
+  document.getElementById("navSyncBothBtn").addEventListener("click", () => navSyncRun_("both"));
+  renderNavSync_();
 }
 
 /* =================================================================
@@ -7854,6 +7985,7 @@ function setupLoginBranchCodeConfig() {
   }
 
   toggle.addEventListener("click", () => box.classList.toggle("hidden"));
+  renderLoginBranch_();
 
   const save = () => {
     if (saveBranchCode(input.value)) {
@@ -21919,6 +22051,7 @@ async function init() {
   setupSystemMenu();
   setupMobileTabNav();
   setupBranchIndicator();
+  setupNavSync_();
   setupByRoomTab();
   setupScanInput();
   setupPaymentButtons();
