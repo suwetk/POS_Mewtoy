@@ -325,6 +325,88 @@
   .nsp-btn.pri { background: #047857; color: #fff; border-color: #047857; width: 100%; padding: 7px; margin-top: 6px; font-size: 13px; }
   .nsp-btn.pri:hover { background: #065f46; }
   .nsp-foot { font-size: 11px; color: #9ca3af; margin-top: 8px; }
+
+  /* ---- ➕ เพิ่มสินค้า/ลูกค้า (2026-11-04) ---- */
+  .navB-add { background: rgba(255,255,255,.08); color: #fde68a; border: 1px solid #fbbf24; }
+  .navB-add:hover { background: rgba(251,191,36,.18); color: #fff; }
+  .nam { position: absolute; top: calc(100% + 6px); right: 0; width: 220px; background: #fff; border-radius: 12px; box-shadow: 0 12px 30px rgba(0,0,0,.22); border: 1px solid #e5e7eb; padding: 6px; z-index: 50; }
+  .nam button { display: flex; width: 100%; align-items: center; gap: 10px; border: 0; background: transparent; padding: 9px 10px; border-radius: 8px; font-size: 14px; color: #1f2937; text-align: left; }
+  .nam button:hover { background: #ecfdf5; }
+  .nam button i { width: 18px; text-align: center; }
+  .nam hr { border: 0; border-top: 1px solid #e5e7eb; margin: 4px 0; }
+  .qa-hint-btn { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px; border: 0; border-radius: 7px; background: #d97706; color: #fff; font-weight: 700; padding: 3px 9px; font-size: 12px; vertical-align: middle; }
+  .qa-hint-btn:hover { background: #b45309; }
+  .qa-hint-btn.ws { background: #7c3aed; }
+  .qa-hint-btn.ws:hover { background: #6d28d9; }
+  .cart-pi-btn { border: 1px solid #f59e0b; background: #fff; color: #b45309; border-radius: 6px; font-size: 11px; font-weight: 800; padding: 3px 8px; white-space: nowrap; }
+  .cart-pi-btn:hover { background: #fffbeb; }
+  .qa-ov { position: fixed; inset: 0; background: rgba(2,44,34,.5); z-index: 150; display: flex; align-items: flex-start; justify-content: center; padding: 24px 12px; overflow-y: auto; }
+  .qa-ov.hidden { display: none; }
+  .qa-box { background: #fff; border-radius: 14px; width: 560px; max-width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,.3); overflow: hidden; --k: #d97706; --k-bg: #fffbeb; --k-bd: #fcd34d; }
+  .qa-box.k-ws { --k: #7c3aed; --k-bg: #f5f3ff; --k-bd: #c4b5fd; }
+  .qa-hd { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--k-bg); border-bottom: 1px solid var(--k-bd); }
+  .qa-hd i.ic { color: var(--k); font-size: 18px; }
+  .qa-hd .t { flex: 1; font-weight: 700; font-size: 16px; color: var(--k); }
+  .qa-hd .live { font-size: 11px; font-weight: 700; color: #fff; background: #dc2626; border-radius: 999px; padding: 2px 8px; }
+  .qa-hd .x { border: 0; background: transparent; font-size: 18px; color: #6b7280; }
+  .qa-bd { padding: 14px 16px; display: grid; gap: 10px; }
+  .qa-f label { display: block; font-size: 12px; color: #4b5563; font-weight: 600; margin-bottom: 3px; }
+  .qa-f label .col { font-weight: 400; color: #9ca3af; }
+  .qa-f label .req { color: #dc2626; }
+  .qa-f input, .qa-f textarea { width: 100%; height: 36px; border: 1px solid #d1d5db; border-radius: 7px; padding: 0 10px; font-size: 14px; background: #fff; }
+  .qa-f textarea { height: 58px; padding: 6px 10px; resize: vertical; }
+  .qa-f input:focus, .qa-f textarea:focus { outline: 2px solid #10b981; border-color: #10b981; }
+  .qa-f input.mono { font-family: ui-monospace, Consolas, monospace; }
+  .qa-f input.num { text-align: right; }
+  .qa-f .hint { font-size: 11.5px; color: #6b7280; margin-top: 3px; }
+  .qa-g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .qa-g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .qa-chk { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+  .qa-b { font-size: 11.5px; border-radius: 999px; padding: 2px 9px; font-weight: 600; }
+  .qa-b.ok { background: #d1fae5; color: #065f46; } .qa-b.bad { background: #fee2e2; color: #991b1b; }
+  .qa-b.warn { background: #fef3c7; color: #92400e; } .qa-b.info { background: #e0f2fe; color: #075985; }
+  .qa-dt { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 8px 10px; font-size: 12.5px; color: #0c4a6e; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .qa-dt .tx { flex: 1; min-width: 200px; }
+  .qa-dt button { border: 1px solid #0284c7; background: #fff; color: #0369a1; border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; }
+  .qa-master { border: 1px dashed #d1d5db; border-radius: 8px; padding: 6px 10px; }
+  .qa-master summary { cursor: pointer; font-size: 12.5px; color: #4b5563; font-weight: 600; }
+  .qa-master .qa-g3 { margin-top: 8px; }
+  .qa-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .qa-seg button { border: 2px solid #e5e7eb; background: #fff; border-radius: 10px; padding: 7px 9px; text-align: left; }
+  .qa-seg button .h { font-weight: 700; font-size: 13.5px; display: block; color: #1f2937; }
+  .qa-seg button .s { font-size: 11px; color: #6b7280; }
+  .qa-seg button.on[data-k="c"] { border-color: #d97706; background: #fffbeb; }
+  .qa-seg button.on[data-k="ws"] { border-color: #7c3aed; background: #f5f3ff; }
+  .qa-next { display: flex; align-items: center; gap: 12px; background: #f9fafb; border: 1px dashed #d1d5db; border-radius: 10px; padding: 8px 12px; }
+  .qa-next .cd { font-family: ui-monospace, Consolas, monospace; font-size: 22px; font-weight: 700; color: var(--k); }
+  .qa-next .ex { font-size: 12px; color: #6b7280; line-height: 1.5; }
+  .qa-note { font-size: 12.5px; background: var(--k-bg); border: 1px solid var(--k-bd); border-radius: 8px; padding: 7px 10px; line-height: 1.55; }
+  .qa-chbox { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; display: grid; gap: 8px; }
+  .qa-chrow { display: grid; grid-template-columns: 150px 1fr; gap: 8px; align-items: center; }
+  .qa-chtg { display: flex; align-items: center; gap: 8px; border: 1px solid #d1d5db; background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 13px; text-align: left; color: #1f2937; }
+  .qa-chtg .bx { width: 16px; height: 16px; border: 2px solid #9ca3af; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; flex: none; }
+  .qa-chtg.on { background: #065f46; border-color: #065f46; color: #fff; }
+  .qa-chtg.on .bx { background: #fff; border-color: #fff; color: #065f46; }
+  .qa-chrow input { height: 34px; border: 1px solid #d1d5db; border-radius: 7px; padding: 0 10px; font-size: 13.5px; width: 100%; }
+  .qa-chrow input:disabled { background: #f9fafb; border-style: dashed; }
+  .qa-who { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 12.5px; color: #4b5563; }
+  .qa-who button { border: 1px solid #d1d5db; background: #fff; border-radius: 999px; padding: 3px 10px; font-size: 12.5px; }
+  .qa-who button.on { background: #047857; border-color: #047857; color: #fff; }
+  .qa-chval { font-size: 11.5px; color: #6b7280; line-height: 1.6; word-break: break-word; }
+  .qa-chval code { background: #f3f4f6; border-radius: 4px; padding: 0 4px; }
+  .qa-dup { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 8px 10px; font-size: 12.5px; color: #7f1d1d; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .qa-dup .tx { flex: 1; min-width: 200px; }
+  .qa-dup button { border: 1px solid #dc2626; background: #fff; color: #b91c1c; border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; }
+  .qa-pin { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #f5f3ff; border: 1px solid #c4b5fd; border-radius: 8px; padding: 8px 10px; font-size: 13px; color: #4c1d95; }
+  .qa-pin input { width: 130px; height: 34px; border: 1px solid #c4b5fd; border-radius: 7px; padding: 0 10px; font-size: 16px; letter-spacing: .3em; text-align: center; }
+  .qa-err { color: #b91c1c; font-size: 12.5px; }
+  .qa-ft { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid #e5e7eb; background: #f9fafb; }
+  .qa-ft .by { margin-right: auto; font-size: 12px; color: #6b7280; align-self: center; }
+  .qa-bt { height: 38px; padding: 0 14px; border-radius: 8px; font-weight: 600; font-size: 14px; border: 1px solid #d1d5db; background: #fff; color: #374151; }
+  .qa-bt.pri { background: #059669; border-color: #059669; color: #fff; }
+  .qa-bt.pri:disabled { background: #9ca3af; border-color: #9ca3af; cursor: not-allowed; }
+  .qa-hide { display: none !important; }
+  @media (max-width: 520px) { .qa-g2, .qa-g3, .qa-seg, .qa-chrow { grid-template-columns: 1fr; } }
 </style>
 <nav class="navB">
   <!-- ชั้นบน: โลโก้ + สาขา + ผู้ใช้ + Logout -->
@@ -335,7 +417,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.03-b</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.04-a</span>
       </div>
       <div class="flex-1"></div>
 
@@ -350,6 +432,21 @@
            แบบ B: แสดงเป็นป้ายสีเหลืองอำพันให้เห็นชัดว่าอยู่สาขาไหน. -->
       <!-- 🔄 อัปเดตข้อมูลสินค้า/ลูกค้า (2026-11-03, Wing เลือกแบบ 2) — ใช้ syncProductData()/syncCustomerData() เดิม
            จุดเขียว = อัปเดตวันนี้แล้วทั้งคู่ · เหลือง = ยังมีอย่างใดอย่างหนึ่งไม่ได้อัปเดตวันนี้ · ดู setupNavSync_() -->
+      <!-- ➕ เพิ่มสินค้า/ลูกค้า (2026-11-04, mockup_pi_quickadd.html + mockup_customer_quickadd.html v2026.11.04-d)
+           สินค้า → ส่งเข้า PI (Product_ID ตัวจริง) · ลูกค้า → ไฟล์ Customer ผ่าน action addCustomer · ดู setupQuickAdd_() -->
+      <div id="navAddWrap" class="relative">
+        <button id="navAddBtn" type="button" class="navB-pill navB-add inline-flex transition" title="เพิ่มสินค้าใหม่ / ลูกค้าใหม่" aria-haspopup="true" aria-expanded="false">
+          <i class="fa-solid fa-plus"></i>
+          <span class="hidden md:inline">เพิ่ม</span>
+          <i class="fa-solid fa-caret-down text-[10px] opacity-70 hidden md:inline"></i>
+        </button>
+        <div id="navAddMenu" class="nam hidden">
+          <button type="button" data-qa="p"><i class="fa-solid fa-box" style="color:#d97706"></i>สินค้าใหม่ (PI)</button>
+          <hr>
+          <button type="button" data-qa="c"><i class="fa-solid fa-user-plus" style="color:#d97706"></i>ลูกค้าปกติ (C)</button>
+          <button type="button" data-qa="ws"><i class="fa-solid fa-store" style="color:#7c3aed"></i>พ่อค้าส่ง (CWS)</button>
+        </div>
+      </div>
       <div id="navSyncWrap" class="relative">
         <button id="navSyncBtn" type="button" class="navB-pill navB-sync inline-flex transition" title="อัปเดตข้อมูลสินค้า / ลูกค้า" aria-haspopup="true" aria-expanded="false">
           <span id="navSyncDot" class="navB-dot"></span>
@@ -570,6 +667,7 @@
         <p id="notFoundHint" class="hidden mt-2 text-xs text-amber-600">
           <i class="fa-solid fa-triangle-exclamation mr-1"></i>
           ไม่พบบาร์โค้ดนี้ในฐานข้อมูล — เพิ่มลงตะกร้าให้แล้ว กรุณาพิมพ์ชื่อสินค้าและราคาลงในแถวนั้นในตะกร้าโดยตรง
+          <button id="qaPiHintBtn" type="button" class="qa-hint-btn"><i class="fa-solid fa-square-plus"></i> เพิ่มเข้า PI</button>
         </p>
       </div>
 
@@ -752,6 +850,7 @@
                       focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-500">
         <p id="customerNotFoundHint" class="hidden text-xs text-amber-600 mb-2">
           <i class="fa-solid fa-triangle-exclamation mr-1"></i> ไม่พบรหัสนี้ — กรอกชื่อ/ที่อยู่เองด้านล่างได้เลย
+          <button type="button" class="qa-hint-btn qa-cust-btn" data-target="sale"><i class="fa-solid fa-user-plus"></i> เพิ่มลูกค้าใหม่</button>
         </p>
 
         <!-- Pull this customer's existing pre-orders into THIS cart, as "Rec"
@@ -1321,6 +1420,7 @@
                           focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
             <p id="poCustomerNotFoundHint" class="hidden text-xs text-amber-600 mb-1">
               <i class="fa-solid fa-triangle-exclamation mr-1"></i> ไม่พบรหัสนี้ — กรอกชื่อเองด้านล่างได้เลย
+              <button type="button" class="qa-hint-btn qa-cust-btn" data-target="po"><i class="fa-solid fa-user-plus"></i> เพิ่มลูกค้าใหม่</button>
             </p>
             <input id="poCustomerNameInput" type="text" placeholder="ชื่อลูกค้า"
                    class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm mb-1
@@ -1830,6 +1930,7 @@
                             focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
               <p id="wsCustomerNotFoundHint" class="hidden text-xs text-amber-600 mb-1">
                 <i class="fa-solid fa-triangle-exclamation mr-1"></i> ไม่พบรหัสนี้ — กรอกชื่อเองด้านล่างได้เลย
+                <button type="button" class="qa-hint-btn qa-cust-btn ws" data-target="ws"><i class="fa-solid fa-store"></i> เพิ่มพ่อค้าส่งใหม่</button>
               </p>
               <input id="wsCustomerNameInput" type="text" placeholder="ชื่อลูกค้า/ร้าน (จำเป็น)"
                      class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm mb-1
@@ -3876,6 +3977,21 @@
       </div>
 
       <div>
+        <label class="block text-sm text-gray-500 mb-1">ลิงก์ PI (เพิ่มสินค้าเข้า Product_ID จากหน้าขาย)</label>
+        <div class="flex gap-2">
+          <input id="piUrlInput" type="text" autocomplete="off" spellcheck="false"
+                 placeholder="https://script.google.com/macros/s/xxxxx/exec"
+                 class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm
+                        focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+          <button id="savePiUrlBtn" type="button"
+                  class="flex-shrink-0 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg px-4 text-sm font-medium transition">
+            บันทึก
+          </button>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">ตั้งไว้ให้แล้ว — เปลี่ยนเฉพาะตอน Deploy PI เป็นลิงก์ใหม่ (ลิงก์เดิม + New version ไม่ต้องเปลี่ยน)</p>
+      </div>
+
+      <div>
         <label class="block text-sm text-gray-500 mb-1">รหัสสาขา (Branch Code)</label>
         <div class="flex gap-2">
           <select id="branchCodeInput"
@@ -4254,6 +4370,121 @@
 </div>
 
 <!-- ===== ผู้ส่งบนใบปะหน้า: พิมพ์เอง ===== -->
+<!-- ===== ➕ เพิ่มสินค้าใหม่ → PI (2026-11-04, mockup_pi_quickadd.html v2026.11.04-d) ===== -->
+<div id="qaPiModal" class="qa-ov hidden">
+  <div class="qa-box" role="dialog" aria-labelledby="qaPiTitle">
+    <div class="qa-hd">
+      <i class="fa-solid fa-square-plus ic"></i>
+      <div class="t" id="qaPiTitle">เพิ่มสินค้าใหม่ → Product_ID</div>
+      <span class="live">Product_ID ตัวจริง</span>
+      <button type="button" class="x" id="qaPiClose" title="ปิด">✕</button>
+    </div>
+    <div class="qa-bd">
+      <div class="qa-f">
+        <label for="qaPiBarcode">Barcode <span class="req">*</span></label>
+        <input id="qaPiBarcode" class="mono" autocomplete="off" spellcheck="false">
+        <div class="qa-chk" id="qaPiChk"></div>
+      </div>
+      <div class="qa-dt qa-hide" id="qaPiDt">
+        <i class="fa-solid fa-database"></i>
+        <div class="tx" id="qaPiDtTx"></div>
+        <button type="button" id="qaPiDtUse">ใช้ข้อมูลนี้</button>
+      </div>
+      <div class="qa-f">
+        <label for="qaPiName">Full Name <span class="req">*</span></label>
+        <input id="qaPiName" autocomplete="off" placeholder="เช่น HG 1/144 Gundam ...">
+      </div>
+      <div class="qa-g3">
+        <div class="qa-f"><label for="qaPiP1">Price 1 (ขายปลีก) <span class="req">*</span></label><input id="qaPiP1" class="num" inputmode="decimal" autocomplete="off"></div>
+        <div class="qa-f"><label for="qaPiP2">Price 2 (WS)</label><input id="qaPiP2" class="num" inputmode="decimal" autocomplete="off"></div>
+        <div class="qa-f"><label for="qaPiPx">P.Extra</label><input id="qaPiPx" class="num" inputmode="decimal" autocomplete="off" placeholder="ว่าง = ใช้ P1"></div>
+      </div>
+      <div class="qa-g2">
+        <div class="qa-f"><label for="qaPiBrand">Brand</label><input id="qaPiBrand" list="qaPiBrandList" autocomplete="off" placeholder="เช่น Bandai"></div>
+        <div class="qa-f"><label for="qaPiSeries">SERIES_Product</label><input id="qaPiSeries" autocomplete="off" placeholder="ไม่บังคับ"></div>
+      </div>
+      <datalist id="qaPiBrandList"><option value="Bandai"><option value="Kotobukiya"><option value="Good Smile"><option value="Max Factory"><option value="Takara Tomy"></datalist>
+      <details class="qa-master qa-hide" id="qaPiMaster">
+        <summary><i class="fa-solid fa-lock"></i> ช่อง Master (Yen · Cost · DATA)</summary>
+        <div class="qa-g3">
+          <div class="qa-f"><label for="qaPiYen">Yen</label><input id="qaPiYen" class="num" inputmode="decimal" autocomplete="off"></div>
+          <div class="qa-f"><label for="qaPiCost">Cost</label><input id="qaPiCost" class="num" inputmode="decimal" autocomplete="off"></div>
+          <div class="qa-f"><label for="qaPiData">DATA</label><input id="qaPiData" class="num" inputmode="decimal" autocomplete="off"></div>
+        </div>
+      </details>
+      <div class="qa-err" id="qaPiErr"></div>
+    </div>
+    <div class="qa-ft">
+      <span class="by" id="qaPiBy"></span>
+      <button type="button" class="qa-bt" id="qaPiCancel">ยกเลิก</button>
+      <button type="button" class="qa-bt pri" id="qaPiSave"><i class="fa-solid fa-check"></i> <span id="qaPiSaveT">บันทึก + ใส่ตะกร้า</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ➕ เพิ่มลูกค้าใหม่ → Customer (2026-11-04, mockup_customer_quickadd.html v2026.11.04-d) ===== -->
+<div id="qaCustModal" class="qa-ov hidden">
+  <div class="qa-box" id="qaCustBox" role="dialog" aria-labelledby="qaCustTitle">
+    <div class="qa-hd">
+      <i class="fa-solid fa-user-plus ic" id="qaCustIco"></i>
+      <div class="t" id="qaCustTitle">เพิ่มลูกค้าใหม่ (C)</div>
+      <button type="button" class="x" id="qaCustClose" title="ปิด">✕</button>
+    </div>
+    <div class="qa-bd">
+      <div class="qa-seg">
+        <button type="button" data-k="c"><span class="h">👤 ลูกค้าปกติ</span><span class="s">C · ซื้อ / จอง</span></button>
+        <button type="button" data-k="ws"><span class="h">🏪 พ่อค้าส่ง</span><span class="s">CWS · ต้องใส่ PIN</span></button>
+      </div>
+      <div class="qa-next">
+        <div class="cd" id="qaCustNext">C—</div>
+        <div class="ex">รหัสที่จะได้ (ประมาณ) — ระบบจองเลขจริงตอนกดบันทึก<br>ถ้าอีกสาขาบันทึกไปก่อน จะได้เลขถัดไปแล้วแจ้งให้ทราบ</div>
+      </div>
+      <div class="qa-note qa-hide" id="qaCustNoteWs"><i class="fa-solid fa-lock"></i> พ่อค้าส่ง: กดบันทึกแล้วต้องใส่ PIN ของคนที่เพิ่ม — ระบบจดชื่อตาม PIN</div>
+      <div class="qa-f">
+        <label for="qaCustName">ชื่อ <span class="col">(Name)</span> <span class="req">*</span></label>
+        <input id="qaCustName" autocomplete="off">
+        <div class="hint">ชื่อนี้จะพิมพ์บนใบปะหน้า — ใส่ชื่อจริง/ชื่อผู้รับของ · ชื่อ Facebook/LINE ใส่ในช่องด้านล่าง</div>
+      </div>
+      <div class="qa-f">
+        <label for="qaCustTel">เบอร์โทร <span class="col">(Tel No.)</span></label>
+        <input id="qaCustTel" inputmode="tel" autocomplete="off" placeholder="0xx-xxx-xxxx">
+        <div class="qa-chk" id="qaCustTelChk"></div>
+      </div>
+      <div class="qa-dup qa-hide" id="qaCustDup">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <div class="tx" id="qaCustDupTx"></div>
+        <button type="button" id="qaCustDupUse">ใช้คนนี้</button>
+      </div>
+      <div class="qa-f">
+        <label>ทักมาทางไหน + ชื่อที่เห็นในแอป <span class="col">(Ch. + Name Ch.) — ติ๊กได้หลายอัน</span></label>
+        <div class="qa-chbox">
+          <div class="qa-chrow"><button type="button" class="qa-chtg" data-ch="FP"><span class="bx">✓</span>Facebook Page</button><input id="qaCustNmFP" placeholder="ชื่อใน Facebook" disabled></div>
+          <div class="qa-chrow"><button type="button" class="qa-chtg" data-ch="LO"><span class="bx">✓</span>LINE OA</button><input id="qaCustNmLO" placeholder="ชื่อใน LINE OA" disabled></div>
+          <div class="qa-chrow"><button type="button" class="qa-chtg" data-ch="LP"><span class="bx">✓</span>LINE ส่วนตัว</button><input id="qaCustNmLP" placeholder="ชื่อใน LINE" disabled></div>
+          <div class="qa-who qa-hide" id="qaCustWho">LINE ของ:
+            <button type="button" data-p="Top">Top</button><button type="button" data-p="W">W (Wing)</button><button type="button" data-p="K.Pu">K.Pu</button>
+          </div>
+          <div class="qa-chval">อันแรกที่ติ๊ก = ช่องทางหลัก<br>ลงชีต · Ch.: <code id="qaCustChOut">(ว่าง)</code> · Name Ch.: <code id="qaCustNmOut">(ว่าง)</code></div>
+        </div>
+      </div>
+      <div class="qa-f">
+        <label for="qaCustAddr">ที่อยู่ <span class="col">(Address)</span></label>
+        <textarea id="qaCustAddr"></textarea>
+      </div>
+      <div class="qa-pin qa-hide" id="qaCustPinRow">
+        <i class="fa-solid fa-lock"></i> ใส่ PIN ยืนยันการเพิ่มพ่อค้าส่ง
+        <input id="qaCustPin" type="password" inputmode="numeric" maxlength="8" autocomplete="off">
+      </div>
+      <div class="qa-err" id="qaCustErr"></div>
+    </div>
+    <div class="qa-ft">
+      <span class="by" id="qaCustBy"></span>
+      <button type="button" class="qa-bt" id="qaCustCancel">ยกเลิก</button>
+      <button type="button" class="qa-bt pri" id="qaCustSave"><i class="fa-solid fa-check"></i> <span id="qaCustSaveT">บันทึก</span></button>
+    </div>
+  </div>
+</div>
+
 <div id="shipSenderModal" class="fixed inset-0 bg-black/50 z-[140] hidden flex items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-xl w-full max-w-sm">
     <div class="px-5 py-3 border-b font-semibold text-gray-800">✏️ ผู้ส่ง (พิมพ์เอง)</div>
@@ -4933,7 +5164,9 @@ function findCustomer(query) {
   }
 
   const nameQuery = trimmed.toLowerCase();
-  const bySocial = customerList.find((c) => String(c.socialName || "").trim().toLowerCase() === nameQuery);
+  // Name Ch. อาจมีหลายชื่อคั่น " / " (ลูกค้าทักทั้ง Facebook และ LINE — 2026-11-04) → เทียบทีละชื่อ
+  const bySocial = customerList.find((c) => String(c.socialName || "").split("/")
+    .some((part) => part.trim().toLowerCase() === nameQuery));
   if (bySocial) return bySocial;
 
   return null;
@@ -5946,7 +6179,8 @@ function cartRowHtml(item) {
                        placeholder="ยังไม่มีบาร์โค้ด — พิมพ์หรือยิงสแกนเนอร์ใส่ตรงนี้ได้เลย"
                        class="cart-edit-input font-mono text-xs sm:text-sm font-bold text-amber-800 bg-amber-50
                               border-2 border-dashed border-amber-300 rounded-md px-2 py-1 w-full sm:w-64
-                              focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-500">`
+                              focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-500">
+                     <button type="button" class="cart-pi-btn" data-id="${item.id}" title="เพิ่มสินค้านี้เข้า PI (Product_ID)">+PI</button>`
                   : bigBarcodePill_(item.barcode)
               }
               <select data-id="${item.id}" class="row-type-select text-[10px] font-bold rounded-full border px-2 py-0.5 ${style.select}" ${item.lineId ? "disabled title='ผูกกับรายการจองจริง เอาออกได้เฉพาะด้วยปุ่มลบ 🗑'" : ""}>
@@ -22001,6 +22235,440 @@ async function autoSyncDailyIfNeeded_() {
   }
 }
 
+/* =================================================================
+   ➕ เพิ่มสินค้า (PI) / ลูกค้า จากหน้าขาย — 2026-11-04 (v2026.11.04-a)
+   mockup ที่ Wing อนุมัติ: mockup_pi_quickadd.html + mockup_customer_quickadd.html (v2026.11.04-d)
+   - สินค้า: ส่งเข้า PI backend (pi_backend.gs ≥ v2.2) action lookup/commit → Product_ID ตัวจริง
+     แล้วเติมเข้ารายการสินค้าในเครื่อง + แถวว่างในตะกร้าทันที (เครื่องอื่นเห็นหลังกด 🔄)
+   - ลูกค้า: action addCustomer ของ POS (pos_backend.gs ≥ 2026-11-04-a-quickadd)
+     รหัส C / CWS รันที่หลังบ้าน · พ่อค้าส่งต้องใส่ PIN ยืนยัน · ไม่มีคีย์ลัด (Wing สั่ง)
+   ================================================================= */
+const PI_URL_DEFAULT = "https://script.google.com/macros/s/AKfycbxSBpvJ8n_V_cGNXd0MExquKWrPTgcmq9Y8qRXMkijnWTcPrAwt6cY7ZAQTHCviJoN9pg/exec";
+const PI_URL_STORAGE_KEY = "pos_pi_url";
+
+function getPiUrl_() {
+  try { const s = localStorage.getItem(PI_URL_STORAGE_KEY); if (s && s.trim()) return s.trim(); } catch (e) { /* ignore */ }
+  return PI_URL_DEFAULT;
+}
+
+// EAN-13 / JAN: null = ไม่ใช่ 13 หลัก · true/false = หลักตรวจสอบถูก/ผิด
+function qaEan13Ok_(s) {
+  if (!/^\d{13}$/.test(s)) return null;
+  let t = 0;
+  for (let i = 0; i < 12; i++) t += Number(s[i]) * (i % 2 ? 3 : 1);
+  return (10 - (t % 10)) % 10 === Number(s[12]);
+}
+function qaDigits_(s) { return String(s || "").replace(/\D/g, ""); }
+function qaNum_(v) { const n = parseFloat(String(v || "").replace(/,/g, "")); return Number.isFinite(n) ? n : 0; }
+
+async function qaPiPost_(body) {
+  if (!currentStaff) throw new Error("ยังไม่ได้ล็อกอิน");
+  const res = await fetch(getPiUrl_(), {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(Object.assign({ pin: currentStaff.pin }, body))
+  });
+  const j = await res.json();
+  if (!j || j.status !== "success") throw new Error((j && j.message) || "PI ทำรายการไม่สำเร็จ");
+  return j.data;
+}
+
+function qaPutCache_(storeName, rec) {
+  return openDatabase().then((db) => new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, "readwrite");
+    tx.objectStore(storeName).put(rec);
+    tx.oncomplete = () => resolve();
+    tx.onerror = (ev) => reject(ev.target.error);
+  })).catch((err) => console.warn("qaPutCache_", err));
+}
+
+/* ---------------- สินค้า → PI ---------------- */
+let qaPiCtx = { rowId: null, lookupSeq: 0, dt: null, remoteExists: false, busy: false };
+
+function qaPiOpen_(barcode, rowId) {
+  if (!currentStaff) return;
+  qaPiCtx = { rowId: rowId || null, lookupSeq: qaPiCtx.lookupSeq + 1, dt: null, remoteExists: false, busy: false };
+  ["qaPiName", "qaPiP1", "qaPiP2", "qaPiPx", "qaPiBrand", "qaPiSeries", "qaPiYen", "qaPiCost", "qaPiData"].forEach((id) => { document.getElementById(id).value = ""; });
+  document.getElementById("qaPiBarcode").value = barcode || "";
+  document.getElementById("qaPiErr").textContent = "";
+  document.getElementById("qaPiDt").classList.add("qa-hide");
+  const master = isAdminRole(currentStaff.role);
+  document.getElementById("qaPiMaster").classList.toggle("qa-hide", !master);
+  document.getElementById("qaPiMaster").open = false;
+  document.getElementById("qaPiBy").innerHTML = '<i class="fa-solid fa-user-pen"></i> ' + escapeHtml(currentStaff.name) + " · " + escapeHtml(getBranchCode() || "-") + " → EditLog";
+  document.getElementById("qaPiSaveT").textContent = rowId || qaPiBlankRowFor_(barcode) ? "บันทึก + ใส่ตะกร้า" : "บันทึก";
+  qaPiSetBusy_(false);
+  document.getElementById("qaPiModal").classList.remove("hidden");
+  qaPiCheck_(true);
+  document.getElementById(barcode ? "qaPiName" : "qaPiBarcode").focus();
+}
+function qaPiClose_() { document.getElementById("qaPiModal").classList.add("hidden"); }
+function qaPiSetBusy_(b) {
+  qaPiCtx.busy = b;
+  const btn = document.getElementById("qaPiSave");
+  btn.disabled = b || qaPiCtx.remoteExists || !!findByBarcodeExact(document.getElementById("qaPiBarcode").value.trim());
+  btn.querySelector("i").className = b ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-check";
+}
+function qaPiBlankRowFor_(bc) {
+  return cart.find((it) => !it.name && String(it.barcode).trim() === String(bc || "").trim()) || null;
+}
+
+// เช็กบาร์โค้ด: หลักตรวจสอบ / มีในเครื่องแล้ว / ถาม PI (มีใน Product_ID แล้ว + Dreamtoy)
+function qaPiCheck_(askRemote) {
+  const bc = document.getElementById("qaPiBarcode").value.trim();
+  const chk = document.getElementById("qaPiChk");
+  const out = [];
+  const ok = qaEan13Ok_(bc);
+  if (!bc) out.push('<span class="qa-b warn">ยังไม่ใส่บาร์โค้ด</span>');
+  else if (ok === null) out.push('<span class="qa-b warn">ไม่ใช่ EAN-13 (บันทึกได้)</span>');
+  else out.push(ok ? '<span class="qa-b ok"><i class="fa-solid fa-check"></i> หลักตรวจสอบถูก</span>' : '<span class="qa-b bad"><i class="fa-solid fa-xmark"></i> เลขท้ายผิด — ยิงใหม่อีกครั้ง?</span>');
+  const local = bc ? findByBarcodeExact(bc) : null;
+  if (local) out.push('<span class="qa-b bad">มีใน Product_ID แล้ว: ' + escapeHtml(local.name || "") + "</span>");
+  chk.innerHTML = out.join("") + '<span id="qaPiRemote"></span>';
+  qaPiCtx.remoteExists = false;
+  qaPiCtx.dt = null;
+  document.getElementById("qaPiDt").classList.add("qa-hide");
+  qaPiSetBusy_(qaPiCtx.busy);
+  if (!askRemote || !bc || local) return;
+  const seq = ++qaPiCtx.lookupSeq;
+  document.getElementById("qaPiRemote").innerHTML = '<span class="qa-b info"><i class="fa-solid fa-spinner fa-spin"></i> ถาม PI…</span>';
+  qaPiPost_({ action: "lookup", barcode: bc }).then((r) => {
+    if (seq !== qaPiCtx.lookupSeq) return;
+    const box = document.getElementById("qaPiRemote");
+    if (r.exists) {
+      qaPiCtx.remoteExists = true;
+      box.innerHTML = '<span class="qa-b bad">มีใน Product_ID แล้ว (แถว ' + r.row + "): " + escapeHtml((r.product && r.product.name) || "") + " — กด 🔄 อัปเดตข้อมูลสินค้า</span>";
+    } else {
+      box.innerHTML = '<span class="qa-b ok">ยังไม่มีใน Product_ID</span>' + (r.dt ? ' <span class="qa-b info"><i class="fa-solid fa-database"></i> พบใน Dreamtoy</span>' : "");
+    }
+    if (r.dt) {
+      qaPiCtx.dt = r.dt;
+      document.getElementById("qaPiDtTx").innerHTML = "<b>" + escapeHtml(r.dt.name) + "</b><br>P1 " + formatMoney(r.dt.p1) + " · P2 " + formatMoney(r.dt.p2) +
+        (r.dt.yen ? " · Yen " + Number(r.dt.yen).toLocaleString() : "") + " (" + escapeHtml(r.dt.offer || r.dt.date || "Offer ล่าสุด") + ")";
+      document.getElementById("qaPiDt").classList.toggle("qa-hide", !!r.exists);
+    }
+    qaPiSetBusy_(qaPiCtx.busy);
+  }).catch((err) => {
+    if (seq !== qaPiCtx.lookupSeq) return;
+    const box = document.getElementById("qaPiRemote");
+    if (box) box.innerHTML = '<span class="qa-b warn">ถาม PI ไม่ได้: ' + escapeHtml(err.message) + " (ยังบันทึกได้ — ระบบเช็กซ้ำตอนบันทึก)</span>";
+  });
+}
+function qaPiUseDt_() {
+  const d = qaPiCtx.dt; if (!d) return;
+  document.getElementById("qaPiName").value = d.name || "";
+  if (d.p1) document.getElementById("qaPiP1").value = d.p1;
+  if (d.p2) document.getElementById("qaPiP2").value = d.p2;
+  if (d.yen) document.getElementById("qaPiYen").value = d.yen;
+  if (!document.getElementById("qaPiBrand").value) document.getElementById("qaPiBrand").value = "Bandai";
+  if (d.series && !document.getElementById("qaPiSeries").value) document.getElementById("qaPiSeries").value = d.series;
+  document.getElementById("qaPiP1").focus();
+}
+
+async function qaPiSave_() {
+  if (qaPiCtx.busy) return;
+  const err = document.getElementById("qaPiErr");
+  const bc = document.getElementById("qaPiBarcode").value.replace(/\s+/g, "").trim();
+  const name = document.getElementById("qaPiName").value.trim();
+  const p1 = qaNum_(document.getElementById("qaPiP1").value);
+  if (!bc || !name || !(p1 > 0)) { err.textContent = "กรอก Barcode, Full Name และ Price 1 ให้ครบก่อนบันทึก"; return; }
+  if (findByBarcodeExact(bc) || qaPiCtx.remoteExists) { err.textContent = "บาร์โค้ดนี้มีใน Product_ID แล้ว"; return; }
+  if (qaEan13Ok_(bc) === false && !confirm("เลขท้ายบาร์โค้ดไม่ถูกต้อง (" + bc + ") — ยืนยันจะบันทึกไหม?")) return;
+  err.textContent = "";
+  const fields = { "Barcode": bc, "Full Name": name, "Price 1": p1 };
+  const p2 = document.getElementById("qaPiP2").value.trim(); if (p2) fields["Price 2"] = qaNum_(p2);
+  const px = document.getElementById("qaPiPx").value.trim(); if (px) fields["P.Extra"] = qaNum_(px);
+  const brand = document.getElementById("qaPiBrand").value.trim(); if (brand) fields["Brand"] = brand;
+  const series = document.getElementById("qaPiSeries").value.trim(); if (series) fields["SERIES_Product"] = series;
+  if (isAdminRole(currentStaff.role)) {
+    [["qaPiYen", "Yen"], ["qaPiCost", "Cost"], ["qaPiData", "DATA"]].forEach(([id, col]) => {
+      const v = document.getElementById(id).value.trim(); if (v) fields[col] = qaNum_(v);
+    });
+  }
+  qaPiSetBusy_(true);
+  try {
+    const r = await qaPiPost_({ action: "commit", items: [{ op: "add", fields: fields, note: "เพิ่มจาก POS " + (getBranchCode() || "") }] });
+    const res = (r.results || [])[0] || {};
+    if (!res.ok) throw new Error(res.message || "บันทึกไม่สำเร็จ");
+    const pxN = fields["P.Extra"] || 0;
+    const product = {
+      barcode: bc, name: name, price: pxN > 0 ? pxN : p1, price1: p1, priceExtra: pxN,
+      shopee: 0, price2: fields["Price 2"] || 0, cost: fields["Cost"] || 0, yen: 0
+    };
+    productList.push(product);
+    productMap.set(String(bc), product);
+    qaPutCache_(STORE_NAME, product);
+    // เติมแถวว่างในตะกร้า (แถวที่กด +PI มา หรือแถวว่างที่บาร์โค้ดตรงกัน)
+    let filled = 0;
+    cart.forEach((it) => {
+      if (it.name) return;
+      if (it.id === qaPiCtx.rowId || String(it.barcode).trim() === bc) {
+        it.barcode = bc; it.name = name; it.price = product.price;
+        it.agreed = product.price; it.wsPrice = product.price; it.spPrice = product.price;
+        filled++;
+      }
+    });
+    if (filled) renderCart();
+    if (!cart.some((it) => !it.name)) document.getElementById("notFoundHint").classList.add("hidden");
+    qaPiClose_();
+    showToast("เพิ่ม " + name + " เข้า Product_ID แล้ว" + (res.id ? " (" + res.id + ")" : "") + (filled ? " · ใส่ในตะกร้าแล้ว" : "") + " — เครื่องอื่นเห็นหลังกด 🔄", "success");
+  } catch (e) {
+    err.textContent = "บันทึกไม่สำเร็จ: " + e.message;
+  } finally {
+    qaPiSetBusy_(false);
+  }
+}
+
+/* ---------------- ลูกค้า (C / CWS) ---------------- */
+const QA_CUST_TARGETS = {
+  sale: { code: "customerCodeInput", name: "customerNameInput", phone: "customerPhoneInput", addr: "customerAddressInput", lookup: () => lookupCustomerCode() },
+  po: { code: "poCustomerCodeInput", name: "poCustomerNameInput", phone: "poCustomerPhoneInput", addr: "poCustomerAddressInput", lookup: () => lookupPoCustomerCode() },
+  ws: { code: "wsCustomerCodeInput", name: "wsCustomerNameInput", phone: "wsCustomerPhoneInput", addr: null, lookup: () => lookupWSCustomerCode() }
+};
+const QA_CH_CODE = { FP: "FP:", LO: "LO:" };
+const QA_CH_LABEL = { FP: "Facebook Page", LO: "LINE OA", LP: "LINE ส่วนตัว" };
+let qaCust = { kind: "c", target: null, picked: [], person: "", dup: null, busy: false };
+
+// รหัสถัดไป (ประมาณ) จากรายชื่อในเครื่อง — กติกาเดียวกับหลังบ้าน handleAddCustomer_
+function qaCustNextCode_(kind) {
+  const codes = customerList.map((c) => normalizeCustomerCode(c.code));
+  const used = new Set(codes);
+  if (kind === "ws") {
+    let max = 0;
+    codes.forEach((k) => { const m = /^CWS(\d+)$/.exec(k); if (m) max = Math.max(max, Number(m[1])); });
+    let n = max + 1; while (used.has("CWS" + String(n).padStart(2, "0"))) n++;
+    return "CWS" + String(n).padStart(2, "0");
+  }
+  let base = 0;
+  for (let i = codes.length - 1; i >= 0; i--) {
+    const m = /^C(\d+)$/.exec(codes[i]);
+    if (m && !/^(\d)\1\1$/.test(m[1])) { base = Number(m[1]); break; }
+  }
+  let n = base + 1; while (used.has("C" + String(n).padStart(3, "0"))) n++;
+  return "C" + String(n).padStart(3, "0");
+}
+
+function qaCustSetKind_(k) {
+  qaCust.kind = k;
+  const box = document.getElementById("qaCustBox");
+  box.classList.toggle("k-ws", k === "ws");
+  document.querySelectorAll("#qaCustModal .qa-seg button").forEach((b) => b.classList.toggle("on", b.dataset.k === k));
+  document.getElementById("qaCustTitle").textContent = k === "ws" ? "เพิ่มพ่อค้าส่งใหม่ (CWS)" : "เพิ่มลูกค้าใหม่ (C)";
+  document.getElementById("qaCustIco").className = "fa-solid ic " + (k === "ws" ? "fa-store" : "fa-user-plus");
+  document.getElementById("qaCustNext").textContent = customerList.length ? qaCustNextCode_(k) : (k === "ws" ? "CWS—" : "C—");
+  document.getElementById("qaCustNoteWs").classList.toggle("qa-hide", k !== "ws");
+  document.getElementById("qaCustName").placeholder = k === "ws" ? "ชื่อร้าน / ชื่อคนติดต่อ" : "ชื่อ-นามสกุล หรือชื่อเล่น";
+  document.getElementById("qaCustPinRow").classList.add("qa-hide");
+  document.getElementById("qaCustPin").value = "";
+  qaCustSaveLabel_();
+}
+function qaCustSaveLabel_() {
+  const pinShown = !document.getElementById("qaCustPinRow").classList.contains("qa-hide");
+  document.getElementById("qaCustSaveT").textContent =
+    qaCust.kind === "ws" && !pinShown ? "ต่อไป: ใส่ PIN" : (qaCust.target ? "บันทึก + ใช้กับบิลนี้" : "บันทึก");
+}
+function qaCustChValue_(k) { return k === "LP" ? (qaCust.person ? "Line " + qaCust.person : "") : QA_CH_CODE[k]; }
+function qaCustRenderCh_() {
+  ["FP", "LO", "LP"].forEach((k) => {
+    const on = qaCust.picked.indexOf(k) >= 0;
+    document.querySelector('#qaCustModal .qa-chtg[data-ch="' + k + '"]').classList.toggle("on", on);
+    document.getElementById("qaCustNm" + k).disabled = !on;
+  });
+  document.getElementById("qaCustWho").classList.toggle("qa-hide", qaCust.picked.indexOf("LP") < 0);
+  document.querySelectorAll("#qaCustWho button").forEach((b) => b.classList.toggle("on", b.dataset.p === qaCust.person));
+  const codes = qaCust.picked.map((k) => qaCustChValue_(k) || "Line ?");
+  const names = qaCust.picked.map((k) => document.getElementById("qaCustNm" + k).value.trim());
+  document.getElementById("qaCustChOut").textContent = codes.join(", ") || "(ว่าง)";
+  document.getElementById("qaCustNmOut").textContent = names.some(Boolean) ? names.join(" / ") : "(ว่าง)";
+}
+function qaCustCheckTel_() {
+  const d = qaDigits_(document.getElementById("qaCustTel").value);
+  qaCust.dup = d.length >= 9 ? customerList.find((c) => { const x = qaDigits_(c.phone); return x.length >= 9 && x.slice(-9) === d.slice(-9); }) || null : null;
+  document.getElementById("qaCustTelChk").innerHTML = !d ? "" : (d.length < 9 ? '<span class="qa-b warn">เบอร์สั้นไป?</span>'
+    : (qaCust.dup ? '<span class="qa-b bad">เบอร์นี้มีแล้ว</span>' : '<span class="qa-b ok">ยังไม่มีในระบบ</span>'));
+  if (qaCust.dup) {
+    document.getElementById("qaCustDupTx").innerHTML = "เบอร์นี้เป็นของ <b>" + escapeHtml(qaCust.dup.code) + "</b> " + escapeHtml(qaCust.dup.name || "") +
+      " อยู่แล้ว — ถ้าเป็นคนเดียวกันที่ทักอีกช่องทาง ให้ใช้รหัสเดิม";
+  }
+  document.getElementById("qaCustDup").classList.toggle("qa-hide", !qaCust.dup);
+}
+
+function qaCustOpen_(kind, targetKey) {
+  if (!currentStaff) return;
+  qaCust = { kind: kind, target: targetKey || null, picked: [], person: "", dup: null, busy: false };
+  ["qaCustName", "qaCustTel", "qaCustAddr", "qaCustNmFP", "qaCustNmLO", "qaCustNmLP", "qaCustPin"].forEach((id) => { document.getElementById(id).value = ""; });
+  document.getElementById("qaCustErr").textContent = "";
+  const t = targetKey ? QA_CUST_TARGETS[targetKey] : null;
+  if (t) {
+    // เติมจากที่พิมพ์ไว้ในบิล: ช่องค้นหา (เบอร์ → เบอร์ · ข้อความ → ชื่อ Facebook) + ชื่อ/เบอร์/ที่อยู่ที่กรอกเอง
+    const q = document.getElementById(t.code).value.trim();
+    if (q && !findCustomer(q)) {
+      if (qaDigits_(q).length >= 9 && qaDigits_(q).length === q.replace(/[\s-]/g, "").length) document.getElementById("qaCustTel").value = q;
+      else { qaCust.picked = ["FP"]; document.getElementById("qaCustNmFP").value = q; }
+    }
+    const nm = document.getElementById(t.name).value.trim(), ph = document.getElementById(t.phone).value.trim();
+    if (nm) document.getElementById("qaCustName").value = nm;
+    if (ph) document.getElementById("qaCustTel").value = ph;
+    if (t.addr) { const ad = document.getElementById(t.addr).value.trim(); if (ad) document.getElementById("qaCustAddr").value = ad; }
+    if (!nm && qaCust.picked.length) document.getElementById("qaCustName").value = document.getElementById("qaCustNmFP").value;
+  }
+  document.getElementById("qaCustBy").innerHTML = '<i class="fa-solid fa-user-pen"></i> ' + escapeHtml(currentStaff.name) + " · " + escapeHtml(getBranchCode() || "-");
+  qaCustSetKind_(kind);
+  qaCustRenderCh_();
+  qaCustCheckTel_();
+  qaCustSetBusy_(false);
+  document.getElementById("qaCustModal").classList.remove("hidden");
+  document.getElementById("qaCustName").focus();
+}
+function qaCustClose_() { document.getElementById("qaCustModal").classList.add("hidden"); }
+function qaCustSetBusy_(b) {
+  qaCust.busy = b;
+  const btn = document.getElementById("qaCustSave");
+  btn.disabled = b;
+  btn.querySelector("i").className = b ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-check";
+}
+function qaCustApply_(c) {
+  const t = qaCust.target ? QA_CUST_TARGETS[qaCust.target] : null;
+  qaCustClose_();
+  if (!t) return;
+  document.getElementById(t.code).value = c.code;
+  t.lookup();
+}
+
+async function qaCustSave_(allowDup) {
+  if (qaCust.busy) return;
+  const err = document.getElementById("qaCustErr");
+  const name = document.getElementById("qaCustName").value.trim();
+  if (!name) { err.textContent = "ใส่ชื่อก่อนบันทึก"; document.getElementById("qaCustName").focus(); return; }
+  if (qaCust.picked.indexOf("LP") >= 0 && !qaCust.person) { err.textContent = "เลือกว่าเป็น LINE ของใคร"; return; }
+  if (qaCust.dup && !allowDup && !confirm("เบอร์นี้เป็นของ " + qaCust.dup.code + " อยู่แล้ว ยังจะเพิ่มเป็นลูกค้าใหม่ไหม?")) return;
+  const pinRow = document.getElementById("qaCustPinRow");
+  if (qaCust.kind === "ws") {
+    if (pinRow.classList.contains("qa-hide")) {
+      pinRow.classList.remove("qa-hide"); qaCustSaveLabel_(); err.textContent = "";
+      document.getElementById("qaCustPin").focus(); return;
+    }
+    if (!document.getElementById("qaCustPin").value.trim()) { err.textContent = "ใส่ PIN ยืนยันก่อน"; document.getElementById("qaCustPin").focus(); return; }
+  }
+  err.textContent = "";
+  const names = qaCust.picked.map((k) => document.getElementById("qaCustNm" + k).value.trim());
+  const customer = {
+    name: name,
+    phone: document.getElementById("qaCustTel").value.trim(),
+    ch: qaCust.picked.map(qaCustChValue_).join(", "),
+    socialName: names.some(Boolean) ? names.join(" / ") : "",
+    address: document.getElementById("qaCustAddr").value.trim()
+  };
+  qaCustSetBusy_(true);
+  try {
+    const res = await fetch(getAppsScriptUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "addCustomer", pin: currentStaff.pin, branch: getBranchCode(), kind: qaCust.kind,
+        confirmPin: qaCust.kind === "ws" ? document.getElementById("qaCustPin").value.trim() : "",
+        allowDupPhone: !!(qaCust.dup || allowDup), customer: customer })
+    });
+    const r = await res.json();
+    if (r && r.status === "dup") {
+      qaCustSetBusy_(false);
+      if (confirm("เบอร์นี้เป็นของ " + r.existing.code + " " + (r.existing.name || "") + " อยู่แล้ว (เพิ่งเพิ่มจากเครื่องอื่น?) — ยังจะเพิ่มใหม่ไหม?")) qaCustSave_(true);
+      return;
+    }
+    if (!r || r.status !== "success") throw new Error((r && r.message) || "บันทึกไม่สำเร็จ");
+    const c = r.customer;
+    const guess = document.getElementById("qaCustNext").textContent;
+    customerList.push(c);
+    customerMap.set(normalizeCustomerCode(c.code), c);
+    qaPutCache_(CUSTOMER_STORE_NAME, c);
+    renderWSCustomerPicker();
+    qaCustApply_(c);
+    showToast("เพิ่ม " + c.code + " " + c.name + " แล้ว · โดย " + (r.addedBy || currentStaff.name) +
+      (c.code !== guess ? " (ได้รหัส " + c.code + " เพราะมีคนเพิ่มก่อน)" : "") + " — เครื่องอื่นเห็นหลังกด 🔄", "success");
+  } catch (e) {
+    err.textContent = "บันทึกไม่สำเร็จ: " + e.message;
+  } finally {
+    qaCustSetBusy_(false);
+  }
+}
+
+/* ---------------- ผูกปุ่ม ---------------- */
+function setupQuickAdd_() {
+  // Settings: ลิงก์ PI
+  const piInput = document.getElementById("piUrlInput");
+  piInput.value = getPiUrl_();
+  document.getElementById("savePiUrlBtn").addEventListener("click", () => {
+    const v = piInput.value.trim();
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(v)) { showToast("ลิงก์ PI ต้องเป็นลิงก์ /exec ของ Apps Script", "error"); return; }
+    try { localStorage.setItem(PI_URL_STORAGE_KEY, v); } catch (e) { /* ignore */ }
+    showToast("บันทึกลิงก์ PI แล้ว", "success");
+  });
+
+  // เมนู ➕ เพิ่ม บนแถบบน
+  const btn = document.getElementById("navAddBtn"), menu = document.getElementById("navAddMenu");
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = menu.classList.contains("hidden");
+    menu.classList.toggle("hidden", !open);
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+  document.addEventListener("click", (e) => {
+    if (!menu.classList.contains("hidden") && !e.target.closest("#navAddWrap")) { menu.classList.add("hidden"); btn.setAttribute("aria-expanded", "false"); }
+  });
+  menu.querySelectorAll("button[data-qa]").forEach((b) => b.addEventListener("click", () => {
+    menu.classList.add("hidden");
+    if (b.dataset.qa === "p") qaPiOpen_("", null);
+    else qaCustOpen_(b.dataset.qa === "ws" ? "ws" : "c", null);
+  }));
+
+  // สินค้า: แถบเหลืองตอนยิงไม่เจอ + ปุ่ม +PI ในแถวว่างของตะกร้า
+  document.getElementById("qaPiHintBtn").addEventListener("click", () => {
+    const blanks = cart.filter((it) => !it.name);
+    const row = blanks[blanks.length - 1];
+    qaPiOpen_(row ? String(row.barcode || "").trim() : "", row ? row.id : null);
+  });
+  document.getElementById("cartTableBody").addEventListener("click", (e) => {
+    const b = e.target.closest(".cart-pi-btn"); if (!b) return;
+    const row = cart.find((it) => it.id === Number(b.dataset.id));
+    if (row) qaPiOpen_(String(row.barcode || "").trim(), row.id);
+  });
+  const piBc = document.getElementById("qaPiBarcode");
+  let piTimer = null;
+  piBc.addEventListener("input", () => { clearTimeout(piTimer); qaPiCheck_(false); piTimer = setTimeout(() => qaPiCheck_(true), 700); });
+  piBc.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); clearTimeout(piTimer); qaPiCheck_(true); document.getElementById("qaPiName").focus(); } });
+  document.getElementById("qaPiDtUse").addEventListener("click", qaPiUseDt_);
+  document.getElementById("qaPiSave").addEventListener("click", qaPiSave_);
+  document.getElementById("qaPiCancel").addEventListener("click", qaPiClose_);
+  document.getElementById("qaPiClose").addEventListener("click", qaPiClose_);
+  document.getElementById("qaPiModal").addEventListener("keydown", (e) => {
+    if (e.key === "Escape") qaPiClose_();
+    if (e.key === "Enter" && e.target.tagName === "INPUT" && e.target.id !== "qaPiBarcode") { e.preventDefault(); qaPiSave_(); }
+  });
+
+  // ลูกค้า: ปุ่มในแถบ "ไม่พบรหัสนี้" (ขาย / เปิดจอง / WS)
+  document.querySelectorAll(".qa-cust-btn").forEach((b) => b.addEventListener("click", (e) => {
+    e.preventDefault();
+    qaCustOpen_(b.dataset.target === "ws" ? "ws" : "c", b.dataset.target);
+  }));
+  document.querySelectorAll("#qaCustModal .qa-seg button").forEach((b) => b.addEventListener("click", () => qaCustSetKind_(b.dataset.k)));
+  document.querySelectorAll("#qaCustModal .qa-chtg").forEach((b) => b.addEventListener("click", () => {
+    const k = b.dataset.ch, i = qaCust.picked.indexOf(k);
+    if (i >= 0) { qaCust.picked.splice(i, 1); if (k === "LP") qaCust.person = ""; }
+    else { qaCust.picked.push(k); setTimeout(() => document.getElementById("qaCustNm" + k).focus(), 0); }
+    qaCustRenderCh_();
+  }));
+  document.querySelectorAll("#qaCustWho button").forEach((b) => b.addEventListener("click", () => { qaCust.person = b.dataset.p; qaCustRenderCh_(); }));
+  ["qaCustNmFP", "qaCustNmLO", "qaCustNmLP"].forEach((id) => document.getElementById(id).addEventListener("input", qaCustRenderCh_));
+  document.getElementById("qaCustTel").addEventListener("input", qaCustCheckTel_);
+  document.getElementById("qaCustDupUse").addEventListener("click", () => { const c = qaCust.dup; if (c) qaCustApply_(c); });
+  document.getElementById("qaCustSave").addEventListener("click", () => qaCustSave_(false));
+  document.getElementById("qaCustCancel").addEventListener("click", qaCustClose_);
+  document.getElementById("qaCustClose").addEventListener("click", qaCustClose_);
+  document.getElementById("qaCustModal").addEventListener("keydown", (e) => {
+    if (e.key === "Escape") qaCustClose_();
+    if (e.key === "Enter" && e.target.id === "qaCustPin") { e.preventDefault(); qaCustSave_(false); }
+  });
+}
+
 async function init() {
   // Fire immediately, don't await — runs quietly in the background so it
   // never delays the login screen from appearing. See
@@ -22052,6 +22720,7 @@ async function init() {
   setupMobileTabNav();
   setupBranchIndicator();
   setupNavSync_();
+  setupQuickAdd_();
   setupByRoomTab();
   setupScanInput();
   setupPaymentButtons();
