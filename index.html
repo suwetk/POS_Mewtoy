@@ -476,7 +476,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.05-b</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.05-c</span>
       </div>
       <div class="flex-1"></div>
 
@@ -5039,6 +5039,15 @@ let wsBankAccountsCache = [];
 const MAX_BACKUP_BILLS = 4;
 let backupBills = []; // snapshot objects for each currently-open backup bill, by array index (0-based)
 let savedMainBill = null; // snapshot of the Main bill — populated only while some backup slot is the one on screen; stale/unused while activeBillSlot === -1
+// ⭐ 2026-11-05 (v2026.11.05-c) แก้บิลหาย: ระหว่างรอบันทึก (submitTransaction รอเซิร์ฟเวอร์) ห้ามสลับ/เปิด/ปิดบิลสำรอง
+// เดิมสลับได้ → พอบันทึกเสร็จ resetPOSForNextSale() ล้าง "บิลที่อยู่บนจอตอนนั้น" ไม่ใช่บิลที่บันทึก
+// (เช่น บันทึกบิลสำรอง 1 แล้วกดไปบิลหลักระหว่างรอ → บิลหลักโดนล้าง บิลสำรอง 1 ยังค้าง)
+let billSaving = false;
+function billSavingBlocked_() {
+  if (!billSaving) return false;
+  showToast("กำลังบันทึกบิลอยู่ — รอสักครู่แล้วค่อยสลับ/เปิดบิล", "error");
+  return true;
+}
 let activeBillSlot = -1; // -1 = Main bill is live in cart/deliveryMethod/activeMethods/the DOM fields below; 0..n-1 = backupBills[index] is the one parked (not live)
 
 // Shop name/address/phone for the bill-preview print header — loaded for
@@ -7543,6 +7552,10 @@ async function submitTransaction() {
   const originalHtml = submitBtn.innerHTML;
   submitBtn.disabled = true;
   submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+  // ล็อกการสลับบิลระหว่างรอ + จำแถวที่ส่งไปจริง (แถวที่ยิงเพิ่มระหว่างรอจะไม่ถูกล้างทิ้ง)
+  billSaving = true;
+  renderBackupBillBar();
+  const submittedRowIds = new Set(cart.map((i) => i.id));
 
   // One-Bill Checkout: when this bill's cart has any "Pre"/"Rec" row, post
   // the combined payload to the new action instead of the plain "sale" one.
@@ -7577,23 +7590,31 @@ async function submitTransaction() {
     if (payload.deliveryMethod === "delivery" && result.transactionId) {
       try { showShipAfterSave_(result.transactionId, payload, cart.map((i) => ({ name: i.name, qty: i.qty, barcode: i.barcode }))); } catch (e) { console.warn(e); }
     }
-    resetPOSForNextSale();
+    billSaving = false;
+    resetPOSForNextSale(submittedRowIds);
   } catch (err) {
     console.error(err);
     showToast("บันทึกรายการขายไม่สำเร็จ: " + err.message, "error");
     submitBtn.disabled = false;
   } finally {
     submitBtn.innerHTML = originalHtml;
+    billSaving = false;
+    renderBackupBillBar();
   }
 }
 
-function resetPOSForNextSale() {
+function resetPOSForNextSale(submittedRowIds) {
+  // แถวที่ยิงเพิ่มระหว่างรอบันทึก (ไม่อยู่ในบิลที่ส่งไป) — เก็บไว้ ไม่ล้างทิ้ง (2026-11-05)
+  const leftovers = submittedRowIds ? cart.filter((i) => !submittedRowIds.has(i.id)) : [];
+  if (leftovers.length) {
+    showToast("บันทึกบิลแล้ว — เก็บ " + leftovers.length + " รายการที่ยิงระหว่างรอไว้ในตะกร้าให้", "success");
+  }
   // A backup bill (not the Main one) just finished paying — that slot is
   // done, drop it entirely and hand the screen back to the Main bill
   // (restoring whatever it had parked, exactly as switchToBillSlot_ would).
   // Never true for a brand-new Main sale or a saved edit (those always run
   // on slot -1 — see startEditingBill_), so that path below is untouched.
-  if (activeBillSlot !== -1) {
+  if (activeBillSlot !== -1 && !leftovers.length) {
     backupBills.splice(activeBillSlot, 1);
     activeBillSlot = -1;
     restoreSnapshotToLive(savedMainBill || emptyBillSnapshot());
@@ -7603,7 +7624,7 @@ function resetPOSForNextSale() {
     return;
   }
 
-  cart = []; // clears every row and its type (branch/pre/rec/ws/sp) — this bill is done
+  cart = leftovers; // clears every row and its type (branch/pre/rec/ws/sp) — this bill is done (เหลือแค่ที่ยิงระหว่างรอ)
   setWsAll_(false, true); // 🏪 ขายส่งทั้งบิล กลับเป็นปิดทุกครั้งหลังบันทึก
   activeMethods = new Set(); // same as the page-load default above — no method pre-picked for the next sale either
   selectedSaleBankAccountId = ""; // next bill always starts back on the default account
@@ -7720,6 +7741,7 @@ function cartMoneyTotal_(c) {
 
 function switchToBillSlot(targetSlot) {
   if (targetSlot === activeBillSlot) return;
+  if (billSavingBlocked_()) return;
   if (editingTransactionId) return; // locked while editing an existing bill — see startEditingBill()
 
   const liveSnap = captureCurrentIntoSnapshot();
@@ -7737,6 +7759,7 @@ function switchToBillSlot(targetSlot) {
 
 function createBackupBill() {
   if (editingTransactionId) return; // the bar is hidden during edit mode anyway — defensive only
+  if (billSavingBlocked_()) return;
   if (backupBills.length >= MAX_BACKUP_BILLS) return;
 
   const liveSnap = captureCurrentIntoSnapshot();
@@ -7755,6 +7778,7 @@ function createBackupBill() {
 
 function closeBackupBill(index) {
   if (index < 0 || index >= backupBills.length) return;
+  if (billSavingBlocked_()) return;
 
   const isActive = activeBillSlot === index;
   const cartToCheck = isActive ? cart : (backupBills[index] ? backupBills[index].cart : []);
@@ -7835,7 +7859,7 @@ function renderBackupBillBar() {
       </button>`
     : "";
 
-  el.innerHTML = `<div class="flex flex-wrap items-center gap-1.5 bg-white rounded-xl shadow p-1.5">${pillsHtml}${addHtml}</div>`;
+  el.innerHTML = `<div class="flex flex-wrap items-center gap-1.5 bg-white rounded-xl shadow p-1.5 ${billSaving ? "opacity-50" : ""}" title="${billSaving ? "กำลังบันทึกบิล — สลับบิลไม่ได้ชั่วคราว" : ""}">${pillsHtml}${addHtml}</div>`;
 
   el.querySelectorAll(".backup-bill-seg").forEach((btn) => {
     btn.addEventListener("click", () => switchToBillSlot(parseInt(btn.getAttribute("data-slot"), 10)));
@@ -7876,8 +7900,18 @@ function startEditingBill(transactionId) {
   // currently the one on screen, park it first (exactly like switching
   // tabs normally would) so it's untouched and safely resumable once this
   // edit is saved or cancelled — see the BACKUP BILLS section above.
+  if (billSavingBlocked_()) return;
   if (activeBillSlot !== -1) {
     switchToBillSlot(-1);
+  }
+  // ⭐ 2026-11-05: บิลหลักมีของค้างอยู่ → ย้ายไปเก็บเป็นบิลสำรองก่อน (เดิมโดนทับหายตอนกด "แก้ไข")
+  if (cart.length) {
+    if (backupBills.length < MAX_BACKUP_BILLS) {
+      backupBills.push(captureCurrentIntoSnapshot());
+      showToast("ย้ายรายการที่ค้างในบิลหลักไปไว้ \"สำรอง " + backupBills.length + "\" ก่อนแก้บิล — ไม่หาย", "success");
+    } else if (!confirm("บิลหลักยังมีสินค้าค้างอยู่ และบิลสำรองเต็มแล้ว — ถ้าแก้บิลตอนนี้ รายการในบิลหลักจะหาย ต้องการทำต่อไหม?")) {
+      return;
+    }
   }
 
   editingTransactionId = bill.transactionId;
@@ -8635,7 +8669,8 @@ function setupSystemMenu() {
 }
 
 function logout() {
-  if (cart.length > 0 && !confirm("ตะกร้ายังมีสินค้าอยู่ ต้องการออกจากระบบและล้างตะกร้าหรือไม่?")) {
+  const parked = backupBills.reduce((s, b) => s + cartQty_(b && b.cart), 0) + (activeBillSlot !== -1 && savedMainBill ? cartQty_(savedMainBill.cart) : 0);
+  if ((cart.length > 0 || parked > 0) && !confirm("ตะกร้ายังมีสินค้าอยู่" + (parked ? " (รวมบิลสำรอง/บิลที่พักไว้ " + parked + " ชิ้น)" : "") + " ต้องการออกจากระบบและล้างตะกร้าหรือไม่?")) {
     return;
   }
   sessionStorage.removeItem(STAFF_SESSION_KEY);
