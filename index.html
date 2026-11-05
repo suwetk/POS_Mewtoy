@@ -446,6 +446,24 @@
   .evp-err { color: #b91c1c; font-size: 12.5px; margin-right: auto; }
   @media (max-width: 560px) { .evp-g3 { grid-template-columns: 1fr; } }
   .evp-banner.hidden, .evp-ext.hidden, .evp-below.hidden, .evp.hidden { display: none; }
+  /* ---- 🏪 ขายส่งทั้งบิล + หยิบจากไหน (2026-11-05) ---- */
+  .wsall { border: 2px dashed #c4b5fd; background: #faf5ff; border-radius: 10px; padding: 8px 12px; margin-bottom: 8px; font-size: 13.5px; color: #4c1d95; }
+  .wsall.on { border-style: solid; border-color: #7c3aed; background: #ede9fe; }
+  .wsall-main { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+  .wsall-main input { width: 18px; height: 18px; accent-color: #7c3aed; margin-top: 2px; }
+  .wsall-main small, .wsall-from small, .wspick small { color: #6b7280; font-weight: 400; }
+  .wsall-from { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 6px; padding-left: 28px; font-weight: 600; }
+  .wsall-from.hidden { display: none; }
+  .wsall-from label, .wspick label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+  .wsall-from input, .wspick input { accent-color: #7c3aed; }
+  .ws-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+  .ws-chip.bad { background: #fee2e2; color: #991b1b; }
+  .ws-chip.nor { background: #f3f4f6; color: #4b5563; }
+  .ws-chip.ws { background: #ede9fe; color: #5b21b6; }
+  .wspick { border: 2px solid #c4b5fd; background: #faf5ff; border-radius: 10px; padding: 8px 12px; margin: 8px 0; font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px 16px; color: #374151; }
+  .wspick.need { border-color: #ef4444; background: #fef2f2; }
+  .wspick-t { width: 100%; font-weight: 700; color: #4c1d95; }
+  .wspick-t .req { color: #dc2626; }
   .qa-hide { display: none !important; }
   @media (max-width: 520px) { .qa-g2, .qa-g3, .qa-seg, .qa-chrow { grid-template-columns: 1fr; } }
 </style>
@@ -458,7 +476,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.05-a</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.05-b</span>
       </div>
       <div class="flex-1"></div>
 
@@ -717,6 +735,16 @@
         <h2 class="font-semibold text-gray-700 mb-2">2. Items in Cart</h2>
         <!-- ราคา Event (2026-11-05) — ดู renderEventPriceBanner_() -->
         <div id="eventPriceBanner" class="evp-banner hidden"></div>
+        <!-- 🏪 ขายส่งทั้งบิล (2026-11-05, mockup_ws_allp2.html) — ทุกแถว = WS ราคา Price 2 · บังคับลูกค้า CWS
+             · เลือกของออกจาก หน้าร้าน (ขึ้นใบเบิก) / Store โดยตรง (wdSkip — ไม่ขึ้นใบเบิก) · ดู setWsAll_() -->
+        <div id="wsAllBar" class="wsall">
+          <label class="wsall-main"><input type="checkbox" id="wsAllChk">
+            <span><b>🏪 ขายส่งทั้งบิล (Price 2 ทุกแถว)</b><br><small>ต้องเลือกลูกค้า CWS · ยิงเพิ่มก็เป็น WS เอง · เอาติ๊กออก = กลับราคาปกติ</small></span></label>
+          <div id="wsAllFrom" class="wsall-from hidden">ของออกจาก:
+            <label><input type="radio" name="wsAllFrom" value="front" checked> 🏬 หน้าร้าน <small>(ขึ้นใบเบิก)</small></label>
+            <label><input type="radio" name="wsAllFrom" value="store"> 📦 Store โดยตรง <small>(ไม่เบิก)</small></label>
+          </div>
+        </div>
         <div class="overflow-x-auto cart-scroll">
           <table class="w-full text-left">
             <thead class="text-gray-500 text-sm border-b">
@@ -1981,6 +2009,14 @@
               <input id="wsCustomerPhoneInput" type="text" placeholder="เบอร์โทร"
                      class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm
                             focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500">
+            </div>
+
+            <!-- หยิบของจากไหน (2026-11-05) — "หน้าร้าน" = ระบบเบิกของดึงบิลนี้เข้าใบเบิก (Store เติมหน้าร้าน)
+                 "Store" = เอาจาก Store โดยตรง ไม่ต้องเบิก · บังคับเลือกก่อนบันทึก (ดู wsPickFrom_()) -->
+            <div id="wsPickFromBox" class="wspick">
+              <div class="wspick-t"><i class="fa-solid fa-dolly"></i> ของบิลนี้หยิบจากไหน? <span class="req">*</span></div>
+              <label><input type="radio" name="wsPickFrom" value="หน้าร้าน"> 🏬 หน้าร้าน <small>(ขึ้นใบเบิก ให้ Store เติม)</small></label>
+              <label><input type="radio" name="wsPickFrom" value="Store"> 📦 Store โดยตรง <small>(ไม่ต้องเบิก)</small></label>
             </div>
 
             <p class="text-[11px] text-gray-400 leading-relaxed">
@@ -5824,7 +5860,7 @@ function handleScan(rawValue) {
 // would silently corrupt it). Never overwrites a name/price the cashier
 // already has on an existing line — it only fills them in if still missing.
 function addOrIncrementCartItem(barcode, name, price, qtyDelta) {
-  const existing = cart.find((item) => item.barcode === barcode && item.type === "branch");
+  const existing = cart.find((item) => item.barcode === barcode && (wsAllOn ? item.type === "ws" && item.wsAll : item.type === "branch"));
   if (existing) {
     existing.qty += qtyDelta;
     if (!existing.name && name) existing.name = name;
@@ -5838,8 +5874,9 @@ function addOrIncrementCartItem(barcode, name, price, qtyDelta) {
       normalPrice: price
     };
     // ราคา Event (2026-11-05): เครื่องสาขา Event → ใช้ราคา Event ทันที (M1/M4 ติ๊กเองในแถว)
-    const ev = name ? eventPriceFor_(barcode) : 0;
+    const ev = name && !wsAllOn ? eventPriceFor_(barcode) : 0;
     if (ev > 0 && eventPriceMode_() === "auto") applyEventPriceToRow_(row, true);
+    if (wsAllOn) applyWsAllToRow_(row, true); // 🏪 ขายส่งทั้งบิล
     cart.push(row);
   }
   renderCart();
@@ -6280,6 +6317,7 @@ function cartRowHtml(item) {
               </label>
             </div>
             ${eventPriceRowHtml_(item)}
+            ${wsAllRowHtml_(item)}
             ${typeFieldsHtml(item)}
             ${remarkField}
           </div>
@@ -7295,7 +7333,9 @@ function cartItemsForSale(rows) {
       // ประเภทเดิมไว้ก่อน กันไม่ให้การแก้บิลลบสีเดิมทิ้ง
       type: item.savedType || item.type || "branch",
       // ราคา Event (2026-11-05) — จดไว้ใน Items JSON ของบิล (ไม่เพิ่มคอลัมน์)
-      ...(item.type === "branch" && item.evPrice ? { evPrice: true, normalPrice: Number(item.normalPrice) || 0 } : {})
+      ...(item.type === "branch" && item.evPrice ? { evPrice: true, normalPrice: Number(item.normalPrice) || 0 } : {}),
+      // ขายส่งทั้งบิล + ของออกจาก Store โดยตรง → ระบบเบิกของข้ามแถวนี้ (2026-11-05)
+      ...(item.type === "ws" && item.wsAll && wsAllOn && wsAllFrom === "store" ? { wdSkip: true } : {})
     };
   });
 }
@@ -7449,6 +7489,12 @@ function buildOneBillPayload() {
 // with no name or a non-positive agreed price (the backend would reject an
 // empty-name booking anyway; catching it here gives a clearer message).
 function validateCartForSubmit() {
+  if (wsAllOn) {
+    const code = normalizeCustomerCode(document.getElementById("customerCodeInput").value);
+    if (!/^CWS\d+$/.test(code)) return "ติ๊ก \"ขายส่งทั้งบิล\" แล้ว ต้องเลือกลูกค้าพ่อค้าส่ง (รหัส CWS) ก่อนบันทึก";
+    const noPrice = cart.find((i) => i.type === "ws" && !((Number(i.wsPrice) || 0) > 0));
+    if (noPrice) return 'รายการ "' + (noPrice.name || noPrice.barcode) + '" ยังไม่มีราคาส่ง (ไม่มี Price 2) — ใส่ราคาเองก่อนบันทึก';
+  }
   for (const item of cart) {
     if (item.type === "rec" && item.lineId && !String(item.barcode || "").trim()) {
       return 'รายการ "' + (item.name || item.lineId) + '" (Rec) ไม่มีบาร์โค้ดจริง — กรุณาลบแล้วดึงรายการจองใหม่อีกครั้ง';
@@ -7558,6 +7604,7 @@ function resetPOSForNextSale() {
   }
 
   cart = []; // clears every row and its type (branch/pre/rec/ws/sp) — this bill is done
+  setWsAll_(false, true); // 🏪 ขายส่งทั้งบิล กลับเป็นปิดทุกครั้งหลังบันทึก
   activeMethods = new Set(); // same as the page-load default above — no method pre-picked for the next sale either
   selectedSaleBankAccountId = ""; // next bill always starts back on the default account
   renderCart();
@@ -16807,6 +16854,11 @@ async function submitNewWSInvoice() {
     showToast("กรุณาระบุชื่อลูกค้า WS", "error");
     return;
   }
+  if (!wsPickFrom_()) {
+    showToast("เลือกก่อนว่าของบิลนี้หยิบจากไหน (หน้าร้าน / Store)", "error");
+    document.getElementById("wsPickFromBox").scrollIntoView({ block: "center" });
+    return;
+  }
 
   const btn = document.getElementById("wsSubmitBtn");
   const originalHtml = btn.innerHTML;
@@ -16825,6 +16877,7 @@ async function submitNewWSInvoice() {
         customerName: customerName,
         customerPhone: document.getElementById("wsCustomerPhoneInput").value.trim(),
         billTitle: document.getElementById("wsBillTitleInput").value.trim(),
+        pickFrom: wsPickFrom_(),
         items: wsDraftItems.map((i) => ({
           // A typed ลด% only actually applies while that row's ✅ is ticked
           // (i.discountOn — see wsLineTotals()/renderWSDraftItems() above);
@@ -16851,6 +16904,7 @@ async function submitNewWSInvoice() {
       (id) => (document.getElementById(id).value = "")
     );
     document.getElementById("wsCustomerNotFoundHint").classList.add("hidden");
+    setWSPickFrom_("");
     resetWSPaymentMethodButtons();
     loadWSInvoices();
   } catch (err) {
@@ -16894,6 +16948,7 @@ function startEditingWSInvoice(invoiceId) {
   document.getElementById("wsCustomerNameInput").value = invoice.customerName || "";
   document.getElementById("wsCustomerPhoneInput").value = invoice.customerPhone || "";
   document.getElementById("wsBillTitleInput").value = invoice.billTitle || "";
+  setWSPickFrom_(invoice.pickFrom || "");
   document.getElementById("wsCustomerNotFoundHint").classList.add("hidden");
   // "รับชำระวันนี้" ไม่เกี่ยวกับการแก้ไขนี้เลย (ดูคอมเมนต์ที่ #wsNewInvoicePaymentSection)
   // ล้างไว้กันเลขเก่าตกค้างไปโผล่ในพรีวิวบิลระหว่างแก้ไข — เช่นเดียวกับวันที่ชำระเงิน
@@ -17012,6 +17067,7 @@ async function submitEditWSInvoice() {
         customerName: customerName,
         customerPhone: document.getElementById("wsCustomerPhoneInput").value.trim(),
         billTitle: document.getElementById("wsBillTitleInput").value.trim(),
+        pickFrom: wsPickFrom_(),
         items: wsDraftItems.map((i) => ({
           // ✅-gated เหมือน submitNewWSInvoice() — แถวที่ไม่ติ๊กไม่ส่ง discountPct
           barcode: i.barcode, name: i.name, qty: i.qty, price: i.price,
@@ -23033,6 +23089,88 @@ function setupEventPrice_() {
   renderEventPriceSettings_();
 }
 
+/* =================================================================
+   🏪 ขายส่งทั้งบิล + หยิบจากไหน — 2026-11-05 (v2026.11.05-b) · mockup_ws_allp2.html
+   ปัญหา: เปิดบิล WS แต่หยิบของหน้าร้าน → ใบเบิกไม่รู้ Store ไม่เติม
+   - หน้าขาย POS: ติ๊ก "ขายส่งทั้งบิล" → ทุกแถว WS ราคา Price 2 (ไม่มี Price 2 = ราคา 0 ให้ใส่เอง + บอก Price 1 / Cost)
+     บังคับลูกค้า CWS ก่อนบันทึก · ของออกจาก "หน้าร้าน" = ขึ้นใบเบิกตามปกติ (Request Type "ขายส่ง WS")
+     "Store โดยตรง" = Items JSON มี wdSkip → ระบบเบิกของข้าม
+   - แท็บ WS: บังคับเลือก "หยิบจากไหน" → WSInvoices คอลัมน์ "Pick From" → หน้าร้าน = Store_Withdrawal ดึงเข้าใบเบิก
+   ================================================================= */
+let wsAllOn = false;
+let wsAllFrom = "front";
+
+function applyWsAllToRow_(row, on) {
+  if (on) {
+    if (row.type !== "branch") return;
+    if (row.evPrice) applyEventPriceToRow_(row, false);
+    const p = row.barcode ? findByBarcodeExact(row.barcode) : null;
+    const p2 = p ? Number(p.price2) || 0 : 0;
+    row.type = "ws";
+    row.wsAll = true;
+    row.wsPrice = p2 > 0 ? p2 : 0; // ไม่มี Price 2 → ไม่ใช้ Price 1 (Wing สั่ง) ให้พนักงานใส่ราคาเอง
+    row.savedType = "";
+  } else if (row.wsAll) {
+    row.type = "branch";
+    row.wsAll = false;
+    row.wsPrice = row.price;
+    row.savedType = "";
+  }
+}
+
+function setWsAll_(on, silent) {
+  wsAllOn = !!on;
+  const chk = document.getElementById("wsAllChk");
+  if (chk) chk.checked = wsAllOn;
+  const bar = document.getElementById("wsAllBar");
+  if (bar) bar.classList.toggle("on", wsAllOn);
+  const from = document.getElementById("wsAllFrom");
+  if (from) from.classList.toggle("hidden", !wsAllOn);
+  if (!wsAllOn) {
+    wsAllFrom = "front";
+    const r = document.querySelector('input[name="wsAllFrom"][value="front"]');
+    if (r) r.checked = true;
+  }
+  cart.forEach((row) => applyWsAllToRow_(row, wsAllOn));
+  if (silent) return;
+  renderCart();
+  if (wsAllOn && !/^CWS\d+$/.test(normalizeCustomerCode(document.getElementById("customerCodeInput").value))) {
+    showToast("ขายส่งทั้งบิล — เลือกลูกค้าพ่อค้าส่ง (รหัส CWS) ด้วย ก่อนบันทึก", "error");
+  }
+}
+
+function wsAllRowHtml_(item) {
+  if (item.type !== "ws" || !item.wsAll) return "";
+  const p = item.barcode ? findByBarcodeExact(item.barcode) : null;
+  if (!p) return "";
+  const p2 = Number(p.price2) || 0, p1 = Number(p.price1 || p.price) || 0, cost = Number(p.cost) || 0;
+  const parts = [];
+  if (p2 > 0) {
+    parts.push('<span class="ws-chip ws">🏪 ขายส่ง · Price 2</span><span class="ws-chip nor">Price 1 ' + formatMoney(p1) + "</span>");
+  } else {
+    parts.push('<span class="ws-chip bad"><i class="fa-solid fa-triangle-exclamation"></i> ไม่มี Price 2 — ใส่ราคาส่งเอง</span>' +
+      '<span class="ws-chip nor">Price 1 ' + formatMoney(p1) + '</span><span class="ws-chip nor">Cost ' + (cost > 0 ? formatMoney(cost) : "—") + "</span>");
+  }
+  return '<div class="evp-row">' + parts.join("") + "</div>";
+}
+
+function wsPickFrom_() {
+  const r = document.querySelector('input[name="wsPickFrom"]:checked');
+  return r ? r.value : "";
+}
+function setWSPickFrom_(v) {
+  document.querySelectorAll('input[name="wsPickFrom"]').forEach((r) => { r.checked = r.value === v; });
+  const box = document.getElementById("wsPickFromBox");
+  if (box) box.classList.toggle("need", !v);
+}
+
+function setupWsAll_() {
+  document.getElementById("wsAllChk").addEventListener("change", (e) => setWsAll_(e.target.checked));
+  document.querySelectorAll('input[name="wsAllFrom"]').forEach((r) => r.addEventListener("change", () => { if (r.checked) wsAllFrom = r.value; }));
+  document.querySelectorAll('input[name="wsPickFrom"]').forEach((r) => r.addEventListener("change", () => setWSPickFrom_(wsPickFrom_())));
+  setWSPickFrom_("");
+}
+
 async function init() {
   // Fire immediately, don't await — runs quietly in the background so it
   // never delays the login screen from appearing. See
@@ -23086,6 +23224,7 @@ async function init() {
   setupNavSync_();
   setupQuickAdd_();
   setupEventPrice_();
+  setupWsAll_();
   setupByRoomTab();
   setupScanInput();
   setupPaymentButtons();
