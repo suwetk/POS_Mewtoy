@@ -405,6 +405,47 @@
   .qa-bt { height: 38px; padding: 0 14px; border-radius: 8px; font-weight: 600; font-size: 14px; border: 1px solid #d1d5db; background: #fff; color: #374151; }
   .qa-bt.pri { background: #059669; border-color: #059669; color: #fff; }
   .qa-bt.pri:disabled { background: #9ca3af; border-color: #9ca3af; cursor: not-allowed; }
+  /* ---- ราคา Event (2026-11-05) ---- */
+  .evp-banner { border-radius: 10px; padding: 7px 12px; font-size: 13px; margin-bottom: 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .evp-banner.ev { background: #f5f3ff; border: 1px solid #c4b5fd; color: #4c1d95; }
+  .evp-banner.tk { background: #fffbeb; border: 1px solid #fcd34d; color: #78350f; }
+  .evp-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 4px 0 0; padding: 0 8px; }
+  .evp-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+  .evp-chip.ev { background: #ede9fe; color: #5b21b6; }
+  .evp-chip.nor { background: #f3f4f6; color: #4b5563; }
+  .evp-chip.ext { background: #fff7ed; color: #9a3412; border: 1px solid #fdba74; }
+  .evp-chip.bad { background: #fee2e2; color: #991b1b; }
+  .ev-tick { display: inline-flex; align-items: center; gap: 6px; border: 1.5px dashed #a78bfa; background: #faf5ff; color: #5b21b6; border-radius: 8px; padding: 2px 9px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .ev-tick.on { border-style: solid; background: #ede9fe; }
+  .ev-tick input { accent-color: #7c3aed; }
+  .evp { border: 1px solid #ddd6fe; border-radius: 12px; padding: 12px 14px; background: #fcfaff; }
+  .evp-hd { font-weight: 700; color: #5b21b6; font-size: 15px; }
+  .evp-sub { display: block; font-weight: 400; font-size: 12px; color: #6b7280; margin-top: 2px; }
+  .evp-cur { margin-top: 8px; font-size: 13.5px; color: #374151; line-height: 1.6; }
+  .evp-ext { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; font-size: 13px; }
+  .evp-ext input, .evp-g3 input { height: 34px; border: 1px solid #d1d5db; border-radius: 7px; padding: 0 8px; font-size: 13.5px; background: #fff; }
+  .evp-bt { height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; color: #374151; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+  .evp-bt.pri { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+  .evp-bt:disabled { opacity: .55; cursor: progress; }
+  .evp-imp { margin-top: 12px; border-top: 1px dashed #ddd6fe; padding-top: 10px; }
+  .evp-imp-t { font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 6px; }
+  .evp-g3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
+  .evp-g3 label { font-size: 12px; color: #4b5563; font-weight: 600; display: flex; flex-direction: column; gap: 3px; }
+  .evp-file { display: block; margin-top: 8px; border: 2px dashed #c4b5fd; background: #faf5ff; border-radius: 10px; padding: 10px 12px; font-size: 12.5px; color: #5b21b6; cursor: pointer; }
+  .evp-file input { display: block; margin-top: 6px; font-size: 12.5px; }
+  .evp-sum { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .evp-st { font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 1px 8px; }
+  .evp-st.ok { background: #d1fae5; color: #065f46; } .evp-st.bad { background: #fee2e2; color: #991b1b; } .evp-st.warn { background: #fef3c7; color: #92400e; } .evp-st.info { background: #e0f2fe; color: #075985; }
+  .evp-tbl { max-height: 260px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; }
+  .evp-tbl table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .evp-tbl th { position: sticky; top: 0; background: #f9fafb; text-align: left; padding: 5px 8px; color: #6b7280; font-weight: 600; }
+  .evp-tbl td { border-top: 1px solid #f3f4f6; padding: 5px 8px; vertical-align: top; }
+  .evp-tbl .r { text-align: right; }
+  .evp-below { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 13px; color: #991b1b; font-weight: 600; }
+  .evp-act { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+  .evp-err { color: #b91c1c; font-size: 12.5px; margin-right: auto; }
+  @media (max-width: 560px) { .evp-g3 { grid-template-columns: 1fr; } }
+  .evp-banner.hidden, .evp-ext.hidden, .evp-below.hidden, .evp.hidden { display: none; }
   .qa-hide { display: none !important; }
   @media (max-width: 520px) { .qa-g2, .qa-g3, .qa-seg, .qa-chrow { grid-template-columns: 1fr; } }
 </style>
@@ -417,7 +458,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.04-a</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.05-a</span>
       </div>
       <div class="flex-1"></div>
 
@@ -674,6 +715,8 @@
       <!-- 2. Items in Cart -->
       <div class="bg-white rounded-xl shadow p-4 flex-1">
         <h2 class="font-semibold text-gray-700 mb-2">2. Items in Cart</h2>
+        <!-- ราคา Event (2026-11-05) — ดู renderEventPriceBanner_() -->
+        <div id="eventPriceBanner" class="evp-banner hidden"></div>
         <div class="overflow-x-auto cart-scroll">
           <table class="w-full text-left">
             <thead class="text-gray-500 text-sm border-b">
@@ -3991,6 +4034,37 @@
         <p class="text-xs text-gray-400 mt-1">ตั้งไว้ให้แล้ว — เปลี่ยนเฉพาะตอน Deploy PI เป็นลิงก์ใหม่ (ลิงก์เดิม + New version ไม่ต้องเปลี่ยน)</p>
       </div>
 
+      <!-- ราคา Event (2026-11-05, mockup_event_price.html v2026.11.05-c) — Master เท่านั้น · ดู setupEventPrice_() -->
+      <div id="evpSection" class="evp hidden">
+        <div class="evp-hd"><i class="fa-solid fa-tent"></i> ราคา Event <span class="evp-sub">เครื่อง Event ใช้ราคา Event ทั้งหมด · M1/M4 ติ๊กทีละรายการ · ไม่แตะ Price 1 / P.Extra</span></div>
+        <div id="evpCurrent" class="evp-cur"></div>
+        <div id="evpExtendRow" class="evp-ext hidden">
+          <label for="evpExtendTo">ต่อเวลาถึง</label>
+          <input id="evpExtendTo" type="date">
+          <button id="evpExtendBtn" type="button" class="evp-bt pri"><i class="fa-solid fa-calendar-plus"></i> ต่อเวลา</button>
+          <button id="evpCloseBtn" type="button" class="evp-bt">ปิดตอนนี้</button>
+        </div>
+        <div class="evp-imp">
+          <div class="evp-imp-t">นำเข้าไฟล์ใหม่ (แทนรายการเดิม)</div>
+          <div class="evp-g3">
+            <label>ชื่องาน<input id="evpName" type="text" autocomplete="off" placeholder="เช่น Toy Expo"></label>
+            <label>เริ่ม<input id="evpFrom" type="date"></label>
+            <label>ถึง<input id="evpTo" type="date"></label>
+          </div>
+          <label class="evp-file"><i class="fa-solid fa-file-excel"></i> เลือกไฟล์ Excel (เช็กราคาแคมเปญ_ยิงบาร์โค้ด.xlsx) — อ่านแค่ Barcode + ราคาแคมเปญ (ว่าง = Price 2)
+            <input id="evpFile" type="file" accept=".xlsx,.xls,.csv"></label>
+          <div id="evpPreview" class="hidden">
+            <div id="evpSum" class="evp-sum"></div>
+            <div class="evp-tbl"><table><thead><tr><th>Barcode</th><th>สินค้า</th><th class="r">ราคาปกติ</th><th class="r">ราคา Event</th><th>เช็ก</th></tr></thead><tbody id="evpRows"></tbody></table></div>
+            <label id="evpBelowWrap" class="evp-below hidden"><input id="evpBelowOk" type="checkbox"> ยืนยันขายต่ำกว่าทุน <b id="evpBelowN"></b> รายการ</label>
+            <div class="evp-act">
+              <span id="evpErr" class="evp-err"></span>
+              <button id="evpSaveBtn" type="button" class="evp-bt pri"><i class="fa-solid fa-check"></i> บันทึก (แทนรายการเดิม)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div>
         <label class="block text-sm text-gray-500 mb-1">รหัสสาขา (Branch Code)</label>
         <div class="flex gap-2">
@@ -5202,6 +5276,7 @@ async function syncProductData() {
 
     const now = new Date();
     localStorage.setItem("pos_last_sync", now.toISOString());
+    fetchEventPrice_(); // ราคา Event โหลดใหม่พร้อมสินค้า (2026-11-05)
 
     updateCacheStatusUI();
     showToast("ซิงค์ข้อมูลสำเร็จ " + data.length.toLocaleString() + " รายการ", "success");
@@ -5755,12 +5830,17 @@ function addOrIncrementCartItem(barcode, name, price, qtyDelta) {
     if (!existing.name && name) existing.name = name;
     if (!existing.price && price) existing.price = price;
   } else {
-    cart.push({
+    const row = {
       id: nextCartRowId++,
       barcode, name, price, qty: qtyDelta,
       type: "branch", agreed: price, deposit: 0, wsPrice: price, spPrice: price,
-      lineId: null, remarkOn: false, remark: ""
-    });
+      lineId: null, remarkOn: false, remark: "",
+      normalPrice: price
+    };
+    // ราคา Event (2026-11-05): เครื่องสาขา Event → ใช้ราคา Event ทันที (M1/M4 ติ๊กเองในแถว)
+    const ev = name ? eventPriceFor_(barcode) : 0;
+    if (ev > 0 && eventPriceMode_() === "auto") applyEventPriceToRow_(row, true);
+    cart.push(row);
   }
   renderCart();
 }
@@ -5934,6 +6014,7 @@ function refreshRowDisplay(id) {
 
 function renderCart() {
   const tbody = document.getElementById("cartTableBody");
+  renderEventPriceBanner_();
 
   if (cart.length === 0) {
     tbody.innerHTML = `
@@ -5978,6 +6059,7 @@ function renderCart() {
           item.name = input.value;
         } else if (field === "price") {
           item.price = parseFloat(input.value) || 0;
+          if (item.evPrice && item.price !== Number(item.evValue)) item.evPrice = false; // แก้ราคาเอง → ไม่นับเป็นราคา Event
           item.agreed = item.price; // keep in sync so switching type later starts from a sane default
           item.wsPrice = item.price;
           item.spPrice = item.price;
@@ -6197,6 +6279,7 @@ function cartRowHtml(item) {
                 <input type="checkbox" class="row-remark-check w-3.5 h-3.5" data-id="${item.id}" ${item.remarkOn ? "checked" : ""}> Remark
               </label>
             </div>
+            ${eventPriceRowHtml_(item)}
             ${typeFieldsHtml(item)}
             ${remarkField}
           </div>
@@ -7210,7 +7293,9 @@ function cartItemsForSale(rows) {
       // Transactions ระบายสีแถวได้ (2026-10, per Wing). ตอนแก้ไขบิลเก่า ทุกแถว
       // ถูกโหลดกลับมาเป็น "branch" (ดู startEditingBill) เลยใช้ savedType ที่จำ
       // ประเภทเดิมไว้ก่อน กันไม่ให้การแก้บิลลบสีเดิมทิ้ง
-      type: item.savedType || item.type || "branch"
+      type: item.savedType || item.type || "branch",
+      // ราคา Event (2026-11-05) — จดไว้ใน Items JSON ของบิล (ไม่เพิ่มคอลัมน์)
+      ...(item.type === "branch" && item.evPrice ? { evPrice: true, normalPrice: Number(item.normalPrice) || 0 } : {})
     };
   });
 }
@@ -8324,6 +8409,7 @@ function applyLogin(staff) {
     viewBranches: staff.viewBranches === undefined ? null : staff.viewBranches
   };
   currentStaff = staff;
+  setTimeout(fetchEventPrice_, 0); // ราคา Event (2026-11-05)
   sessionStorage.setItem(STAFF_SESSION_KEY, JSON.stringify(staff));
   pinBuffer = "";
   renderPinDisplay();
@@ -22669,6 +22755,284 @@ function setupQuickAdd_() {
   });
 }
 
+/* =================================================================
+   ราคา Event — 2026-11-05 (v2026.11.05-a) · mockup_event_price.html v2026.11.05-c
+   - รายการเดียว (EventPriceMeta + EventPrices ในไฟล์ Sales) — action getEventPrice / saveEventPrice / setEventPriceDates
+   - เครื่องสาขา Event: ยิงแล้วได้ราคา Event อัตโนมัติ · M1/M4: ราคาปกติ + ติ๊ก "ใช้ราคา Event" ทีละแถว
+   - Website / สาขาอื่น: ยังไม่ใช้ (Wing สั่งข้ามไปก่อน) · ไม่แตะ Price 1 / P.Extra / Product_ID
+   - แถวที่ใช้ราคา Event → Items JSON มี evPrice:true + normalPrice
+   ================================================================= */
+const EVENT_PRICE_CACHE_KEY = "pos_event_price";
+let eventPrice = { meta: null, map: new Map() };
+
+function setEventPrice_(meta, items) {
+  eventPrice = { meta: meta || null, map: new Map((items || []).map((r) => [String(r[0]), Number(r[1]) || 0])) };
+}
+function evTodayStr_() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function evShowDate_(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+  if (!m) return String(iso || "");
+  return m[3] + " " + ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][Number(m[2]) - 1] + " " + m[1].slice(2);
+}
+function eventPriceActive_() {
+  const m = eventPrice.meta;
+  if (!m || m.Status === "closed") return false;
+  const t = evTodayStr_();
+  return m.From <= t && t <= m.To;
+}
+// "auto" = เครื่อง Event (ใช้ราคา Event ทันที) · "tick" = M1/M4 (ติ๊กทีละแถว) · "" = ไม่ใช้
+function eventPriceMode_() {
+  const b = getBranchCode();
+  if (b === "Event") return "auto";
+  if (b === "M1" || b === "M4") return "tick";
+  return "";
+}
+function eventPriceFor_(barcode) {
+  if (!eventPriceMode_() || !eventPriceActive_()) return 0;
+  return eventPrice.map.get(String(barcode || "").trim()) || 0;
+}
+function applyEventPriceToRow_(row, on) {
+  const ev = eventPriceFor_(row.barcode);
+  if (on && ev > 0) {
+    if (!row.evPrice) row.normalPrice = Number(row.price) || 0;
+    row.price = ev; row.evValue = ev; row.evPrice = true;
+  } else {
+    if (row.evPrice) row.price = Number(row.normalPrice) || 0;
+    row.evPrice = false;
+  }
+  row.agreed = row.price; row.wsPrice = row.price; row.spPrice = row.price;
+}
+
+async function fetchEventPrice_() {
+  try {
+    const raw = localStorage.getItem(EVENT_PRICE_CACHE_KEY);
+    if (raw && !eventPrice.meta) { const j = JSON.parse(raw); setEventPrice_(j.meta, j.items); }
+  } catch (e) { /* ignore */ }
+  if (!currentStaff) return;
+  try {
+    const res = await fetch(getAppsScriptUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "getEventPrice", pin: currentStaff.pin, branch: getBranchCode() })
+    });
+    const r = await res.json();
+    if (!r || r.status !== "success") throw new Error((r && r.message) || "โหลดราคา Event ไม่ได้");
+    setEventPrice_(r.meta, r.items);
+    try { localStorage.setItem(EVENT_PRICE_CACHE_KEY, JSON.stringify({ meta: r.meta, items: r.items })); } catch (e) { /* ignore */ }
+  } catch (err) {
+    console.warn("fetchEventPrice_", err); // ใช้ค่าที่จำไว้ในเครื่องต่อ (เน็ตหลุดกลางงานก็ยังขายได้)
+  }
+  renderEventPriceSettings_();
+  if (typeof renderCart === "function" && document.getElementById("cartTableBody")) renderCart();
+}
+
+function renderEventPriceBanner_() {
+  const el = document.getElementById("eventPriceBanner");
+  if (!el) return;
+  const mode = eventPriceMode_();
+  if (!mode || !eventPriceActive_()) { el.classList.add("hidden"); return; }
+  const m = eventPrice.meta;
+  el.className = "evp-banner " + (mode === "auto" ? "ev" : "tk");
+  el.innerHTML = mode === "auto"
+    ? '<i class="fa-solid fa-tent"></i> <b>ราคา Event: ' + escapeHtml(m.Name) + "</b> · ถึง " + evShowDate_(m.To) + " · เครื่องนี้ใช้ราคา Event ทุกตัวที่อยู่ในรายการ (" + eventPrice.map.size + ")"
+    : '<i class="fa-solid fa-tags"></i> มีราคา Event <b>' + escapeHtml(m.Name) + "</b> ถึง " + evShowDate_(m.To) + " · ขายราคาปกติ — ติ๊ก \"ใช้ราคา Event\" ได้ทีละรายการ";
+}
+
+function eventPriceRowHtml_(item) {
+  if (item.type !== "branch" || !item.name) return "";
+  const p = item.barcode ? findByBarcodeExact(item.barcode) : null;
+  const parts = [];
+  if (item.evPrice) {
+    parts.push('<span class="evp-chip ev"><i class="fa-solid fa-tent"></i> ราคา Event</span><span class="evp-chip nor">ปกติ ' + formatMoney(item.normalPrice) + "</span>");
+    if (p && Number(p.priceExtra) > 0 && Number(item.price) > Number(p.priceExtra)) parts.push('<span class="evp-chip ext"><i class="fa-solid fa-circle-exclamation"></i> มีราคา Extra ' + formatMoney(p.priceExtra) + " ถูกกว่า</span>");
+    if (p && Number(p.cost) > 0 && Number(item.price) < Number(p.cost)) parts.push('<span class="evp-chip bad"><i class="fa-solid fa-triangle-exclamation"></i> ต่ำกว่าทุน — เช็กราคาอีกครั้ง</span>');
+  }
+  const ev = eventPriceFor_(item.barcode);
+  if (eventPriceMode_() === "tick" && ev > 0) {
+    parts.push('<label class="ev-tick' + (item.evPrice ? " on" : "") + '"><input type="checkbox" class="ev-tick-cb" data-id="' + item.id + '"' + (item.evPrice ? " checked" : "") + "> ใช้ราคา Event " + formatMoney(ev) + "</label>");
+  }
+  return parts.length ? '<div class="evp-row">' + parts.join("") + "</div>" : "";
+}
+
+/* ---------- Settings: นำเข้า / ต่อเวลา / ปิด (Master) ---------- */
+let evpParsed = null;
+
+function renderEventPriceSettings_() {
+  const sec = document.getElementById("evpSection");
+  if (!sec) return;
+  const master = !!currentStaff && isAdminRole(currentStaff.role);
+  sec.classList.toggle("hidden", !master);
+  if (!master) return;
+  const m = eventPrice.meta, cur = document.getElementById("evpCurrent");
+  if (!m) {
+    cur.innerHTML = '<span style="color:#6b7280">ยังไม่มีราคา Event</span>';
+    document.getElementById("evpExtendRow").classList.add("hidden");
+    return;
+  }
+  const t = evTodayStr_();
+  const st = m.Status === "closed" ? '<span class="evp-st bad">ปิดแล้ว</span>' : (m.To < t ? '<span class="evp-st warn">จบแล้ว</span>' : (m.From > t ? '<span class="evp-st info">รอเริ่ม</span>' : '<span class="evp-st ok">กำลังใช้</span>'));
+  cur.innerHTML = "<b>" + escapeHtml(m.Name) + "</b> · " + evShowDate_(m.From) + " – <b>" + evShowDate_(m.To) + "</b> · " + (m.Count || eventPrice.map.size) + " รายการ " + st +
+    '<br><span style="font-size:12px;color:#6b7280">นำเข้าโดย ' + escapeHtml(m.ImportedBy || "-") + " " + escapeHtml(m.ImportedAt || "") +
+    (m.UpdatedAt && m.UpdatedAt !== m.ImportedAt ? " · แก้ล่าสุด " + escapeHtml(m.UpdatedBy || "") + " " + escapeHtml(m.UpdatedAt) : "") + "</span>";
+  document.getElementById("evpExtendRow").classList.remove("hidden");
+  document.getElementById("evpExtendTo").value = m.To;
+  document.getElementById("evpCloseBtn").classList.toggle("hidden", m.Status === "closed" || m.To < t);
+}
+
+function evpCell_(v) {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "number") return Number.isInteger(v) ? String(v) : String(v);
+  return String(v).replace(/\s+/g, "").trim();
+}
+function evpParseRows_(rows) {
+  let hi = -1, bcCol = -1, prCol = -1;
+  for (let i = 0; i < Math.min(rows.length, 10) && hi < 0; i++) {
+    const h = (rows[i] || []).map((x) => String(x || "").trim().toLowerCase());
+    const b = h.indexOf("barcode");
+    const pr = h.findIndex((x) => x === "ราคาแคมเปญ" || x === "ราคา event" || x === "ราคางาน" || x === "event price");
+    if (b >= 0 && pr >= 0) { hi = i; bcCol = b; prCol = pr; }
+  }
+  if (hi < 0) throw new Error('ไม่เจอหัวคอลัมน์ "Barcode" กับ "ราคาแคมเปญ" ในชีตแรก');
+  const byBc = new Map(), out = [];
+  let dup = 0;
+  for (let i = hi + 1; i < rows.length; i++) {
+    const r = rows[i] || [];
+    const bc = evpCell_(r[bcCol]);
+    if (!bc) continue;
+    const rawP = r[prCol];
+    const typed = rawP === "" || rawP === null || rawP === undefined ? null : Number(String(rawP).replace(/,/g, ""));
+    const p = findByBarcodeExact(bc);
+    const rec = { barcode: bc, product: p, typed: typed, price: 0, status: "ok", fromP2: false };
+    if (!p) rec.status = "notfound";
+    else {
+      rec.price = typed !== null && typed > 0 ? typed : (typed === null ? Number(p.price2) || 0 : 0);
+      rec.fromP2 = typed === null && rec.price > 0;
+      if (!(rec.price > 0)) rec.status = typed === null ? "noprice" : "badprice";
+      else if (Number(p.cost) > 0 && rec.price < Number(p.cost)) rec.status = "below";
+    }
+    if (byBc.has(bc)) { dup++; out[byBc.get(bc)] = rec; rec.dup = true; }
+    else { byBc.set(bc, out.length); out.push(rec); }
+  }
+  return { list: out, dup: dup };
+}
+
+async function evpOnFile_(file) {
+  const err = document.getElementById("evpErr");
+  err.textContent = "";
+  evpParsed = null;
+  document.getElementById("evpPreview").classList.add("hidden");
+  if (!file) return;
+  if (!productMap.size) { showToast("ยังไม่มีข้อมูลสินค้าในเครื่อง — กด 🔄 อัปเดตข้อมูลสินค้าก่อน", "error"); return; }
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
+    evpParsed = evpParseRows_(rows);
+  } catch (e) {
+    showToast("อ่านไฟล์ไม่ได้: " + e.message, "error");
+    return;
+  }
+  const L = evpParsed.list;
+  const c = (s) => L.filter((x) => x.status === s).length;
+  const ok = c("ok"), below = c("below"), nf = c("notfound"), np = c("noprice") + c("badprice"), p2 = L.filter((x) => x.fromP2).length;
+  document.getElementById("evpSum").innerHTML =
+    '<span class="evp-st ok">ใช้ได้ ' + (ok + below) + "</span>" + (p2 ? '<span class="evp-st info">ใช้ Price 2 ' + p2 + "</span>" : "") +
+    (below ? '<span class="evp-st bad">ต่ำกว่าทุน ' + below + "</span>" : "") + (np ? '<span class="evp-st warn">ไม่มีราคา ' + np + " (ข้าม)</span>" : "") +
+    (nf ? '<span class="evp-st bad">ไม่พบใน Product_ID ' + nf + " (ข้าม)</span>" : "") + (evpParsed.dup ? '<span class="evp-st warn">บาร์โค้ดซ้ำ ' + evpParsed.dup + " (ใช้แถวล่าสุด)</span>" : "");
+  const order = { below: 0, notfound: 1, noprice: 2, badprice: 2, ok: 3 };
+  const shown = L.slice().sort((a, b) => order[a.status] - order[b.status]).slice(0, 300);
+  const label = { ok: '<span class="evp-st ok">ใช้ได้</span>', below: '<span class="evp-st bad">ต่ำกว่าทุน</span>', notfound: '<span class="evp-st bad">ไม่พบ — ข้าม</span>',
+    noprice: '<span class="evp-st warn">ไม่มี Price 2 — ข้าม</span>', badprice: '<span class="evp-st warn">ราคาไม่ถูกต้อง — ข้าม</span>' };
+  document.getElementById("evpRows").innerHTML = shown.map((x) => {
+    const p = x.product, normal = p ? (Number(p.priceExtra) > 0 ? p.priceExtra : p.price1 || p.price) : 0;
+    return "<tr><td class=\"font-mono\">" + escapeHtml(x.barcode) + "</td><td>" + (p ? escapeHtml(p.name) : "—") + '</td><td class="r">' + (p ? formatMoney(normal) : "") +
+      '</td><td class="r"><b>' + (x.price > 0 ? formatMoney(x.price) : "—") + "</b></td><td>" + label[x.status] + (x.fromP2 ? ' <span class="evp-st info">P2</span>' : "") + (x.dup ? ' <span class="evp-st warn">ซ้ำ</span>' : "") + "</td></tr>";
+  }).join("") + (L.length > shown.length ? '<tr><td colspan="5" style="color:#6b7280">… อีก ' + (L.length - shown.length) + " รายการ</td></tr>" : "");
+  document.getElementById("evpBelowWrap").classList.toggle("hidden", !below);
+  document.getElementById("evpBelowN").textContent = below;
+  document.getElementById("evpBelowOk").checked = false;
+  document.getElementById("evpPreview").classList.remove("hidden");
+}
+
+async function evpPost_(body, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(getAppsScriptUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(Object.assign({ pin: currentStaff.pin, branch: getBranchCode() }, body))
+    });
+    const r = await res.json();
+    if (!r || r.status !== "success") throw new Error((r && r.message) || "ทำรายการไม่สำเร็จ");
+    return r;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function evpSave_() {
+  const err = document.getElementById("evpErr");
+  err.textContent = "";
+  const name = document.getElementById("evpName").value.trim();
+  const from = document.getElementById("evpFrom").value, to = document.getElementById("evpTo").value;
+  if (!evpParsed) { err.textContent = "เลือกไฟล์ก่อน"; return; }
+  if (!name) { err.textContent = "ใส่ชื่องาน"; return; }
+  if (!from || !to || to < from) { err.textContent = "ช่วงวันไม่ถูกต้อง"; return; }
+  const use = evpParsed.list.filter((x) => x.status === "ok" || x.status === "below");
+  const below = use.filter((x) => x.status === "below").length;
+  if (!use.length) { err.textContent = "ไม่มีรายการที่ใช้ได้"; return; }
+  if (below && !document.getElementById("evpBelowOk").checked) { err.textContent = "มีรายการต่ำกว่าทุน " + below + " ตัว — ติ๊กยืนยันก่อน"; return; }
+  if (eventPrice.meta && !confirm("แทนราคา Event เดิม (" + eventPrice.meta.Name + ") ด้วยรายการใหม่ " + use.length + " รายการ?")) return;
+  try {
+    const r = await evpPost_({ action: "saveEventPrice", name: name, from: from, to: to, belowCost: below,
+      items: use.map((x) => ({ barcode: x.barcode, price: x.price, name: x.product ? x.product.name : "" })) }, document.getElementById("evpSaveBtn"));
+    showToast(r.message || "บันทึกราคา Event แล้ว", "success");
+    evpParsed = null;
+    document.getElementById("evpFile").value = "";
+    document.getElementById("evpPreview").classList.add("hidden");
+    fetchEventPrice_();
+  } catch (e) {
+    err.textContent = "บันทึกไม่สำเร็จ: " + e.message;
+  }
+}
+
+function setupEventPrice_() {
+  document.getElementById("evpFile").addEventListener("change", (e) => evpOnFile_(e.target.files && e.target.files[0]));
+  document.getElementById("evpSaveBtn").addEventListener("click", evpSave_);
+  document.getElementById("evpExtendBtn").addEventListener("click", async () => {
+    const to = document.getElementById("evpExtendTo").value;
+    if (!to) return;
+    try {
+      await evpPost_({ action: "setEventPriceDates", to: to }, document.getElementById("evpExtendBtn"));
+      showToast("ต่อเวลาราคา Event ถึง " + evShowDate_(to) + " แล้ว — เครื่องอื่นเห็นหลังกด 🔄", "success");
+      fetchEventPrice_();
+    } catch (e) { showToast("ต่อเวลาไม่สำเร็จ: " + e.message, "error"); }
+  });
+  document.getElementById("evpCloseBtn").addEventListener("click", async () => {
+    if (!eventPrice.meta || !confirm("ปิดราคา Event \"" + eventPrice.meta.Name + "\" ตอนนี้เลย?")) return;
+    try {
+      await evpPost_({ action: "setEventPriceDates", close: true }, document.getElementById("evpCloseBtn"));
+      showToast("ปิดราคา Event แล้ว", "success");
+      fetchEventPrice_();
+    } catch (e) { showToast("ปิดไม่สำเร็จ: " + e.message, "error"); }
+  });
+  // M1/M4: ติ๊ก "ใช้ราคา Event" ในแถวตะกร้า
+  document.getElementById("cartTableBody").addEventListener("change", (e) => {
+    const cb = e.target.closest(".ev-tick-cb");
+    if (!cb) return;
+    const row = cart.find((it) => it.id === Number(cb.dataset.id));
+    if (!row) return;
+    applyEventPriceToRow_(row, cb.checked);
+    renderCart();
+  });
+  try { const raw = localStorage.getItem(EVENT_PRICE_CACHE_KEY); if (raw) { const j = JSON.parse(raw); setEventPrice_(j.meta, j.items); } } catch (e) { /* ignore */ }
+  renderEventPriceSettings_();
+}
+
 async function init() {
   // Fire immediately, don't await — runs quietly in the background so it
   // never delays the login screen from appearing. See
@@ -22721,6 +23085,7 @@ async function init() {
   setupBranchIndicator();
   setupNavSync_();
   setupQuickAdd_();
+  setupEventPrice_();
   setupByRoomTab();
   setupScanInput();
   setupPaymentButtons();
