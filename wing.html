@@ -236,6 +236,7 @@ a{color:inherit;text-decoration:none}
 </div>
 
 <script>
+/* Mewtoy Quest · v2026.11.09-b (09 Nov 26) — เพิ่ม EX (เบิกค่าใช้จ่าย), Finance J, PV, ชีต EX/Customer, แอป LINE Developers/Apps Script */
 /* ===== แก้ไข/เพิ่มเมนูตรงนี้ =====
    url: ชื่อไฟล์ใน GitHub (โฟลเดอร์เดียวกับไฟล์นี้) หรือลิงก์เต็ม https://...
    newTab: true = เปิดแท็บใหม่ */
@@ -258,12 +259,22 @@ const GROUPS = [
   ]},
   { title:"กิลด์พ่อค้า · สั่งของ", items:[
     { name:"PM Product Manager", url:"pm.html", desc:"รอบสั่ง Quarter, ยอด WS, บิลของเข้า, แบ่งของ WS และใบแจ้งหนี้" },
+    { name:"PV สั่งของรอบพรี", url:"pv.html", desc:"วันปิดพรีของร้านส่ง: รวมยอดจอง สั่งซัพ คอนเฟิร์มของเข้า แบ่งของ และส่งลูกค้า" },
+  ]},
+  { title:"คลังสมบัติ · การเงิน", items:[
+    { name:"Finance J ตรวจยอดเงินเข้า", url:"finance_j.html", desc:"ตรวจยอดบัตร/โอน/เงินสดจาก POS เทียบเงินเข้าแต่ละธนาคาร และหาบิลที่เลือกบัญชีผิด — เข้าด้วย PIN" },
+    { name:"EX Desk เบิกค่าใช้จ่าย", url:"ex.html", desc:"ตรวจบิลจาก LINE, ตัดยอดเบิกเงินสดย่อย, พิมพ์ใบสำคัญจ่าย และใบรับสินค้าเข้าระบบ — เข้าด้วย PIN" },
+    { name:"EX บอทรับบิล (LINE)", url:"https://manager.line.biz/", desc:"ส่งรูป/PDF บิลให้บอท Bill_Mewtoy_Claude (@195qykxv) — หน้านี้เปิดตั้งค่าบัญชี LINE OA" },
   ]},
   { title:"หอจดหมายเหตุ · ชีต", items:[
     { name:"Sales_History (M1)", url:"https://docs.google.com/spreadsheets/d/1gufnFwdTYUEFfE21jN5moudJ21mezNAbVVwBXhYfq6c/edit", newTab:true,
       desc:"ม้วนบันทึกการขาย, WS Invoices, PreOrders และ Staff/PIN" },
     { name:"Store_Withdrawal", url:"https://docs.google.com/spreadsheets/d/1PqRbtlKepXiBnQL9Wqms4Y_lpGTO4_ul2I2AJEzj1bw/edit", newTab:true,
       desc:"บันทึกการเบิกของ, สรุปเมื่อวาน และปฏิทินย้อนหลัง" },
+    { name:"EX ชีตค่าใช้จ่าย", url:"https://docs.google.com/spreadsheets/d/1zUSLWglv_FKo_96ZARhsia2ys2_yZRYa4ZLD2IGFtE4/edit", newTab:true,
+      desc:"Exp_Mewtoy_Claude_Build: บิล, รอบเบิก, สินค้ารอเข้า, ผู้ซื้อ/ข้อมูลบริษัท (Lists) และ PIN (Staff)" },
+    { name:"Customer ลูกค้า", url:"https://docs.google.com/spreadsheets/d/1FyXW6jdi3fV6puxQ1tftIh2AkFYpC8WqBGbXuHeHem0/edit", newTab:true,
+      desc:"รายชื่อลูกค้า C / พ่อค้าส่ง CWS, ช่องทาง และที่อยู่สำหรับใบปะหน้า" },
   ]},
   { title:"ห้องลับ · งานส่วนตัว", items:[
     { name:"ใบสั่งงานช่างฝังพลอย", url:"SThana.html", desc:"กรอกข้อมูลพลอยและงานฝัง/เจียทรงใหม่ แล้วสร้างแบบร่างเป็นรูปส่งให้ช่าง" },
@@ -415,6 +426,7 @@ const APPS = [
   { title:"ร้าน Mewtoy", items:[
     ["Meta Business","https://business.facebook.com/"],["LINE OA","https://manager.line.biz/"],["Shopee Seller","https://seller.shopee.co.th/"],
     ["NotebookLM","https://notebooklm.google.com/"],["Bandai Hobby","https://bandai-hobby.net/"],["Claude","https://claude.ai/"],["GitHub POS","https://github.com/suwetk/POS_Mewtoy"],
+    ["LINE Developers","https://developers.line.biz/console/"],["Apps Script","https://script.google.com/home"],
   ]},
 ];
 (function(){
