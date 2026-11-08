@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EX Desk · Mewtoy Expense</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap">
+<style>
+:root{--bg:#f3f5f4;--card:#fff;--ink:#16211c;--mute:#5f6d66;--line:#dce3df;--acc:#0b7a4b;--acc2:#e2f2ea;--warn:#a15c07;--warn2:#fdf1d6;--red:#b42318;--red2:#fde4e1;--blue:#1d4ed8;--blue2:#e3ebff;--vio:#6d28d9;--vio2:#efe7ff;--chip:#eef2f0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111614;--card:#1a211e;--ink:#e5ebe8;--mute:#98a69f;--line:#2b3531;--acc2:#15352a;--warn2:#3a2b10;--red2:#3d1714;--blue2:#18264a;--vio2:#2a1d48;--chip:#232c28}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "IBM Plex Sans Thai",system-ui,sans-serif;padding:0 16px 40px}
+.wrap{max-width:1100px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:14px 0 8px}
+header h1{font-size:19px;margin:0}header .v{font-size:11.5px;color:var(--mute)}
+select,input,button,textarea{font:inherit;color:inherit}
+select,input,textarea{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:6px 9px;min-width:0}
+button{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:7px;padding:6px 12px}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+button:disabled{opacity:.45;cursor:default}
+button.bad{color:var(--red);border-color:var(--red2)}
+button.sm{padding:3px 9px;font-size:12.5px}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+a{color:var(--blue)}
+.who-bar{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 12px}
+.who-bar button{border-radius:16px;padding:4px 14px}
+.who-bar button.on{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:0 0 14px}
+@media(max-width:720px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.kpi small{color:var(--mute);display:block;font-size:12px}.kpi b{font-size:21px;font-variant-numeric:tabular-nums}.kpi span{font-size:12px;color:var(--mute)}
+.kpi.w b{color:var(--warn)}.kpi.r b{color:var(--red)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:12px;overflow-x:auto}
+.tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;padding:8px 12px;color:var(--mute);white-space:nowrap}
+.tabs button.on{color:var(--acc);border-bottom-color:var(--acc);font-weight:600}
+.tabs .n{background:var(--warn2);color:var(--warn);border-radius:9px;padding:0 6px;font-size:11px;margin-left:4px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px}
+.panel+.panel{margin-top:12px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+.bar .sp{flex:1}
+.row{display:grid;grid-template-columns:22px 86px 1fr 80px 100px auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+@media(max-width:720px){.row{grid-template-columns:22px 1fr auto;grid-template-areas:"c t a" ". x x"}.row .d,.row .who{display:none}
+ .row>:first-child{grid-area:c}.row .t{grid-area:t}.row .amt{grid-area:a}.row .acts{grid-area:x;justify-content:flex-start}}
+.row .t{cursor:pointer;min-width:0}.row .t b{display:block}.row .t small{color:var(--mute);display:block;overflow-wrap:anywhere}
+.amt{font-variant-numeric:tabular-nums;text-align:right;font-weight:600}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11.5px;font-weight:600;background:var(--chip);color:var(--mute);white-space:nowrap}
+.p-new{background:var(--warn2);color:var(--warn)}.p-ok{background:var(--acc2);color:var(--acc)}.p-paid{background:var(--blue2);color:var(--blue)}.p-no{background:var(--red2);color:var(--red)}
+.p-rb{background:var(--blue2);color:var(--blue)}.p-goods{background:var(--vio2);color:var(--vio)}
+.dot{width:22px;height:28px;border-radius:4px;background:var(--chip);display:grid;place-items:center;font-size:12px}
+.acts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.cut{display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:10px;align-items:end;padding:12px}
+@media(max-width:720px){.cut{grid-template-columns:1fr 1fr}}
+.f{display:grid;gap:4px}.f label{font-size:12px;color:var(--mute)}.f input,.f select,.f textarea{width:100%}
+.big{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.tw{overflow-x:auto}
+.mt{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+.mt th,.mt td{padding:7px 10px;border-top:1px solid var(--line);text-align:left;white-space:nowrap}.mt .n{text-align:right}
+.mt th{color:var(--mute);font-weight:500}
+.chart{padding:14px 12px;display:grid;gap:8px}
+.cr{display:grid;grid-template-columns:140px 1fr 90px;gap:10px;align-items:center;font-size:13px}
+@media(max-width:520px){.cr{grid-template-columns:100px 1fr 70px}}
+.track{height:14px;background:var(--chip);border-radius:4px;overflow:hidden;display:flex}.fill{height:100%;background:var(--acc)}.fill.g{background:var(--vio)}
+.drawer{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;justify-content:flex-end;z-index:5}
+.drawer .in{width:min(480px,100%);height:100%;background:var(--card);padding:16px;overflow:auto;display:grid;gap:12px;align-content:start}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.three{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}
+.goods{border:1px dashed var(--vio);border-radius:8px;padding:10px;display:grid;gap:10px;background:var(--vio2)}
+.goods>b{color:var(--vio);font-size:13px}
+.gi{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px;display:grid;gap:8px}
+.ocr{font-size:11.5px;color:var(--mute);background:var(--chip);border-radius:6px;padding:8px;white-space:pre-wrap;max-height:160px;overflow:auto}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--card);padding:8px 14px;border-radius:8px;font-size:13px;z-index:20;max-width:90vw}
+.toast.err{background:var(--red);color:#fff}
+.busy{position:fixed;top:0;left:0;right:0;height:3px;background:var(--acc);animation:b 1s linear infinite;z-index:30}
+@keyframes b{0%{opacity:.3}50%{opacity:1}100%{opacity:.3}}
+.empty{padding:24px;text-align:center;color:var(--mute)}
+.hint{font-size:12px;color:var(--mute);padding:0 12px 12px}
+.login{max-width:340px;margin:12vh auto;display:grid;gap:12px}
+.login h1{font-size:22px;margin:0}
+.grp{padding:8px 12px;background:var(--chip);font-size:12.5px;font-weight:600;color:var(--mute)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;z-index:10;padding:16px}
+.modal .in{background:var(--card);border-radius:10px;width:min(560px,100%);max-height:85vh;overflow:auto;padding:14px;display:grid;gap:10px}
+.cand{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+.cand small{color:var(--mute);display:block}
+@media (prefers-reduced-motion:reduce){.busy{animation:none}}
+</style></head><body><div class="wrap" id="app"></div>
+<script>
+/* EX Desk · ex-html-2026-11-09-a · ใช้คู่กับ ex_backend.gs ex-2026-11-09-a */
+const VERSION='ex-html-2026-11-09-a';
+const API_URL_DEFAULT='https://script.google.com/macros/s/AKfycbzwApo1tdngeEydvZKc9XMQ34RxcR5xJhdkD9NyZBBTaDD4tUElgkO_tATR2OPJEc7fNQ/exec';   // URL /exec ของ EX (Apps Script) · เปลี่ยนได้ที่ ⚙️
+const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
+const ss={get:k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}},del:k=>{try{sessionStorage.removeItem(k)}catch(e){}}};
+let API=ls.get('ex_api')||API_URL_DEFAULT, PIN=ss.get('ex_pin')||'', ME=null, D=null;
+let payee='', tab='queue', who='', month='', sel=new Set(), cutWho='', cutDate='', ex=new Set(), f={st:'',cat:'',q:''}, gsel=new Set();
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const m=n=>Number(n||0).toLocaleString('en-US',{maximumFractionDigits:2});
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fd=s=>{if(!s)return '-';const[y,mo,d]=s.split('-');return d+' '+MON[mo-1]+' '+y.slice(2)};
+const fm=ym=>{const[y,mo]=ym.split('-');return MON[mo-1]+' '+y.slice(2)};
+const pc=s=>({'รอตรวจ':'p-new','อนุมัติ':'p-ok','คืนแล้ว':'p-paid','ไม่เบิก':'p-no','ยกเลิก':'p-no','รอจ่าย':'p-new','จ่ายแล้ว':'p-paid','รอของ':'p-new','ของถึงแล้ว':'p-ok'})[s]||'';
+const live=x=>x.st!=='ยกเลิก'&&x.st!=='ไม่เบิก';
+const mine=x=>!who||x.who===who;
+const sum=a=>a.reduce((s,x)=>s+(x.amt||0),0);
+const isGoods=cat=>(D.cats.find(c=>c.name===cat)||{}).type==='สินค้า';
+const goodsOf=id=>D.goods.filter(g=>g.exp===id);
+function toast(t,err){const e=document.createElement('div');e.className='toast'+(err?' err':'');e.textContent=t;document.body.append(e);setTimeout(()=>e.remove(),err?4500:2000)}
+function busy(on){let b=$('.busy');if(on&&!b){b=document.createElement('div');b.className='busy';document.body.append(b)}if(!on&&b)b.remove()}
+
+async function api(action,payload){
+  if(!API)throw new Error('ยังไม่ได้ตั้ง URL ของระบบ (กด ⚙️)');
+  busy(true);
+  try{
+    const r=await fetch(API,{method:'POST',body:JSON.stringify({api:true,pin:PIN,action,payload})});
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.error||'ผิดพลาด');
+    return j.data;
+  }finally{busy(false)}
+}
+async function act(action,payload,msg){
+  try{const r=await api(action,payload);if(msg)toast(typeof msg==='function'?msg(r):msg);await reload();return r}
+  catch(e){toast(e.message,true);if(/PIN/.test(e.message))logout();return null}
+}
+async function reload(){D=await api('load',{});if(!month)month=(D.now||'').slice(0,7);if(!cutDate)cutDate=D.now;render()}
+function logout(){PIN='';ss.del('ex_pin');ME=null;D=null;renderLogin()}
+
+/* ---------- login ---------- */
+function renderLogin(){
+  $('#app').innerHTML=`<div class="login panel" style="padding:20px">
+   <h1>EX Desk</h1><div style="color:var(--mute);font-size:13px">Mewtoy Expense · ตรวจบิล ตัดยอดเบิก สินค้ารอเข้า</div>
+   <div class="f"><label for="pin">PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="current-password"></div>
+   <button class="pri" id="go">เข้าสู่ระบบ</button>
+   <button id="cfg">⚙️ ตั้ง URL ระบบ</button>
+   <div style="font-size:11px;color:var(--mute)">${VERSION}${API?'':' · ยังไม่ได้ตั้ง URL'}</div></div>`;
+  const go=async()=>{PIN=$('#pin').value.trim();try{ME=await api('login',{});ss.set('ex_pin',PIN);await reload()}catch(e){toast(e.message,true)}};
+  $('#go').onclick=go;$('#pin').onkeydown=e=>{if(e.key==='Enter')go()};$('#cfg').onclick=cfg;$('#pin').focus();
+}
+function cfg(){const u=prompt('URL ของ Apps Script (ลงท้าย /exec)',API||'');if(u!==null){API=u.trim();ls.set('ex_api',API);toast('บันทึก URL แล้ว')}}
+
+/* ---------- helpers ---------- */
+function eligibility(b){
+  if(b.st!=='อนุมัติ')return 'ยังไม่อนุมัติ';
+  if(b.pay!=='ส่วนตัว')return 'จ่ายด้วยเงินบริษัท';
+  if(b.rb)return 'อยู่ในรอบ '+b.rb;
+  if(b.paym==='SPayLater'){const gs=goodsOf(b.id);if(!gs.length)return 'SPayLater: ยังไม่ใส่รายการสินค้า';if(gs.some(g=>g.st!=='ของถึงแล้ว'))return 'SPayLater: รอของถึงก่อน'}
+  return '';
+}
+const buyers=()=>(D.lists&&D.lists.buyers&&D.lists.buyers.length?D.lists.buyers:[ME?ME.name:'']);
+const people=()=>[...new Set([...(D.people||[]),...D.bills.map(b=>b.who)].filter(Boolean))];
+const months=()=>{const s=new Set(D.bills.map(b=>b.d.slice(0,7)).filter(Boolean));s.add((D.now||'').slice(0,7));return [...s].sort().reverse()};
+
+/* ---------- main ---------- */
+function render(){
+  if(!D)return renderLogin();
+  if(!cutWho)cutWho=people()[0]||'';
+  const nq=D.bills.filter(x=>mine(x)&&x.st==='รอตรวจ').length;
+  const ng=D.goods.filter(g=>g.st!=='ของถึงแล้ว').length;
+  $('#app').innerHTML=`<header><div><h1>EX Desk</h1><div class="v">Mewtoy Expense · ${esc(ME?ME.name:'')} · ${esc(D.version)} / ${VERSION}</div></div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="month" aria-label="เดือน">${months().map(x=>`<option value="${x}" ${x===month?'selected':''}>${fm(x)}</option>`).join('')}</select>
+   <button id="rf">↻ ดึงข้อมูลล่าสุด</button><button id="cfgb" aria-label="ตั้งค่า">⚙️</button><button id="out">ออก</button></div></header>
+   <div class="who-bar" role="group" aria-label="เลือกคน">${['',...people()].map(p=>`<button class="${who===p?'on':''}" data-who="${esc(p)}">${esc(p||'ทุกคน')}</button>`).join('')}</div>
+   <section class="kpis">${kpis()}</section>
+   <nav class="tabs" id="tabs">${[['queue','รอตรวจ',nq],['cut','ตัดยอดเบิก'],['rounds','ประวัติรอบเบิก'],['goods','สินค้ารอเข้า',ng],['all','บิลทั้งหมด'],['sum','สรุป']]
+     .map(([k,l,n])=>`<button data-t="${k}" class="${tab===k?'on':''}">${l}${n?`<span class="n">${n}</span>`:''}</button>`).join('')}</nav>
+   <main id="view">${({queue:vQueue,cut:vCut,rounds:vRounds,goods:vGoods,all:vAll,sum:vSum})[tab]()}</main>`;
+}
+function kpis(){
+  const L=D.bills.filter(x=>live(x)&&mine(x)&&x.d.slice(0,7)===month);
+  const exp=L.filter(x=>!isGoods(x.cat)),gd=L.filter(x=>isGoods(x.cat));
+  const q=D.bills.filter(x=>mine(x)&&x.st==='รอตรวจ');
+  const owe=D.bills.filter(x=>mine(x)&&x.pay==='ส่วนตัว'&&x.st==='อนุมัติ'&&!x.rb);
+  const wait=D.rounds.filter(r=>(!who||r.who===who)&&r.st==='รอจ่าย');
+  const lastR=D.rounds.filter(r=>(!who||r.who===who)&&r.st!=='ยกเลิก').sort((a,b)=>b.cut.localeCompare(a.cut))[0];
+  return `<div class="kpi"><small>ค่าใช้จ่าย ${fm(month)}${who?' · '+esc(who):''}</small><b>${m(sum(exp))}</b> <span>${exp.length} บิล${gd.length?` · สินค้า ${m(sum(gd))}`:''}</span></div>
+  <div class="kpi w"><small>รอตรวจ</small><b>${m(sum(q))}</b> <span>${q.length} บิล</span></div>
+  <div class="kpi r"><small>อนุมัติแล้ว ยังไม่ตัดยอด</small><b>${m(sum(owe))}</b> <span>${owe.length} บิล</span></div>
+  <div class="kpi"><small>ตัดยอดแล้ว รอจ่าย</small><b>${m(wait.reduce((s,r)=>s+r.amt,0))}</b> <span>${wait.length} รอบ${lastR?' · ตัดล่าสุด '+fd(lastR.cut):''}</span></div>`;
+}
+function row(x,mode){
+  const lead=mode==='q'?`<input type="checkbox" aria-label="เลือก ${x.id}" data-sel="${x.id}" ${sel.has(x.id)?'checked':''}>`
+    :mode==='c'?`<input type="checkbox" aria-label="รวม ${x.id}" data-ex="${x.id}" ${ex.has(x.id)?'':'checked'}>`:`<div class="dot">${x.file?'📄':'✎'}</div>`;
+  const gs=goodsOf(x.id);
+  const tags=(isGoods(x.cat)?` <span class="pill p-goods">สินค้า${gs.length?'':' · ยังไม่ใส่รายการ'}</span>`:'')+(x.rb?` <span class="pill p-rb">${esc(x.rb)}</span>`:'')+(x.paym==='SPayLater'?' <span class="pill p-new">SPayLater</span>':'');
+  const sub=gs.length?gs.map(g=>`${esc(g.name)} ×${g.qty}`).join(' · ')+' · '+esc(x.br):`${x.id} · ${esc(x.br)} · ${x.pay==='ส่วนตัว'?'เงินส่วนตัว':'เงินบริษัท'}${x.paym?' · '+esc(x.paym):''}`;
+  const act=mode==='q'?`<button class="pri sm" data-ok="${x.id}">อนุมัติ</button><button class="bad sm" data-no="${x.id}">ไม่เบิก</button>`
+    :mode==='c'?'':`<span class="pill ${pc(x.st)}">${esc(x.st)}</span>`;
+  return `<div class="row">${lead}<div class="d">${fd(x.d)}</div>
+   <div class="t" data-open="${x.id}"><b>${esc(x.cat)} · ${esc(x.desc||'-')}${tags}</b><small>${sub}</small></div>
+   <div class="who">${esc(x.who)}</div><div class="amt">${m(x.amt)}</div><div class="acts">${act}</div></div>`;
+}
+function vQueue(){
+  const q=D.bills.filter(x=>mine(x)&&x.st==='รอตรวจ').sort((a,b)=>b.d.localeCompare(a.d));
+  return `<div class="panel"><div class="bar"><b>บิลรอตรวจ ${q.length} ใบ</b><span class="sp"></span>
+   <button id="selAll">เลือกทั้งหมด</button><button class="pri" id="okSel" ${sel.size?'':'disabled'}>อนุมัติที่เลือก (${sel.size})</button></div>
+   ${q.map(x=>row(x,'q')).join('')||'<div class="empty">ไม่มีบิลรอตรวจ</div>'}</div>`;
+}
+function vCut(){
+  const mineP=D.bills.filter(x=>x.who===cutWho&&x.pay==='ส่วนตัว'&&x.st==='อนุมัติ'&&!x.rb);
+  const c=mineP.filter(x=>x.d<=cutDate&&!eligibility(x)),inc=c.filter(x=>!ex.has(x.id));
+  const blocked=mineP.filter(x=>x.d<=cutDate&&eligibility(x));
+  const later=mineP.filter(x=>x.d>cutDate);
+  const last=D.rounds.filter(r=>r.who===cutWho&&r.st!=='ยกเลิก').sort((a,b)=>b.cut.localeCompare(a.cut))[0];
+  return `<div class="panel"><div class="bar"><b>ตัดยอดเบิกคืน</b><span class="sp"></span><span class="pill">${last?`รอบล่าสุดของ ${esc(cutWho)}: ${last.id} ตัดถึง ${fd(last.cut)} (${last.st})`:'ยังไม่เคยตัดยอด'}</span></div>
+   <div class="cut">
+    <div class="f"><label for="cw">คนที่เบิก</label><select id="cw">${people().map(p=>`<option ${p===cutWho?'selected':''}>${esc(p)}</option>`).join('')}</select></div>
+    <div class="f"><label for="cd">วันที่ตัดยอด (รวมบิลถึงวันนี้)</label><input type="date" id="cd" value="${cutDate}"></div>
+    <div class="f"><label for="cp">ผู้รับเงิน (ในใบสำคัญจ่าย)</label><select id="cp">${buyers().map(b=>`<option ${b===(payee||buyers()[0])?'selected':''}>${esc(b)}</option>`).join('')}</select></div>
+    <div class="f"><label>ยอดรอบนี้</label><div class="big">${m(sum(inc))} <small style="font-size:13px;color:var(--mute);font-weight:400">${inc.length} บิล</small></div></div>
+    <button class="pri" id="doCut" ${inc.length?'':'disabled'}>ตัดยอด → สร้างรอบ</button></div>
+   <div class="hint">ติ๊กออก = ไม่รวมในรอบนี้ (ค้างไว้รอบหน้า) · บิลหลังวันตัดยอดที่ยังไม่ตัด: ${later.length} ใบ ${m(sum(later))} บาท</div>
+   ${c.map(x=>row(x,'c')).join('')||'<div class="empty">ไม่มีบิลที่พร้อมตัดยอด ถึงวันที่เลือก</div>'}</div>
+   ${blocked.length?`<div class="panel"><div class="bar"><b>ยังตัดยอดไม่ได้ ${blocked.length} บิล · ${m(sum(blocked))} บาท</b></div>
+     ${blocked.map(x=>row(x,'')+`<div class="hint" style="padding-top:0">↳ ${esc(eligibility(x))}</div>`).join('')}</div>`:''}`;
+}
+function vRounds(){
+  const L=D.rounds.filter(r=>!who||r.who===who).sort((a,b)=>b.cut.localeCompare(a.cut)||b.id.localeCompare(a.id));
+  return `<div class="panel"><div class="bar"><b>ประวัติรอบเบิก${who?' · '+esc(who):''}</b></div><div class="tw"><table class="mt">
+   <tr><th>เลขรอบ</th><th>ใบสำคัญจ่าย</th><th>คน / ผู้รับเงิน</th><th>ตัดยอดถึง</th><th class="n">บิล</th><th class="n">ยอด</th><th>สถานะ</th><th>วันที่จ่าย</th><th>หมายเหตุ</th><th></th></tr>
+   ${L.map(r=>`<tr><td><a href="#" data-round="${r.id}">${r.id}</a></td><td>${esc(r.pcv||'-')}</td><td>${esc(r.who)}${r.payee?'<br><small style="color:var(--mute)">'+esc(r.payee)+'</small>':''}</td><td>${fd(r.cut)}</td><td class="n">${r.n}</td><td class="n">${m(r.amt)}</td>
+    <td><span class="pill ${pc(r.st)}">${esc(r.st)}</span></td><td>${fd(r.paid)}</td><td>${esc(r.ref||'-')}</td>
+    <td style="white-space:normal;min-width:260px"><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${r.st!=='ยกเลิก'?`<button class="sm" data-pv="${r.id}">🖨 ใบสำคัญจ่าย</button> `:''}${r.st==='รอจ่าย'?`<input type="date" id="pd-${r.id}" value="${D.now}" aria-label="วันที่จ่าย"> <input id="pr-${r.id}" placeholder="หมายเหตุ (ถ้ามี)" style="width:120px" aria-label="หมายเหตุการจ่าย">
+      <button class="pri sm" data-paid="${r.id}">จ่ายแล้ว</button> <button class="bad sm" data-cancelr="${r.id}">ยกเลิกรอบ</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="10" class="empty">ยังไม่มีรอบเบิก</td></tr>'}
+   </table></div></div>`;
+}
+function vGoods(){
+  const bills=Object.fromEntries(D.bills.map(b=>[b.id,b]));
+  const waiting=D.goods.filter(g=>g.st!=='ของถึงแล้ว'&&bills[g.exp]&&live(bills[g.exp])&&mine(bills[g.exp]));
+  const noItems=D.bills.filter(b=>isGoods(b.cat)&&live(b)&&mine(b)&&!goodsOf(b.id).length);
+  const arrived=D.goods.filter(g=>g.st==='ของถึงแล้ว'&&bills[g.exp]&&mine(bills[g.exp])).sort((a,b)=>b.arr.localeCompare(a.arr)||b.gr.localeCompare(a.gr)).slice(0,40);
+  const byEta={};waiting.forEach(g=>(byEta[g.eta||'ไม่ระบุกำหนด']=byEta[g.eta||'ไม่ระบุกำหนด']||[]).push(g));
+  const gi=(g,chk)=>{const b=bills[g.exp];return `<div class="row">${chk?`<input type="checkbox" data-gsel="${g.id}" aria-label="เลือก ${esc(g.name)}" ${gsel.has(g.id)?'checked':''}>`:'<div class="dot">✓</div>'}
+    <div class="d">${fd(b.d)}</div><div class="t" data-open="${g.exp}"><b>${esc(g.name)} ×${g.qty}${g.pre?' <span class="pill p-goods">พรีออเดอร์</span>':''}${b.paym==='SPayLater'?' <span class="pill p-new">SPayLater</span>':''}</b>
+    <small>${esc(g.shop||b.desc)} · ${g.exp}${g.poc?' · ลูกค้ารอ: '+esc(g.poc):g.po.length?'':' · สต็อก'}${chk?'':' · ถึง '+fd(g.arr)+' '+esc(g.br)}</small></div>
+    <div class="who">${esc(b.who)}</div><div class="amt">${m(g.cost)}</div><div class="acts">${chk?'':`<button class="sm" data-gundo="${g.id}">ยังไม่ถึง</button>`}</div></div>`};
+  return `<div class="panel"><div class="bar"><b>สินค้ารอเข้า ${waiting.length} รายการ</b><span class="sp"></span>
+   <input type="date" id="gdate" value="${D.now}" aria-label="วันที่ของถึง"><select id="gbr" aria-label="สาขา">${D.branches.filter(x=>x!=='ส่วนกลาง').map(x=>`<option>${x}</option>`).join('')}</select>
+   <button class="pri" id="gIn" ${gsel.size?'':'disabled'}>ของถึงแล้ว (${gsel.size})</button></div>
+   ${Object.keys(byEta).sort().map(k=>`<div class="grp">กำหนดเข้า: ${esc(k)}</div>`+byEta[k].map(g=>gi(g,true)).join('')).join('')||'<div class="empty">ไม่มีสินค้ารอเข้า</div>'}</div>
+   ${noItems.length?`<div class="panel"><div class="bar"><b>บิลซื้อสินค้าที่ยังไม่ใส่รายการ ${noItems.length} บิล</b></div>${noItems.map(x=>row(x,'')).join('')}</div>`:''}
+   ${arrived.length?`<div class="panel"><div class="bar"><b>ถึงแล้วล่าสุด (ตามใบรับสินค้า)</b></div>${[...new Set(arrived.map(g=>g.gr||'-'))].map(gr=>`<div class="grp" style="display:flex;justify-content:space-between;align-items:center">ใบรับสินค้า ${esc(gr)}${gr!=='-'?` <button class="sm" data-grp="${esc(gr)}">🖨 ใบรับสินค้า</button>`:''}</div>`+arrived.filter(g=>(g.gr||'-')===gr).map(g=>gi(g,false)).join('')).join('')}</div>`:''}`;
+}
+function vAll(){
+  const L=D.bills.filter(x=>mine(x)&&(!f.st||x.st===f.st)&&(!f.cat||x.cat===f.cat)&&(!f.q||(x.id+x.desc+x.rb+goodsOf(x.id).map(g=>g.name).join(' ')).toLowerCase().includes(f.q.toLowerCase())))
+    .sort((a,b)=>b.d.localeCompare(a.d)||b.id.localeCompare(a.id));
+  const o=(v,a)=>a.map(s=>`<option ${v===s?'selected':''}>${esc(s)}</option>`).join('');
+  return `<div class="panel"><div class="bar">
+   <input id="fq" placeholder="ค้นหา EX- / RB- / ร้าน / สินค้า" value="${esc(f.q)}" style="width:220px" aria-label="ค้นหา">
+   <select id="fst" aria-label="สถานะ"><option value="">ทุกสถานะ</option>${o(f.st,['รอตรวจ','อนุมัติ','คืนแล้ว','ไม่เบิก','ยกเลิก'])}</select>
+   <select id="fcat" aria-label="หมวด"><option value="">ทุกหมวด</option>${o(f.cat,D.cats.map(c=>c.name))}</select>
+   <span class="sp"></span><b>${L.length} บิล · ${m(sum(L.filter(live)))} บาท</b></div>
+   ${L.map(x=>row(x,'')).join('')||'<div class="empty">ไม่พบบิล</div>'}</div>`;
+}
+function vSum(){
+  const L=D.bills.filter(x=>live(x)&&mine(x)&&x.d.slice(0,7)===month),by={};L.forEach(x=>by[x.cat]=(by[x.cat]||0)+x.amt);
+  const mx=Math.max(...Object.values(by),1),e1=sum(L.filter(x=>!isGoods(x.cat))),gd=sum(L.filter(x=>isGoods(x.cat)));
+  const ms=months().slice(0,6).reverse(),H=ms.map(k=>{const A=D.bills.filter(x=>live(x)&&mine(x)&&x.d.slice(0,7)===k);return [k,sum(A.filter(x=>!isGoods(x.cat))),sum(A.filter(x=>isGoods(x.cat)))]});
+  const hm=Math.max(...H.map(h=>h[1]+h[2]),1);
+  return `<div class="panel"><div class="bar"><b>ตามหมวด · ${fm(month)}${who?' · '+esc(who):''}</b><span class="sp"></span><span>ค่าใช้จ่าย ${m(e1)} · สินค้า ${m(gd)}</span></div>
+   <div class="chart">${Object.keys(by).sort((a,b)=>by[b]-by[a]).map(c=>`<div class="cr"><span>${esc(c)}</span><div class="track"><div class="fill ${isGoods(c)?'g':''}" style="width:${by[c]/mx*100}%"></div></div><span class="amt">${m(by[c])}</span></div>`).join('')||'<div class="empty">ไม่มีข้อมูล</div>'}</div></div>
+   <div class="panel"><div class="bar"><b>6 เดือนล่าสุด</b><span class="sp"></span><span class="pill p-ok">ค่าใช้จ่าย</span><span class="pill p-goods">สินค้า</span></div>
+   <div class="chart">${H.map(([k,a,b])=>`<div class="cr"><span>${fm(k)}</span><div class="track"><div class="fill" style="width:${a/hm*100}%"></div><div class="fill g" style="width:${b/hm*100}%"></div></div><span class="amt">${m(a+b)}</span></div>`).join('')}</div></div>`;
+}
+
+/* ---------- drawer ---------- */
+function drawer(id){
+  const x0=D.bills.find(y=>y.id===id);if(!x0)return;const x={...x0};
+  const o=(v,a)=>a.map(s=>`<option ${v===s?'selected':''}>${esc(s)}</option>`).join('');
+  const lock=!!x.rb;
+  let items=goodsOf(id).map(g=>({...g}));
+  if(isGoods(x.cat)&&!items.length)items=[{name:'',bc:'',qty:1,list:'',pre:false,eta:'',br:'M1',po:[],poc:''}];
+  const g0=goodsOf(id)[0]||{};
+  let curCat=x.cat;
+  const el=document.createElement('div');el.className='drawer';
+  const grabBill=()=>{const q=k=>el.querySelector(k);if(!q('#e-amt'))return;x.amt=q('#e-amt').value;x.d=q('#e-d').value;x.br=q('#e-br').value;x.pay=q('#e-pay').value;
+    x.paym=q('#e-paym').value;x.desc=q('#e-desc').value;x.note=q('#e-note').value;x.st=q('#e-st').value};
+  const draw=()=>{grabBill();el.innerHTML=`<div class="in" role="dialog" aria-label="รายละเอียดบิล">
+   <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${x.id} ${x.rb?`<span class="pill p-rb">${x.rb}</span>`:''} <span class="pill ${pc(x.st)}">${esc(x.st)}</span></b><button id="close">ปิด</button></div>
+   <div style="font-size:12.5px;color:var(--mute)">ส่งโดย ${esc(x.who)} · รับเมื่อ ${fd(x.recv)} · ${esc(x.src)} · อ่านยอดโดย ${esc(x.by)}</div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap">${x.file?`<a href="${esc(x.file)}" target="_blank" rel="noopener">📄 เปิดบิล</a>`:'<span style="color:var(--mute)">ไม่มีรูปบิล</span>'}${x.files.map((u,i)=>` <a href="${esc(u)}" target="_blank" rel="noopener">รูปที่ ${i+2}</a>`).join('')}</div>
+   <div class="two"><div class="f"><label for="e-amt">ยอด</label><input id="e-amt" type="number" step="0.01" value="${x.amt}" ${lock?'disabled':''}></div>
+   <div class="f"><label for="e-d">วันที่บิล</label><input id="e-d" type="date" value="${x.d}"></div></div>
+   <div class="two"><div class="f"><label for="e-cat">หมวด</label><select id="e-cat">${o(curCat,D.cats.map(c=>c.name))}</select></div>
+   <div class="f"><label for="e-br">สาขา</label><select id="e-br">${o(x.br,D.branches)}</select></div></div>
+   <div class="two"><div class="f"><label for="e-pay">จ่ายโดย</label><select id="e-pay" ${lock?'disabled':''}>${o(x.pay,['ส่วนตัว','บริษัท'])}</select></div>
+   <div class="f"><label for="e-paym">ช่องทางจ่าย</label><select id="e-paym"><option value="">-</option>${o(x.paym,D.paym)}</select></div></div>
+   <div class="f"><label for="e-desc">รายละเอียด / ร้าน</label><input id="e-desc" value="${esc(x.desc)}"></div>
+   <div class="two"><div class="f"><label for="e-st">สถานะ</label><select id="e-st" ${lock||x.st==='คืนแล้ว'?'disabled':''}>${o(x.st,x.st==='คืนแล้ว'?['คืนแล้ว']:['รอตรวจ','อนุมัติ','ไม่เบิก','ยกเลิก'])}</select></div>
+   <div class="f"><label for="e-note">หมายเหตุ</label><input id="e-note" value="${esc(x.note)}"></div></div>
+   ${lock?'<div style="font-size:12px;color:var(--mute)">บิลนี้อยู่ในรอบเบิกแล้ว — ยอดและผู้จ่ายแก้ไม่ได้ ถ้าต้องแก้ ให้ยกเลิกรอบก่อน (แท็บ ประวัติรอบเบิก)</div>':''}
+   <button class="pri" id="save">บันทึกบิล</button>
+   <div class="goods" id="gbox" ${isGoods(curCat)||goodsOf(id).length?'':'hidden'}><b>รายการสินค้า (ต้นทุนแบ่งจากยอดจ่ายจริง ${m(x.amt)} ตามราคาป้าย)</b>
+    <div class="two"><div class="f"><label for="g-shop">ร้าน/แหล่ง</label><input id="g-shop" value="${esc(g0.shop||x.desc)}"></div>
+    <div class="f"><label for="g-order">เลขคำสั่งซื้อ</label><input id="g-order" value="${esc(g0.order||'')}"></div></div>
+    <div class="f"><label for="g-buyer">ผู้ซื้อ (ในใบรับสินค้า)</label><select id="g-buyer">${buyers().map(b=>`<option ${b===(g0.buyer||buyers()[0])?'selected':''}>${esc(b)}</option>`).join('')}</select></div>
+    ${items.map((it,i)=>`<div class="gi" data-gi="${i}">
+     <div class="f"><label>สินค้า ${i+1}</label><input data-k="name" value="${esc(it.name)}" placeholder="ชื่อสินค้า"></div>
+     <div class="three"><div class="f"><label>บาร์โค้ด</label><input data-k="bc" value="${esc(it.bc)}"></div>
+      <div class="f"><label>จำนวน</label><input data-k="qty" type="number" min="1" value="${it.qty||1}"></div>
+      <div class="f"><label>ราคาป้าย (รวม)</label><input data-k="list" type="number" step="0.01" value="${it.list||''}"></div></div>
+     <div class="three"><div class="f"><label>กำหนดเข้า</label><input data-k="eta" value="${esc(it.eta)}" placeholder="เช่น Feb 2027"></div>
+      <div class="f"><label>สาขาที่เข้า</label><select data-k="br">${o(it.br||'M1',D.branches.filter(b=>b!=='ส่วนกลาง'))}</select></div>
+      <label style="display:flex;gap:6px;align-items:center;font-size:12.5px"><input type="checkbox" data-k="pre" ${it.pre?'checked':''}> พรีออเดอร์</label></div>
+     <div style="font-size:12.5px">${it.po&&it.po.length?`🔗 ผูกใบจอง: ${esc(it.poc||it.po.join(', '))}`:'ไม่ผูกใบจอง (สต็อก)'}${it.st?` · <span class="pill ${pc(it.st)}">${esc(it.st)}</span>`:''}${it.cost?` · ต้นทุน ${m(it.cost)} (${m(it.unit)}/ชิ้น)`:''}</div>
+     <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="sm" data-po="${i}">🔎 หาใบจองที่รอสินค้านี้</button>${items.length>1?`<button class="sm bad" data-gdel="${i}">ลบรายการ</button>`:''}</div></div>`).join('')}
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="gadd">+ เพิ่มสินค้า</button><button class="pri" id="gsave">บันทึกรายการสินค้า</button></div></div>
+   ${x.ocr?`<div class="f"><label>ข้อความที่อ่านได้</label><div class="ocr">${esc(x.ocr)}</div></div>`:''}</div>`;
+   bind();};
+  const grab=()=>{el.querySelectorAll('[data-gi]').forEach(box=>{const it=items[+box.dataset.gi];box.querySelectorAll('[data-k]').forEach(inp=>{const k=inp.dataset.k;it[k]=inp.type==='checkbox'?inp.checked:inp.value})})};
+  const bind=()=>{
+    el.querySelector('#close').onclick=()=>el.remove();
+    el.querySelector('#e-cat').onchange=e=>{curCat=e.target.value;grab();if(isGoods(curCat)&&!items.length)items=[{name:'',bc:'',qty:1,list:'',pre:false,eta:'',br:'M1',po:[],poc:''}];draw()};
+    el.querySelector('#save').onclick=async()=>{
+      const v=k=>el.querySelector(k).value;const fx={cat:v('#e-cat'),br:v('#e-br'),paym:v('#e-paym'),desc:v('#e-desc'),note:v('#e-note'),d:v('#e-d')};
+      if(!lock){fx.amt=Number(v('#e-amt'));fx.pay=v('#e-pay')}
+      if(!lock&&x.st!=='คืนแล้ว')fx.st=v('#e-st');
+      const r=await act('updateBill',{id,f:fx},'บันทึก '+id+' แล้ว');if(r)el.remove();
+    };
+    el.querySelector('#gadd').onclick=()=>{grab();items.push({name:'',bc:'',qty:1,list:'',pre:false,eta:'',br:'M1',po:[],poc:''});draw()};
+    el.querySelectorAll('[data-gdel]').forEach(b=>b.onclick=()=>{grab();items.splice(+b.dataset.gdel,1);draw()});
+    el.querySelectorAll('[data-po]').forEach(b=>b.onclick=()=>{grab();poPicker(items[+b.dataset.po],()=>draw())});
+    el.querySelector('#gsave').onclick=async()=>{grab();
+      const payload={expenseId:id,shop:el.querySelector('#g-shop').value,order:el.querySelector('#g-order').value,buyer:el.querySelector('#g-buyer').value,
+        items:items.map(it=>({id:it.id,name:it.name,bc:it.bc,qty:Number(it.qty)||1,list:Number(it.list)||0,pre:!!it.pre,eta:it.eta,br:it.br,po:it.po||[],poc:it.poc||'',note:it.note||''}))};
+      const r=await act('saveGoods',payload,'บันทึกรายการสินค้าแล้ว');if(r)el.remove();};
+  };
+  el.addEventListener('click',e=>{if(e.target===el)el.remove()});
+  document.body.append(el);draw();
+}
+async function poPicker(it,done){
+  let list;try{list=await api('poCandidates',{name:it.name,barcode:it.bc,itemId:it.id})}catch(e){toast(e.message,true);return}
+  const chosen=new Set(it.po||[]);
+  if(!chosen.size){let n=0;list.forEach(c=>{if(!c.linkedTo&&n<(Number(it.qty)||1)&&c.score>=0.8){chosen.add(c.line);n++}})}
+  const md=document.createElement('div');md.className='modal';
+  md.innerHTML=`<div class="in" role="dialog" aria-label="เลือกใบจอง"><b>ใบจองใน POS ที่รอ: ${esc(it.name||'-')}</b>
+   <div style="font-size:12px;color:var(--mute)">อ่านจาก PreOrders ของ POS (ไม่แก้ POS) · ติ๊ก = ของล็อตนี้เป็นของลูกค้าคนนี้ · ซื้อ ${Number(it.qty)||1} ชิ้น</div>
+   ${list.map(c=>`<label class="cand"><input type="checkbox" value="${esc(c.line)}" ${chosen.has(c.line)?'checked':''}>
+     <span>${esc(c.cc)} ${esc(c.cn)} · <b>${esc(c.item)}</b>${c.qty>1?' ×'+c.qty:''}<small>จอง ${esc(c.at)} · ราคาตกลง ${m(c.tot)} · มัดจำ ${m(c.dep)} · ${esc(c.st)} · ${c.score>=1?'บาร์โค้ด/ชื่อตรง':'ชื่อคล้าย '+Math.round(c.score*100)+'%'}${c.linkedTo?' · ⚠️ ผูกกับ '+esc(c.linkedTo)+' แล้ว':''}</small></span><span>${esc(c.line.split('-').slice(-2).join('-'))}</span></label>`).join('')||'<div class="empty">ไม่พบใบจองที่รอสินค้านี้</div>'}
+   <div id="poWarn" style="font-size:12.5px"></div>
+   <div style="display:flex;gap:8px;justify-content:flex-end"><button id="poNone">ไม่ผูก (สต็อก)</button><button class="pri" id="poOk">ใช้รายการที่ติ๊ก</button></div></div>`;
+  document.body.append(md);
+  const warn=()=>{const n=md.querySelectorAll('input:checked').length,q=Number(it.qty)||1;md.querySelector('#poWarn').textContent=n>q?`⚠️ ติ๊ก ${n} คน แต่ซื้อ ${q} ชิ้น`:n<q&&n?`เหลือเป็นสต็อก ${q-n} ชิ้น`:''};warn();
+  md.addEventListener('change',warn);
+  md.addEventListener('click',e=>{if(e.target===md)md.remove()});
+  md.querySelector('#poNone').onclick=()=>{it.po=[];it.poc='';md.remove();done()};
+  md.querySelector('#poOk').onclick=()=>{const ids=[...md.querySelectorAll('input:checked')].map(i=>i.value);it.po=ids;
+    it.poc=ids.map(l=>{const c=list.find(x=>x.line===l);return c?(c.cc+' '+c.cn).trim():l}).join(', ');md.remove();done()};
+}
+
+
+/* ---------- เอกสารพิมพ์: ใบสำคัญจ่าย (PCV) + ใบรับสินค้า (GR) ---------- */
+const DOC_CSS=`:root{--ink:#111;--mute:#555;--line:#222;--soft:#bbb}
+*{box-sizing:border-box}
+html,body{margin:0;background:#e9ecea;color:var(--ink);font:12px/1.35 "Sarabun","TH Sarabun New",Tahoma,sans-serif}
+.tool{max-width:210mm;margin:12px auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:0 8px;font-size:13px}
+.tool .note{background:#fff3cd;color:#7a5200;padding:4px 10px;border-radius:6px}
+.tool button{font:inherit;padding:5px 12px;border:1px solid #999;border-radius:6px;background:#fff;cursor:pointer}
+.page{width:210mm;height:297mm;margin:0 auto 16px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.15);display:grid;grid-template-rows:1fr 1fr;position:relative}
+.half{padding:7mm 10mm 5mm;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.half+.half{border-top:1px dashed #888}
+.cut{position:absolute;top:-7px;left:50%;transform:translateX(-50%);background:#fff;padding:0 6px;font-size:9px;color:#888}
+.top{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start}
+.co b{font-size:13.5px;display:block}.co div{color:var(--mute);font-size:10.5px}
+.ttl{text-align:right}
+.ttl h1{margin:0;font-size:17px;letter-spacing:.3px}.ttl .en{font-size:10px;color:var(--mute);letter-spacing:1.5px}
+.stamp{display:inline-block;margin-top:3px;border:1.5px solid var(--ink);padding:0 8px;font-weight:700;font-size:11px;letter-spacing:1px}
+.copy .stamp{border-style:dashed;color:#444}
+.meta{display:grid;grid-template-columns:1.4fr 1fr;gap:2px 16px;margin:6px 0 5px;font-size:11.5px}
+.meta div{display:flex;gap:6px;border-bottom:1px dotted var(--soft);padding:1px 0}
+.meta span{color:var(--mute);min-width:70px}
+table{width:100%;border-collapse:collapse;font-size:11.5px;font-variant-numeric:tabular-nums}
+th,td{border:1px solid var(--line);padding:2.5px 6px;vertical-align:top}
+th{background:#f1f1f1;font-weight:600;font-size:10.5px}
+td.n,th.n{text-align:right}td.c,th.c{text-align:center}
+tr.grp td{background:#fafafa;font-weight:600;font-size:10.5px}
+tr.tot td{font-weight:700}
+.words{font-size:11px;padding:3px 6px;border:1px solid var(--line);border-top:0}
+.pay{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;margin:5px 0 4px}
+.box{display:inline-block;width:10px;height:10px;border:1px solid var(--ink);margin-right:3px;vertical-align:-1px;text-align:center;line-height:9px;font-size:9px}
+.sign{margin-top:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;font-size:10.5px;text-align:center}
+.sign .l{border-bottom:1px solid var(--ink);height:22px;margin-bottom:2px}
+.sign small{color:var(--mute);display:block}
+.foot{display:flex;justify-content:space-between;font-size:9px;color:#888;margin-top:3px}
+@media print{
+  @page{size:A4;margin:0}
+  html,body{background:#fff}
+  .tool{display:none}
+  .page{margin:0;box-shadow:none;page-break-after:always}
+}
+.chk{display:inline-block;width:12px;height:12px;border:1px solid var(--ink)}
+td.w{background:#fcfcfc}.flag{font-size:9.5px;color:#555}`;
+function bahtText(n){
+  const Dg=['','หนึ่ง','สอง','สาม','สี่','ห้า','หก','เจ็ด','แปด','เก้า'],P=['','สิบ','ร้อย','พัน','หมื่น','แสน'];
+  const rd=s=>{let o='';const L=s.length;for(let i=0;i<L;i++){const d=+s[i],p=L-i-1;if(!d)continue;
+    if(p===0&&d===1&&L>1)o+='เอ็ด';else if(p===1&&d===2)o+='ยี่';else if(p===1&&d===1)o+='';else o+=Dg[d];o+=P[p]}return o};
+  const big=s=>{if(s.length>6)return big(s.slice(0,-6))+'ล้าน'+rd(s.slice(-6).replace(/^0+/,'')||'0');return rd(s.replace(/^0+/,'')||'0')};
+  const [b,st]=Number(n).toFixed(2).split('.');
+  return ((+b?big(b)+'บาท':'')||'ศูนย์บาท')+(+st?big(st)+'สตางค์':'ถ้วน');
+}
+const mf2=n=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+function co(){const c=(D.lists&&D.lists.company)||{};return {name:c.name||'(ตั้งชื่อบริษัทในแท็บ Lists)',addr:c.addr||'',tax:c.tax?'เลขประจำตัวผู้เสียภาษี '+c.tax:'',source:c.source||'เงินสดย่อย (Petty Cash)'}}
+function openDoc(title,pages){
+  const w=window.open('','_blank');
+  if(!w){toast('เบราว์เซอร์บล็อกหน้าต่างใหม่ — อนุญาต pop-up แล้วกดอีกครั้ง',true);return}
+  w.document.write(`<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>${esc(title)}</title>
+   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap"><style>${DOC_CSS}</style></head><body>
+   <div class="tool"><button onclick="print()">🖨 พิมพ์ / บันทึก PDF</button><span class="note">${esc(title)}</span></div>${pages}</body></html>`);
+  w.document.close();
+}
+function signRow(roles,names){return `<div class="sign">${roles.map((r,k)=>`<div><div class="l"></div>${r}<small>${esc(names[k]||'(.............................)')}</small><small>วันที่ ......../......../........</small></div>`).join('')}</div>`}
+function printVoucher(rid){
+  const r=D.rounds.find(x=>x.id===rid);if(!r)return;
+  const B=D.bills.filter(b=>b.rb===rid).sort((a,b)=>a.d.localeCompare(b.d));
+  const C=co(),tot=B.reduce((s,b)=>s+b.amt,0),no=r.pcv||r.id,payee=r.payee||r.who,date=r.paid||D.now;
+  const exp=B.filter(b=>!isGoods(b.cat)),gd=B.filter(b=>isGoods(b.cat));
+  const byCat={};exp.forEach(b=>(byCat[b.cat]=byCat[b.cat]||[]).push(b));
+  const rng=bs=>{const d=bs.map(b=>b.d).sort();return fd(d[0])+(d.length>1&&d[0]!==d[d.length-1]?' – '+fd(d[d.length-1]):'')};
+  const half=kind=>{let i=0,rows='';
+    if(exp.length){rows+=`<tr class="grp"><td colspan="4">ค่าใช้จ่าย</td><td class="n">${mf2(exp.reduce((s,b)=>s+b.amt,0))}</td></tr>`;
+      Object.keys(byCat).sort().forEach(c=>{const bs=byCat[c];rows+=`<tr><td class="c">${++i}</td><td>${esc(c)}</td><td class="c">${bs.length} บิล</td><td class="c">${rng(bs)}</td><td class="n">${mf2(bs.reduce((s,b)=>s+b.amt,0))}</td></tr>`})}
+    if(gd.length){const grs=[...new Set(gd.flatMap(b=>goodsOf(b.id).map(g=>g.gr||'รอของ')))];
+      rows+=`<tr class="grp"><td colspan="4">ซื้อสินค้าเข้าร้าน (ต้นทุนสินค้า)</td><td class="n">${mf2(gd.reduce((s,b)=>s+b.amt,0))}</td></tr>
+       <tr><td class="c">${++i}</td><td>ซื้อสินค้าเข้าร้าน<div class="flag">รายละเอียดตามใบรับสินค้า ${esc(grs.join(', ')||'-')}</div></td><td class="c">${gd.length} บิล</td><td class="c">${rng(gd)}</td><td class="n">${mf2(gd.reduce((s,b)=>s+b.amt,0))}</td></tr>`}
+    return `<section class="half ${kind==='สำเนา'?'copy':''}">${kind==='สำเนา'?'<span class="cut">✂ ตัดตามเส้น</span>':''}
+     <div class="top"><div class="co"><b>${esc(C.name)}</b><div>${esc(C.addr)}</div><div>${esc(C.tax)}</div></div>
+      <div class="ttl"><h1>ใบสำคัญจ่าย</h1><div class="en">PAYMENT VOUCHER · เงินสดย่อย</div><span class="stamp">${kind}</span></div></div>
+     <div class="meta"><div><span>จ่ายให้</span><b>${esc(payee)}</b></div><div><span>เลขที่</span><b>${esc(no)}</b></div>
+      <div><span>เรื่อง</span>เบิกคืนค่าใช้จ่ายที่สำรองจ่าย (บิลถึง ${fd(r.cut)}) · รอบ ${esc(r.id)}</div><div><span>วันที่</span>${fd(date)}</div></div>
+     <table><thead><tr><th class="c" style="width:7%">ลำดับ</th><th>ประเภท / รายการ</th><th class="c" style="width:13%">จำนวน</th><th class="c" style="width:22%">วันที่บิล</th><th class="n" style="width:17%">จำนวนเงิน (บาท)</th></tr></thead>
+     <tbody>${rows}<tr class="tot"><td colspan="4" class="n">รวมทั้งสิ้น</td><td class="n">${mf2(tot)}</td></tr></tbody></table>
+     <div class="words">(ตัวอักษร) ${bahtText(tot)}</div>
+     <div class="pay"><span><span class="box">✓</span>จ่ายจาก ${esc(C.source)}</span><span>วันที่จ่าย ${r.paid?fd(r.paid):'..............'}</span>${r.ref?`<span>หมายเหตุ ${esc(r.ref)}</span>`:''}
+      <span style="color:#555">เอกสารแนบ: ใบเสร็จ/หลักฐาน ${B.length} ฉบับ (ดูใบแนบ)</span></div>
+     ${signRow(['ผู้จัดทำ','ผู้ตรวจสอบ','ผู้อนุมัติ','ผู้รับเงิน'],[r.by,'','',payee])}
+     <div class="foot"><span>EX · Mewtoy Expense · ${esc(no)} · ${esc(r.id)}</span><span>${kind==='ต้นฉบับ'?'ต้นฉบับ — บัญชีเก็บ':'สำเนา — ผู้รับเงินเก็บ'}</span></div></section>`};
+  const att=`<div class="page" style="display:block"><section class="half" style="height:auto">
+   <div class="top"><div class="co"><b>${esc(C.name)}</b><div>ใบแนบใบสำคัญจ่ายเลขที่ ${esc(no)} · รอบ ${esc(r.id)} · จ่ายให้ ${esc(payee)}</div></div>
+    <div class="ttl"><h1 style="font-size:15px">ใบแนบรายการบิล</h1><div class="en">ATTACHMENT · ${esc(no)}</div></div></div>
+   <table style="margin-top:8px"><thead><tr><th class="c" style="width:6%">ลำดับ</th><th style="width:15%">เลขบิล</th><th class="c" style="width:11%">วันที่บิล</th><th style="width:17%">ประเภท</th><th>รายละเอียด</th><th style="width:11%">ช่องทางจ่าย</th><th class="n" style="width:13%">จำนวนเงิน</th></tr></thead>
+   <tbody>${B.map((b,i)=>`<tr><td class="c">${i+1}</td><td>${b.id}</td><td class="c">${fd(b.d)}</td><td>${esc(b.cat)}</td><td>${esc(b.desc)}${goodsOf(b.id).length?'<div class="flag">'+goodsOf(b.id).map(g=>esc(g.name)+' ×'+g.qty+(g.gr?' · '+esc(g.gr):'')).join(' · ')+'</div>':''}</td><td>${esc(b.paym||'-')}</td><td class="n">${mf2(b.amt)}</td></tr>`).join('')}
+   <tr class="tot"><td colspan="6" class="n">รวม ${B.length} บิล</td><td class="n">${mf2(tot)}</td></tr></tbody></table>
+   <div style="font-size:10.5px;color:#555;margin-top:6px">หลักฐาน (รูป/PDF บิล) เก็บใน Drive โฟลเดอร์ Mewtoy_Expense_Bills · เปิดดูได้จาก EX Desk ตามเลขบิล</div>
+   <div class="sign" style="margin-top:28px;grid-template-columns:repeat(2,1fr);max-width:60%"><div><div class="l"></div>ผู้จัดทำ<small>${esc(r.by)}</small></div><div><div class="l"></div>ผู้ตรวจสอบ<small>(.............................)</small></div></div>
+  </section></div>`;
+  openDoc('ใบสำคัญจ่าย '+no,`<div class="page">${half('ต้นฉบับ')}${half('สำเนา')}</div>${att}`);
+}
+function printGR(gr){
+  const I=D.goods.filter(g=>g.gr===gr);if(!I.length)return;
+  const C=co(),bills=Object.fromEntries(D.bills.map(b=>[b.id,b]));
+  const tq=I.reduce((s,x)=>s+x.qty,0),tc=I.reduce((s,x)=>s+x.cost,0),br=I[0].br,date=I[0].arr,buyer=I[0].buyer||buyers()[0]||'';
+  const rows=I.map((x,i)=>{const res=x.po.length,stock=Math.max(0,x.qty-res),b=bills[x.exp]||{};
+    return `<tr><td class="c">${i+1}</td><td style="font-family:monospace;font-size:10.5px">${esc(x.bc||'(ใส่ตอนรับ)')}</td>
+     <td>${esc(x.name)}${x.pre?' <span class="flag">[พรีออเดอร์]</span>':''}<div class="flag">${esc(x.shop||b.desc||'')}${x.order?' · #'+esc(x.order):''} · ${x.exp}</div>
+      <div class="flag">${res?'จองให้: '+esc(x.poc||x.po.join(', ')):''}${res&&stock?' · ':''}${stock?'เข้าสต็อกขาย '+stock+' ชิ้น':''}</div></td>
+     <td class="c">${x.qty}</td><td class="n">${mf2(x.unit)}</td><td class="n">${mf2(x.cost)}</td><td class="w"></td><td class="c w"><span class="chk"></span></td></tr>`}).join('');
+  const half=kind=>`<section class="half ${kind!=='ต้นฉบับ'?'copy':''}">${kind!=='ต้นฉบับ'?'<span class="cut">✂ ตัดตามเส้น</span>':''}
+   <div class="top"><div class="co"><b>${esc(C.name)}</b><div>${esc(C.addr)}</div><div>${esc(C.tax)}</div></div>
+    <div class="ttl"><h1>ใบรับสินค้าเข้าระบบ</h1><div class="en">GOODS RECEIVED NOTE · สินค้าซื้อเข้าร้าน</div><span class="stamp">${kind}</span></div></div>
+   <div class="meta"><div><span>รับเข้าสาขา</span><b>${esc(br)}</b></div><div><span>เลขที่</span><b>${esc(gr)}</b></div>
+    <div><span>ผู้ซื้อ/ส่งมอบ</span>${esc(buyer)} (สำรองจ่าย — เบิกผ่าน EX)</div><div><span>วันที่รับ</span>${fd(date)}</div></div>
+   <table><thead><tr><th class="c" style="width:5%">ลำดับ</th><th style="width:17%">บาร์โค้ด</th><th>สินค้า</th><th class="c" style="width:7%">จำนวน</th>
+    <th class="n" style="width:11%">ต้นทุน/ชิ้น</th><th class="n" style="width:12%">ต้นทุนรวม</th><th class="c" style="width:9%">รับจริง</th><th class="c" style="width:7%">ตรวจ ✓</th></tr></thead>
+   <tbody>${rows}<tr class="tot"><td colspan="3" class="n">รวม ${I.length} รายการ</td><td class="c">${tq}</td><td></td><td class="n">${mf2(tc)}</td><td></td><td></td></tr></tbody></table>
+   <div class="pay" style="margin-top:6px"><span>ต้นทุน = ยอดจ่ายจริงหลังหักส่วนลด (แบ่งตามราคาป้าย)</span><span>สินค้าที่ "จองให้" → แจ้งหน้าร้านเปิดรับของใน POS</span><span>หมายเหตุ ........................................</span></div>
+   ${signRow(['ผู้ส่งมอบ (ผู้ซื้อ)','ผู้รับสินค้า (Store)','ผู้บันทึกเข้าระบบ','ผู้ตรวจสอบ'],[buyer])}
+   <div class="foot"><span>EX · Mewtoy Expense · ${esc(gr)}</span><span>${kind==='ต้นฉบับ'?'ต้นฉบับ — บัญชีเก็บ':'สำเนา — Store เก็บ / ใช้คีย์เข้าระบบ'}</span></div></section>`;
+  openDoc('ใบรับสินค้า '+gr,`<div class="page">${half('ต้นฉบับ')}${half('สำเนา · Store')}</div>`);
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click',async e=>{
+  const t=e.target,ds=t.dataset||{};
+  if(t.id==='rf'){try{await reload();toast('ดึงข้อมูลล่าสุดแล้ว')}catch(err){toast(err.message,true)}return}
+  if(t.id==='out')return logout();
+  if(t.id==='cfgb')return cfg();
+  if(ds.who!==undefined){who=ds.who;if(who)cutWho=who;ex.clear();sel.clear();render();return}
+  const tb=t.closest&&t.closest('#tabs button');if(tb){tab=tb.dataset.t;render();return}
+  if(ds.ok)return act('setStatus',{ids:[ds.ok],status:'อนุมัติ'},'อนุมัติ '+ds.ok);
+  if(ds.no)return act('setStatus',{ids:[ds.no],status:'ไม่เบิก'},'ไม่เบิก '+ds.no);
+  if(t.id==='selAll'){D.bills.filter(x=>mine(x)&&x.st==='รอตรวจ').forEach(x=>sel.add(x.id));render();return}
+  if(t.id==='okSel'){const ids=[...sel];sel.clear();return act('setStatus',{ids,status:'อนุมัติ'},r=>'อนุมัติ '+r.n+' บิล')}
+  if(t.id==='doCut'){
+    const ids=D.bills.filter(x=>x.who===cutWho&&x.pay==='ส่วนตัว'&&x.st==='อนุมัติ'&&!x.rb&&x.d<=cutDate&&!eligibility(x)&&!ex.has(x.id)).map(x=>x.id);
+    if(!confirm(`ตัดยอด ${cutWho} ถึง ${fd(cutDate)} · ${ids.length} บิล ?`))return;
+    const r=await act('cutRound',{who:cutWho,cutDate,ids,payee:payee||buyers()[0]},r=>'สร้างรอบ '+r.id+' · ใบสำคัญจ่าย '+r.pcv+' · '+m(r.amt)+' บาท');if(r){ex.clear();tab='rounds';render()}return}
+  if(ds.paid){const id=ds.paid;return act('payRound',{id,paidDate:$('#pd-'+id).value,ref:$('#pr-'+id).value},id+' จ่ายแล้ว')}
+  if(ds.pv)return printVoucher(ds.pv);
+  if(ds.grp)return printGR(ds.grp);
+  if(ds.cancelr){if(!confirm('ยกเลิกรอบ '+ds.cancelr+' ? บิลจะกลับไปรอตัดยอด (เลขใบสำคัญจ่ายของรอบนี้จะไม่ถูกใช้ซ้ำ)'))return;return act('cancelRound',{id:ds.cancelr},ds.cancelr+' ยกเลิกแล้ว')}
+  if(ds.round){e.preventDefault();tab='all';f.q=ds.round;f.st='';f.cat='';render();return}
+  if(t.id==='gIn'){const ids=[...gsel];gsel.clear();return act('goodsArrived',{ids,date:$('#gdate').value,br:$('#gbr').value},r=>'ของถึงแล้ว '+r.n+' รายการ · ออก '+(r.grs.join(', ')||'-')+' (กด 🖨 ใบรับสินค้า ด้านล่าง)')}
+  if(ds.gundo)return act('goodsArrived',{ids:[ds.gundo],undo:true},'เปลี่ยนเป็น รอของ');
+  const op=t.closest&&t.closest('[data-open]');if(op)drawer(op.dataset.open);
+});
+document.addEventListener('change',e=>{
+  const t=e.target;if(!D||t.closest('.drawer,.modal'))return;
+  if(t.id==='month'){month=t.value;render()}
+  if(t.dataset.sel){t.checked?sel.add(t.dataset.sel):sel.delete(t.dataset.sel);render()}
+  if(t.dataset.ex){t.checked?ex.delete(t.dataset.ex):ex.add(t.dataset.ex);render()}
+  if(t.dataset.gsel){t.checked?gsel.add(t.dataset.gsel):gsel.delete(t.dataset.gsel);render()}
+  if(t.id==='cw'){cutWho=t.value;ex.clear();render()}
+  if(t.id==='cd'){cutDate=t.value;ex.clear();render()}
+  if(t.id==='cp'){payee=t.value}
+  if(t.id==='fst'){f.st=t.value;render()}if(t.id==='fcat'){f.cat=t.value;render()}
+});
+document.addEventListener('input',e=>{if(e.target.id==='fq'){f.q=e.target.value;render();const q=$('#fq');q.focus();q.setSelectionRange(f.q.length,f.q.length)}});
+
+(async()=>{if(PIN&&API){try{ME=await api('login',{});await reload();return}catch(e){ss.del('ex_pin');PIN=''}}renderLogin()})();
+</script></body></html>
