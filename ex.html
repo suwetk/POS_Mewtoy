@@ -77,13 +77,16 @@ a{color:var(--blue)}
 .grp{padding:8px 12px;background:var(--chip);font-size:12.5px;font-weight:600;color:var(--mute)}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;z-index:10;padding:16px}
 .modal .in{background:var(--card);border-radius:10px;width:min(560px,100%);max-height:85vh;overflow:auto;padding:14px;display:grid;gap:10px}
+.wg2{display:grid;grid-template-columns:330px 1fr;gap:14px;align-items:start}.wg2>*{min-width:0}
+@media(max-width:820px){.wg2{grid-template-columns:minmax(0,1fr)}}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}.seg button{flex:1;border:0;border-radius:0;padding:7px}.seg button.on{background:var(--acc);color:#fff;font-weight:600}
 .cand{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
 .cand small{color:var(--mute);display:block}
 @media (prefers-reduced-motion:reduce){.busy{animation:none}}
 </style></head><body><div class="wrap" id="app"></div>
 <script>
-/* EX Desk · ex-html-2026-11-09-a · ใช้คู่กับ ex_backend.gs ex-2026-11-09-a */
-const VERSION='ex-html-2026-11-09-a';
+/* EX Desk · ex-html-2026-11-09-b · ใช้คู่กับ ex_backend.gs ex-2026-11-09-b (+ แท็บค่าแรง) */
+const VERSION='ex-html-2026-11-09-b';
 const API_URL_DEFAULT='https://script.google.com/macros/s/AKfycbzwApo1tdngeEydvZKc9XMQ34RxcR5xJhdkD9NyZBBTaDD4tUElgkO_tATR2OPJEc7fNQ/exec';   // URL /exec ของ EX (Apps Script) · เปลี่ยนได้ที่ ⚙️
 const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
 const ss={get:k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}},del:k=>{try{sessionStorage.removeItem(k)}catch(e){}}};
@@ -139,11 +142,12 @@ function eligibility(b){
   if(b.st!=='อนุมัติ')return 'ยังไม่อนุมัติ';
   if(b.pay!=='ส่วนตัว')return 'จ่ายด้วยเงินบริษัท';
   if(b.rb)return 'อยู่ในรอบ '+b.rb;
+  if(b.forW)return 'บิลลูกน้อง (เบิกกับค่าแรง)';
   if(b.paym==='SPayLater'){const gs=goodsOf(b.id);if(!gs.length)return 'SPayLater: ยังไม่ใส่รายการสินค้า';if(gs.some(g=>g.st!=='ของถึงแล้ว'))return 'SPayLater: รอของถึงก่อน'}
   return '';
 }
 const buyers=()=>(D.lists&&D.lists.buyers&&D.lists.buyers.length?D.lists.buyers:[ME?ME.name:'']);
-const people=()=>[...new Set([...(D.people||[]),...D.bills.map(b=>b.who)].filter(Boolean))];
+const people=()=>[...new Set([...(D.people||[]),...D.bills.filter(b=>!b.forW).map(b=>b.who)].filter(Boolean))];
 const months=()=>{const s=new Set(D.bills.map(b=>b.d.slice(0,7)).filter(Boolean));s.add((D.now||'').slice(0,7));return [...s].sort().reverse()};
 
 /* ---------- main ---------- */
@@ -152,20 +156,21 @@ function render(){
   if(!cutWho)cutWho=people()[0]||'';
   const nq=D.bills.filter(x=>mine(x)&&x.st==='รอตรวจ').length;
   const ng=D.goods.filter(g=>g.st!=='ของถึงแล้ว').length;
+  const nw=D.bills.filter(b=>b.forW&&b.st==='รอตรวจ').length;
   $('#app').innerHTML=`<header><div><h1>EX Desk</h1><div class="v">Mewtoy Expense · ${esc(ME?ME.name:'')} · ${esc(D.version)} / ${VERSION}</div></div>
    <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="month" aria-label="เดือน">${months().map(x=>`<option value="${x}" ${x===month?'selected':''}>${fm(x)}</option>`).join('')}</select>
    <button id="rf">↻ ดึงข้อมูลล่าสุด</button><button id="cfgb" aria-label="ตั้งค่า">⚙️</button><button id="out">ออก</button></div></header>
    <div class="who-bar" role="group" aria-label="เลือกคน">${['',...people()].map(p=>`<button class="${who===p?'on':''}" data-who="${esc(p)}">${esc(p||'ทุกคน')}</button>`).join('')}</div>
    <section class="kpis">${kpis()}</section>
-   <nav class="tabs" id="tabs">${[['queue','รอตรวจ',nq],['cut','ตัดยอดเบิก'],['rounds','ประวัติรอบเบิก'],['goods','สินค้ารอเข้า',ng],['all','บิลทั้งหมด'],['sum','สรุป']]
+   <nav class="tabs" id="tabs">${[['queue','รอตรวจ',nq],['cut','ตัดยอดเบิก'],['rounds','ประวัติรอบเบิก'],['goods','สินค้ารอเข้า',ng],['wage','ค่าแรง',nw],['all','บิลทั้งหมด'],['sum','สรุป']]
      .map(([k,l,n])=>`<button data-t="${k}" class="${tab===k?'on':''}">${l}${n?`<span class="n">${n}</span>`:''}</button>`).join('')}</nav>
-   <main id="view">${({queue:vQueue,cut:vCut,rounds:vRounds,goods:vGoods,all:vAll,sum:vSum})[tab]()}</main>`;
+   <main id="view">${({queue:vQueue,cut:vCut,rounds:vRounds,goods:vGoods,wage:vWage,all:vAll,sum:vSum})[tab]()}</main>`;
 }
 function kpis(){
   const L=D.bills.filter(x=>live(x)&&mine(x)&&x.d.slice(0,7)===month);
   const exp=L.filter(x=>!isGoods(x.cat)),gd=L.filter(x=>isGoods(x.cat));
   const q=D.bills.filter(x=>mine(x)&&x.st==='รอตรวจ');
-  const owe=D.bills.filter(x=>mine(x)&&x.pay==='ส่วนตัว'&&x.st==='อนุมัติ'&&!x.rb);
+  const owe=D.bills.filter(x=>mine(x)&&x.pay==='ส่วนตัว'&&x.st==='อนุมัติ'&&!x.rb&&!x.forW);
   const wait=D.rounds.filter(r=>(!who||r.who===who)&&r.st==='รอจ่าย');
   const lastR=D.rounds.filter(r=>(!who||r.who===who)&&r.st!=='ยกเลิก').sort((a,b)=>b.cut.localeCompare(a.cut))[0];
   return `<div class="kpi"><small>ค่าใช้จ่าย ${fm(month)}${who?' · '+esc(who):''}</small><b>${m(sum(exp))}</b> <span>${exp.length} บิล${gd.length?` · สินค้า ${m(sum(gd))}`:''}</span></div>
@@ -177,7 +182,7 @@ function row(x,mode){
   const lead=mode==='q'?`<input type="checkbox" aria-label="เลือก ${x.id}" data-sel="${x.id}" ${sel.has(x.id)?'checked':''}>`
     :mode==='c'?`<input type="checkbox" aria-label="รวม ${x.id}" data-ex="${x.id}" ${ex.has(x.id)?'':'checked'}>`:`<div class="dot">${x.file?'📄':'✎'}</div>`;
   const gs=goodsOf(x.id);
-  const tags=(isGoods(x.cat)?` <span class="pill p-goods">สินค้า${gs.length?'':' · ยังไม่ใส่รายการ'}</span>`:'')+(x.rb?` <span class="pill p-rb">${esc(x.rb)}</span>`:'')+(x.paym==='SPayLater'?' <span class="pill p-new">SPayLater</span>':'');
+  const tags=(isGoods(x.cat)?` <span class="pill p-goods">สินค้า${gs.length?'':' · ยังไม่ใส่รายการ'}</span>`:'')+(x.rb?` <span class="pill p-rb">${esc(x.rb)}</span>`:'')+(x.paym==='SPayLater'?' <span class="pill p-new">SPayLater</span>':'')+(x.forW?` <span class="pill p-goods" style="background:var(--warn2);color:var(--warn)">ลูกน้อง${x.wg?' · '+esc(x.wg):''}</span>`:'');
   const sub=gs.length?gs.map(g=>`${esc(g.name)} ×${g.qty}`).join(' · ')+' · '+esc(x.br):`${x.id} · ${esc(x.br)} · ${x.pay==='ส่วนตัว'?'เงินส่วนตัว':'เงินบริษัท'}${x.paym?' · '+esc(x.paym):''}`;
   const act=mode==='q'?`<button class="pri sm" data-ok="${x.id}">อนุมัติ</button><button class="bad sm" data-no="${x.id}">ไม่เบิก</button>`
     :mode==='c'?'':`<span class="pill ${pc(x.st)}">${esc(x.st)}</span>`;
@@ -463,6 +468,83 @@ function printGR(gr){
   openDoc('ใบรับสินค้า '+gr,`<div class="page">${half('ต้นฉบับ')}${half('สำเนา · Store')}</div>`);
 }
 
+
+/* ---------- ค่าแรงลูกจ้างชั่วคราว ---------- */
+let wk='',wmode='all',wfrom='',wto='',wextras=[{n:'',a:''}];
+const addD=(iso,n)=>{const[y,m,d]=iso.split('-').map(Number);const t=new Date(y,m-1,d+n);return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0')};
+const monthEnd=ym=>{const[y,m]=ym.split('-').map(Number);const t=new Date(y,m,0);return ym+'-'+String(t.getDate()).padStart(2,'0')};
+function groupWage(days,bills,mode,from,to){ // เหมือน groupWage_ ในหลังบ้าน
+  const inR=d=>mode!=='range'||(d>=from&&d<=to);
+  const ds=days.filter(x=>inR(x.d)).sort((a,b)=>a.d.localeCompare(b.d));
+  const bs=bills.filter(b=>mode!=='range'||b.d<=to).sort((a,b)=>a.d.localeCompare(b.d));
+  let months=[...new Set(ds.map(x=>x.d.slice(0,7)))];if(!months.length)months=[...new Set(bs.map(b=>b.d.slice(0,7)))];months.sort();
+  const G={};months.forEach(k=>G[k]={month:k,days:[],bills:[]});
+  ds.forEach(x=>G[x.d.slice(0,7)].days.push(x));
+  bs.forEach(b=>{let k=b.d.slice(0,7);if(!G[k])k=k<months[0]?months[0]:months[months.length-1];G[k].bills.push(b)});
+  return months.map(k=>{const g=G[k];const a=g.days.map(x=>x.d);let f=a[0]||g.bills.map(b=>b.d).sort()[0],t=a[a.length-1]||f;
+    if(mode==='range'){f=from>k+'-01'?from:k+'-01';const e=monthEnd(k);t=to<e?to:e}return {...g,from:f,to:t}}).filter(g=>g.days.length||g.bills.length);
+}
+function vWage(){
+  const W=(D.workers||[]).filter(w=>w.active);
+  if(!W.length)return `<div class="panel"><div class="empty">ยังไม่มีลูกน้อง — ใส่ชื่อเล่น ค่าแรง/วัน PIN และ LINE ID ในแท็บ Workers ของชีต EX แล้วกด ↻</div></div>`;
+  if(!wk||!W.find(w=>w.code===wk))wk=W[0].code;
+  const w=W.find(x=>x.code===wk);
+  if(!wfrom){const dow=new Date(D.now+'T00:00:00').getDay();const lastMon=addD(D.now,-((dow+6)%7)-7);wfrom=lastMon;wto=addD(lastMon,6)}
+  const days=(D.workDays||[]).filter(x=>x.code===wk&&x.st==='มา'&&!x.wg);
+  const okBills=D.bills.filter(b=>b.forW===wk&&b.st==='อนุมัติ'&&!b.wg);
+  const waitBills=D.bills.filter(b=>b.forW===wk&&b.st==='รอตรวจ');
+  const G=groupWage(days,okBills,wmode,wfrom,wto);
+  const exT=wextras.reduce((s,e)=>s+(+e.a||0),0);
+  const nd=G.reduce((s,g)=>s+g.days.length,0),nb=G.reduce((s,g)=>s+g.bills.reduce((t,b)=>t+b.amt,0),0);
+  const rows=G.map((g,gi)=>`${G.length>1?`<tr><td colspan="4" style="background:var(--warn2);color:var(--warn);font-weight:600">ใบที่ ${gi+1} · ${fm(g.month)} · ${fd(g.from)} – ${fd(g.to)} · ${g.days.length} วัน + บิล ${g.bills.length}${gi<G.length-1?' (ตัดสิ้นเดือน)':''}</td></tr>`:''}`+
+    g.days.map(x=>`<tr><td>${fd(x.d)}</td><td>ค่าแรง 1 วัน <small style="color:var(--mute)">${esc(x.via)}</small></td><td class="n">${m(w.rate)}</td><td><button class="sm" data-wdoff="${x.d}" title="ลบวันนี้">✕</button></td></tr>`).join('')+
+    g.bills.map(b=>`<tr><td>${fd(b.d)}</td><td>บิล · ${esc(b.desc||b.cat)} ${b.file?`<a href="${esc(b.file)}" target="_blank" rel="noopener">📄</a>`:''} <a href="#" data-open="${b.id}">${b.id}</a></td><td class="n">${m(b.amt)}</td><td>${b.recv>b.d?'<span class="pill p-new">ใส่ย้อนหลัง '+fd(b.recv)+'</span>':''}</td></tr>`).join('')).join('');
+  const claims=(D.wages||[]).filter(c=>c.code===wk).sort((a,b)=>b.id.localeCompare(a.id));
+  return `<div class="wg2"><div class="panel"><div class="bar"><b>สร้างใบเบิกค่าแรง</b></div><div style="display:grid;gap:10px;padding:12px">
+    <div class="f"><label for="wk">ลูกน้อง</label><select id="wk">${W.map(x=>`<option value="${esc(x.code)}" ${x.code===wk?'selected':''}>${esc(x.code)} · ${esc(x.nick)} (${m(x.rate)}/วัน)</option>`).join('')}</select></div>
+    <div class="f"><label>ช่วงที่จะเบิก</label><div class="seg"><button data-wm="all" class="${wmode==='all'?'on':''}">ทั้งหมดที่ยังไม่เบิก</button><button data-wm="range" class="${wmode==='range'?'on':''}">เลือกช่วงวันที่</button></div></div>
+    ${wmode==='range'?`<div class="two"><div class="f"><label for="wf">ตั้งแต่</label><input type="date" id="wf" value="${wfrom}"></div><div class="f"><label for="wt">ถึง</label><input type="date" id="wt" value="${wto}"></div></div>
+     <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="sm" data-wq="week">สัปดาห์ที่แล้ว (จ–อา)</button><button class="sm" data-wq="this">จันทร์นี้–วันนี้</button><button class="sm" data-wq="month">ถึงสิ้นเดือนที่แล้ว</button></div>
+     <div class="hint" style="padding:0">บิลย้อนหลังที่อนุมัติแล้วแต่ยังไม่เคยเบิก ดึงมาด้วยเสมอ</div>`:''}
+    <div class="f"><label>Extra (ทั้งใบ เช่น โบนัส)</label>${wextras.map((e,i)=>`<div style="display:grid;grid-template-columns:1fr 90px 30px;gap:6px"><input value="${esc(e.n)}" placeholder="รายการ" data-wen="${i}" aria-label="รายการ extra"><input type="number" value="${e.a}" data-wea="${i}" aria-label="จำนวน extra"><button class="sm" data-wed="${i}" aria-label="ลบ">✕</button></div>`).join('')}
+     <button class="sm" id="weadd" style="justify-self:start">+ เพิ่ม Extra</button></div>
+    <div style="display:grid;gap:4px;border-top:1px solid var(--line);padding-top:8px;font-variant-numeric:tabular-nums">
+     <div style="display:flex;justify-content:space-between"><span>ค่าแรง ${nd} วัน × ${m(w.rate)}</span><b>${m(nd*w.rate)}</b></div>
+     <div style="display:flex;justify-content:space-between"><span>บิล (อนุมัติแล้ว)</span><b>${m(nb)}</b></div>
+     <div style="display:flex;justify-content:space-between"><span>Extra</span><b>${m(exT)}</b></div>
+     <div style="display:flex;justify-content:space-between;font-size:16px"><span>รวม</span><b>${m(nd*w.rate+nb+exT)} บาท</b></div>
+     <button class="pri" id="wcreate" ${G.length?'':'disabled'}>สร้างใบเบิก${G.length>1?' '+G.length+' ใบ (แยกสิ้นเดือน)':''}</button>
+     ${waitBills.length?`<div class="hint" style="padding:0">⚠️ บิลรอตรวจ ${waitBills.length} ใบ (${m(waitBills.reduce((s,b)=>s+b.amt,0))}) ยังไม่รวม</div>`:''}</div>
+    <div style="display:flex;gap:6px;align-items:end;border-top:1px solid var(--line);padding-top:8px"><div class="f" style="flex:1"><label for="wdadd">ลงวันทำงานแทนลูกน้อง</label><input type="date" id="wdadd" value="${D.now}"></div><button class="sm" id="wdon">+ ลงวันนี้</button></div>
+   </div></div>
+   <div><div class="panel"><div class="bar"><b>รายการที่จะเบิก · ${esc(w.nick)}</b></div><div class="tw"><table class="mt"><tr><th>วันที่</th><th>รายการ</th><th class="n">บาท</th><th></th></tr>${rows||'<tr><td colspan="4" class="empty">ไม่มีวันทำงานหรือบิลที่ยังไม่เบิกในช่วงนี้</td></tr>'}</table></div></div>
+    ${waitBills.length?`<div class="panel"><div class="bar"><b>บิลลูกน้องรอตรวจ ${waitBills.length} ใบ</b></div>${waitBills.map(x=>row(x,'q')).join('')}</div>`:''}
+    <div class="panel"><div class="bar"><b>ใบเบิกค่าแรง · ${esc(w.nick)}</b></div><div class="tw"><table class="mt"><tr><th>เลขที่</th><th>ช่วง</th><th class="n">วัน</th><th class="n">รวม</th><th>สถานะ</th><th></th></tr>
+     ${claims.map(c=>`<tr><td>${c.id}</td><td>${fd(c.from)} – ${fd(c.to)}</td><td class="n">${c.days}</td><td class="n">${m(c.total)}</td><td><span class="pill ${pc(c.st)}">${esc(c.st)}${c.paid?' '+fd(c.paid):''}</span></td>
+      <td style="white-space:normal;min-width:240px"><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${c.st!=='ยกเลิก'?`<button class="sm" data-wgp="${c.id}">🖨 ใบสำคัญจ่าย</button>`:''}${c.st==='รอจ่าย'?`<input type="date" id="wpd-${c.id}" value="${D.now}" aria-label="วันที่จ่าย"><button class="pri sm" data-wgpay="${c.id}">จ่ายแล้ว</button><button class="bad sm" data-wgx="${c.id}">ยกเลิก</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="6" class="empty">ยังไม่มีใบเบิก</td></tr>'}</table></div></div></div></div>`;
+}
+function printWG(id){
+  const c=(D.wages||[]).find(x=>x.id===id);if(!c)return;
+  const C=co(),bills=D.bills.filter(b=>c.billIds.includes(b.id)).sort((a,b)=>a.d.localeCompare(b.d));
+  const dl=c.dayList.slice().sort(),byM={};dl.forEach(d=>(byM[d.slice(0,7)]=byM[d.slice(0,7)]||[]).push(+d.slice(8)));
+  const dtxt=Object.entries(byM).map(([k,v])=>v.join(', ')+' '+fm(k)).join(' · ');
+  let i=1;const rows=`<tr><td class="c">${i}</td><td>ค่าแรงรายวัน ${c.days} วัน × ${mf2(c.rate)}<div class="flag">${esc(dtxt)}</div></td><td class="c">${fd(c.from)} – ${fd(c.to)}</td><td class="n">${mf2(c.wage)}</td></tr>`+
+    bills.map(b=>`<tr><td class="c">${++i}</td><td>${esc(b.desc||b.cat)} <span class="flag">(${b.id}${b.recv>b.d?' · ย้อนหลัง':''})</span></td><td class="c">${fd(b.d)}</td><td class="n">${mf2(b.amt)}</td></tr>`).join('')+
+    c.extras.map(e=>`<tr><td class="c">${++i}</td><td>${esc(e.n)}</td><td class="c">-</td><td class="n">${mf2(e.a)}</td></tr>`).join('');
+  const half=k=>`<section class="half ${k==='สำเนา'?'copy':''}">${k==='สำเนา'?'<span class="cut">✂ ตัดตามเส้น</span>':''}
+   <div class="top"><div class="co"><b>${esc(C.name)}</b><div>${esc(C.addr)}</div><div>${esc(C.tax)}</div></div>
+    <div class="ttl"><h1>ใบสำคัญจ่ายค่าแรง</h1><div class="en">WAGE PAYMENT VOUCHER · ลูกจ้างชั่วคราว</div><span class="stamp">${k}</span></div></div>
+   <div class="meta"><div><span>จ่ายให้</span><b>${esc(c.nick)}</b></div><div><span>เลขที่</span><b>${esc(c.id)}</b></div>
+    <div><span>ช่วงทำงาน</span>${fd(c.from)} – ${fd(c.to)}</div><div><span>วันที่</span>${fd(c.paid||D.now)}</div></div>
+   <table><thead><tr><th class="c" style="width:7%">ลำดับ</th><th>รายการ</th><th class="c" style="width:24%">วันที่</th><th class="n" style="width:17%">จำนวนเงิน (บาท)</th></tr></thead>
+   <tbody>${rows}<tr class="tot"><td colspan="3" class="n">รวมทั้งสิ้น</td><td class="n">${mf2(c.total)}</td></tr></tbody></table>
+   <div class="words">(ตัวอักษร) ${bahtText(c.total)}</div>
+   <div class="pay"><span><span class="box">✓</span>จ่ายจาก ${esc(C.source)}</span><span>วันที่จ่าย ${c.paid?fd(c.paid):'..............'}</span><span style="color:#555">ลูกจ้างชั่วคราว ไม่อยู่ในระบบเงินเดือน · รูปบิลอยู่ใน EX</span></div>
+   ${signRow(['ผู้จัดทำ','ผู้อนุมัติ','ผู้รับเงิน'],[c.by,'',c.nick]).replace('class="sign"','class="sign" style="grid-template-columns:repeat(3,1fr)"')}
+   <div class="foot"><span>EX · Mewtoy Expense · ${esc(c.id)}</span><span>${k==='ต้นฉบับ'?'ต้นฉบับ — บัญชีเก็บ':'สำเนา — ลูกน้องเก็บ'}</span></div></section>`;
+  openDoc('ใบสำคัญจ่ายค่าแรง '+c.id,`<div class="page">${half('ต้นฉบับ')}${half('สำเนา')}</div>`);
+}
+
 /* ---------- events ---------- */
 document.addEventListener('click',async e=>{
   const t=e.target,ds=t.dataset||{};
@@ -481,6 +563,20 @@ document.addEventListener('click',async e=>{
     const r=await act('cutRound',{who:cutWho,cutDate,ids,payee:payee||buyers()[0]},r=>'สร้างรอบ '+r.id+' · ใบสำคัญจ่าย '+r.pcv+' · '+m(r.amt)+' บาท');if(r){ex.clear();tab='rounds';render()}return}
   if(ds.paid){const id=ds.paid;return act('payRound',{id,paidDate:$('#pd-'+id).value,ref:$('#pr-'+id).value},id+' จ่ายแล้ว')}
   if(ds.pv)return printVoucher(ds.pv);
+  if(ds.wm){wmode=ds.wm;render();return}
+  if(ds.wq){wmode='range';const dow=new Date(D.now+'T00:00:00').getDay(),mon=addD(D.now,-((dow+6)%7));
+    if(ds.wq==='week'){wfrom=addD(mon,-7);wto=addD(mon,-1)}else if(ds.wq==='this'){wfrom=mon;wto=D.now}else{const ym=D.now.slice(0,7);const pm=addD(ym+'-01',-1);wfrom=pm.slice(0,7)+'-01';wto=pm}
+    render();return}
+  if(ds.wed!==undefined){wextras.splice(+ds.wed,1);if(!wextras.length)wextras=[{n:'',a:''}];render();return}
+  if(t.id==='weadd'){wextras.push({n:'',a:''});render();return}
+  if(t.id==='wcreate'){const W=(D.workers||[]).find(w=>w.code===wk);if(!confirm('สร้างใบเบิกค่าแรง '+(W?W.nick:wk)+' ?'))return;
+    const r=await act('wageCreate',{code:wk,mode:wmode,from:wfrom,to:wto,extras:wextras.filter(e=>e.n&&+e.a).map(e=>({n:e.n,a:+e.a}))},r=>'สร้าง '+r.claims.map(c=>c.id+' · '+m(c.total)).join(', '));
+    if(r){wextras=[{n:'',a:''}];render()}return}
+  if(t.id==='wdon')return act('wageDay',{code:wk,date:$('#wdadd').value,on:true},'ลงวันทำงานแล้ว');
+  if(ds.wdoff){if(!confirm('ลบวันทำงาน '+fd(ds.wdoff)+' ?'))return;return act('wageDay',{code:wk,date:ds.wdoff,on:false},'ลบวันทำงานแล้ว')}
+  if(ds.wgp)return printWG(ds.wgp);
+  if(ds.wgpay)return act('wagePay',{id:ds.wgpay,paidDate:$('#wpd-'+ds.wgpay).value},ds.wgpay+' จ่ายแล้ว');
+  if(ds.wgx){if(!confirm('ยกเลิกใบเบิก '+ds.wgx+' ? วันทำงานและบิลจะกลับไปรอเบิก'))return;return act('wageCancel',{id:ds.wgx},ds.wgx+' ยกเลิกแล้ว')}
   if(ds.grp)return printGR(ds.grp);
   if(ds.cancelr){if(!confirm('ยกเลิกรอบ '+ds.cancelr+' ? บิลจะกลับไปรอตัดยอด (เลขใบสำคัญจ่ายของรอบนี้จะไม่ถูกใช้ซ้ำ)'))return;return act('cancelRound',{id:ds.cancelr},ds.cancelr+' ยกเลิกแล้ว')}
   if(ds.round){e.preventDefault();tab='all';f.q=ds.round;f.st='';f.cat='';render();return}
@@ -497,9 +593,14 @@ document.addEventListener('change',e=>{
   if(t.id==='cw'){cutWho=t.value;ex.clear();render()}
   if(t.id==='cd'){cutDate=t.value;ex.clear();render()}
   if(t.id==='cp'){payee=t.value}
+  if(t.id==='wk'){wk=t.value;render()}
+  if(t.id==='wf'){wfrom=t.value;render()}if(t.id==='wt'){wto=t.value;render()}
+  if(t.dataset.wea!==undefined){wextras[+t.dataset.wea].a=t.value;render()}
   if(t.id==='fst'){f.st=t.value;render()}if(t.id==='fcat'){f.cat=t.value;render()}
 });
-document.addEventListener('input',e=>{if(e.target.id==='fq'){f.q=e.target.value;render();const q=$('#fq');q.focus();q.setSelectionRange(f.q.length,f.q.length)}});
+document.addEventListener('input',e=>{const t=e.target;
+  if(t.dataset&&t.dataset.wen!==undefined){wextras[+t.dataset.wen].n=t.value;return}
+  if(t.dataset&&t.dataset.wea!==undefined){wextras[+t.dataset.wea].a=t.value;return}if(e.target.id==='fq'){f.q=e.target.value;render();const q=$('#fq');q.focus();q.setSelectionRange(f.q.length,f.q.length)}});
 
 (async()=>{if(PIN&&API){try{ME=await api('login',{});await reload();return}catch(e){ss.del('ex_pin');PIN=''}}renderLogin()})();
 </script></body></html>

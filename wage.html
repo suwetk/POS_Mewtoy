@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ลงวันทำงาน · Mewtoy</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap">
+<style>
+:root{--bg:#f3f5f4;--card:#fff;--ink:#16211c;--mute:#5f6d66;--line:#dce3df;--acc:#0b7a4b;--acc2:#e2f2ea;--warn:#a15c07;--warn2:#fdf1d6;--red:#b42318;--red2:#fde4e1;--blue:#1d4ed8;--blue2:#e3ebff;--chip:#eef2f0;--org:#c2410c}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111614;--card:#1a211e;--ink:#e5ebe8;--mute:#98a69f;--line:#2b3531;--acc2:#15352a;--warn2:#3a2b10;--red2:#3d1714;--blue2:#18264a;--chip:#232c28}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans Thai",system-ui,sans-serif;padding:0 16px 40px}
+.wrap{max-width:460px;margin:0 auto;display:grid;gap:12px;padding-top:14px}
+select,input,button{font:inherit;color:inherit}
+input{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0;width:100%}
+button{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:8px 12px}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+button:disabled{opacity:.45;cursor:default}
+button.sm{padding:4px 10px;font-size:13px}
+button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.hd{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hd h1{font-size:19px;margin:0}
+.mute{color:var(--mute);font-size:13px}
+.big{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:14px}
+.cal .h{color:var(--mute);font-size:12px}
+.cal button{padding:8px 0;border-radius:9px;position:relative}
+.cal button.w{background:var(--acc);color:#fff;border-color:var(--acc)}
+.cal button.paid{background:var(--blue2);color:var(--blue);border-color:var(--blue2)}
+.cal button.today{outline:2px solid var(--ink)}
+.cal button.sel{box-shadow:0 0 0 3px var(--warn)}
+.cal .dot{position:absolute;top:3px;right:5px;width:7px;height:7px;border-radius:50%;background:var(--org)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.bill{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:14px}
+.bill small{display:block;color:var(--mute);font-size:12px}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600;background:var(--chip);color:var(--mute)}
+.p-new{background:var(--warn2);color:var(--warn)}.p-ok{background:var(--acc2);color:var(--acc)}.p-paid{background:var(--blue2);color:var(--blue)}.p-no{background:var(--red2);color:var(--red)}
+.row2{display:grid;grid-template-columns:1fr 110px;gap:8px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--card);padding:9px 14px;border-radius:9px;font-size:14px;z-index:20;max-width:90vw}
+.toast.err{background:var(--red);color:#fff}
+.busy{position:fixed;top:0;left:0;right:0;height:3px;background:var(--acc);z-index:30}
+.list{display:grid;gap:6px}
+</style></head><body><div class="wrap" id="app"></div>
+<script>
+/* wage.html · wage-html-2026-11-09-a · หน้าลูกน้อง (ใช้ API เดียวกับ EX: ex_backend.gs ex-2026-11-09-b) */
+const VERSION='wage-html-2026-11-09-a';
+const API_URL_DEFAULT='https://script.google.com/macros/s/AKfycbzwApo1tdngeEydvZKc9XMQ34RxcR5xJhdkD9NyZBBTaDD4tUElgkO_tATR2OPJEc7fNQ/exec';
+const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
+let API=ls.get('ex_api')||API_URL_DEFAULT,PIN=ls.get('wage_pin')||'',D=null,ym='',sel='',file=null;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const m=n=>Number(n||0).toLocaleString('en-US',{maximumFractionDigits:2});
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fd=s=>{if(!s)return '-';const[y,mo,d]=s.split('-');return d+' '+MON[mo-1]+' '+y.slice(2)};
+const addD=(iso,n)=>{const[y,mo,d]=iso.split('-').map(Number);const t=new Date(y,mo-1,d+n);return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0')};
+function toast(t,err){const e=document.createElement('div');e.className='toast'+(err?' err':'');e.textContent=t;document.body.append(e);setTimeout(()=>e.remove(),err?4500:2200)}
+async function api(action,payload){
+  const b=document.createElement('div');b.className='busy';document.body.append(b);
+  try{const r=await fetch(API,{method:'POST',body:JSON.stringify({api:true,pin:PIN,action,payload})});const j=await r.json();if(!j.ok)throw new Error(j.error||'ผิดพลาด');return j.data}
+  finally{b.remove()}
+}
+async function reload(){D=await api('w_load',{});if(!ym)ym=D.now.slice(0,7);if(!sel)sel=D.now;render()}
+function logout(){PIN='';ls.del('wage_pin');D=null;login()}
+function login(){
+  $('#app').innerHTML=`<div class="card" style="display:grid;gap:12px;margin-top:10vh"><h1 style="margin:0;font-size:22px">ลงวันทำงาน</h1>
+   <div class="mute">Mewtoy · ใส่ PIN ของตัวเอง</div>
+   <input id="pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="PIN" aria-label="PIN">
+   <button class="pri" id="go">เข้าสู่ระบบ</button><div class="mute" style="font-size:11px">${VERSION}</div></div>`;
+  const go=async()=>{PIN=$('#pin').value.trim();try{await api('w_login',{});ls.set('wage_pin',PIN);await reload()}catch(e){toast(e.message,true)}};
+  $('#go').onclick=go;$('#pin').onkeydown=e=>{if(e.key==='Enter')go()};$('#pin').focus();
+}
+function render(){
+  const me=D.me,days=D.days,bills=D.bills;
+  const openDays=days.filter(x=>!x.wg),openBills=bills.filter(b=>!b.wg&&b.st!=='ไม่เบิก');
+  const total=openDays.length*me.rate+openBills.reduce((s,b)=>s+b.amt,0);
+  const [y,mo]=ym.split('-').map(Number),first=new Date(y,mo-1,1).getDay(),nd=new Date(y,mo,0).getDate();
+  const minD=addD(D.now,-D.dayBack);
+  const cells=[];for(let i=1;i<=nd;i++)cells.push(ym+'-'+String(i).padStart(2,'0'));
+  const dayOf=d=>days.find(x=>x.d===d);
+  const sd=dayOf(sel),sb=bills.filter(b=>b.d===sel);
+  const locked=sel>D.now||sel<minD||(sd&&sd.wg);
+  const last=D.claims.slice().sort((a,b)=>b.id.localeCompare(a.id))[0];
+  $('#app').innerHTML=`<div class="hd"><div><h1>สวัสดี ${esc(me.nick)}</h1><div class="mute">ค่าแรง ${m(me.rate)}/วัน</div></div><button class="sm" id="out">ออก</button></div>
+  <div class="card"><div class="mute">ยังไม่ได้เบิก</div><div class="big">${m(total)} บาท</div>
+   <div class="mute">${openDays.length} วัน × ${m(me.rate)} + บิล ${openBills.length} ใบ ${m(openBills.reduce((s,b)=>s+b.amt,0))}${last?' · เบิกล่าสุด '+esc(last.id)+' ('+esc(last.st)+')':''}</div></div>
+  <div class="card" style="display:grid;gap:10px">
+   <div class="hd"><button class="sm" id="prev" aria-label="เดือนก่อน">‹</button><b>${MON[mo-1]} ${String(y).slice(2)}</b><button class="sm" id="next" aria-label="เดือนถัดไป" ${ym>=D.now.slice(0,7)?'disabled':''}>›</button></div>
+   <div class="cal">${['อา','จ','อ','พ','พฤ','ศ','ส'].map(h=>`<span class="h">${h}</span>`).join('')}${'<span></span>'.repeat(first)}
+    ${cells.map(d=>{const x=dayOf(d);const c=x?(x.wg?'paid':'w'):'';const hb=bills.some(b=>b.d===d);
+      return `<button class="${c} ${d===D.now?'today':''} ${d===sel?'sel':''}" data-d="${d}" ${d>D.now?'disabled':''} aria-label="${fd(d)}">${+d.slice(8)}${hb?'<i class="dot"></i>':''}</button>`}).join('')}</div>
+   <div class="legend"><span><i style="background:var(--acc)"></i>มาทำงาน</span><span><i style="background:var(--org);border-radius:50%"></i>มีบิล</span><span><i style="background:var(--blue2)"></i>เบิกแล้ว</span></div></div>
+  <div class="card" style="display:grid;gap:10px">
+   <div class="hd"><b>${fd(sel)} · ${sd?(sd.wg?'มาทำงาน (เบิกแล้ว '+esc(sd.wg)+')':'มาทำงาน ✓'):'ยังไม่ได้ลง'}</b>
+    ${locked?'':`<button class="${sd?'':'pri'} sm" id="tog">${sd?'ลบ (ไม่ได้มา)':'ลงว่ามาทำงาน'}</button>`}</div>
+   ${sel<minD?`<div class="mute">ย้อนหลังเกิน ${D.dayBack} วัน — แจ้ง Wing ให้ลงให้</div>`:''}
+   <div class="list">${sb.map(b=>`<div class="bill"><div>${esc(b.desc||'บิล')} ${b.file?`<a href="${esc(b.file)}" target="_blank" rel="noopener">📄</a>`:''}<small>${esc(b.id)}${b.rec>b.d?' · ใส่ย้อนหลัง '+fd(b.rec):''}</small></div>
+     <div style="text-align:right"><b>${m(b.amt)}</b><br><span class="pill ${b.wg?'p-paid':b.st==='อนุมัติ'?'p-ok':b.st==='ไม่เบิก'?'p-no':'p-new'}">${b.wg?'เบิกแล้ว':esc(b.st)}</span></div></div>`).join('')||'<div class="mute">ยังไม่มีบิลของวันนี้</div>'}</div>
+   ${sel<=D.now?`<div style="display:grid;gap:8px;border-top:1px solid var(--line);padding-top:10px"><b style="font-size:14px">+ เพิ่มบิลของวันที่ ${fd(sel)}</b>
+    <div class="row2"><input id="bdesc" placeholder="รายละเอียด เช่น ค่ารถ" aria-label="รายละเอียด"><input id="bamt" type="number" inputmode="decimal" placeholder="บาท" aria-label="จำนวนเงิน"></div>
+    <label style="display:flex;gap:8px;align-items:center"><button class="sm" id="pick" type="button">📷 แนบรูปบิล</button><span class="mute" id="fname">${file?esc(file.name):'ไม่บังคับ'}</span></label>
+    <input id="bfile" type="file" accept="image/*,application/pdf" hidden>
+    <button class="pri" id="badd">บันทึกบิล</button></div>`:''}
+   <div class="mute">ส่งบิลทาง LINE (Bill_Mewtoy_Claude) ก็ได้ · พิมพ์ "มา" ในแชท = ลงวันนี้</div></div>
+  ${D.claims.length?`<div class="card"><b>ใบเบิกค่าแรง</b><div class="list" style="margin-top:8px">${D.claims.slice().sort((a,b)=>b.id.localeCompare(a.id)).slice(0,8).map(c=>`<div class="bill"><div>${esc(c.id)}<small>${fd(c.from)} – ${fd(c.to)} · ${c.days} วัน</small></div><div style="text-align:right"><b>${m(c.total)}</b><br><span class="pill ${c.st==='จ่ายแล้ว'?'p-paid':'p-new'}">${esc(c.st)}${c.paid?' '+fd(c.paid):''}</span></div></div>`).join('')}</div></div>`:''}
+  <div class="mute" style="text-align:center;font-size:11px">${VERSION}</div>`;
+  bind();
+}
+function bind(){
+  $('#out').onclick=logout;
+  $('#prev').onclick=()=>{const[y,mo]=ym.split('-').map(Number);const t=new Date(y,mo-2,1);ym=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0');render()};
+  $('#next').onclick=()=>{const[y,mo]=ym.split('-').map(Number);const t=new Date(y,mo,1);ym=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0');render()};
+  document.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{sel=b.dataset.d;file=null;render()});
+  const tg=$('#tog');if(tg)tg.onclick=async()=>{try{const on=!D.days.find(x=>x.d===sel);await api('w_day',{date:sel,on});toast(on?'ลงวันทำงาน '+fd(sel)+' แล้ว':'ลบวันทำงาน '+fd(sel)+' แล้ว');await reload()}catch(e){toast(e.message,true)}};
+  const pk=$('#pick');if(pk){pk.onclick=()=>$('#bfile').click();$('#bfile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{file=await prepFile(f);$('#fname').textContent=f.name}catch(err){toast(err.message,true)}}}
+  const ba=$('#badd');if(ba)ba.onclick=async()=>{const amt=+$('#bamt').value,desc=$('#bdesc').value.trim();
+    if(!(amt>0))return toast('ใส่จำนวนเงิน',true);
+    ba.disabled=true;try{const r=await api('w_bill',{date:sel,desc,amt,file});file=null;toast('บันทึกบิล '+r.id+' แล้ว');await reload()}catch(e){toast(e.message,true);ba.disabled=false}};
+}
+/* ย่อรูปให้ไม่เกิน 1600px ก่อนส่ง (PDF ส่งตรง) */
+function prepFile(f){
+  return new Promise((res,rej)=>{
+    if(f.type==='application/pdf'){if(f.size>8e6)return rej(new Error('PDF ใหญ่เกิน 8 MB'));const r=new FileReader();r.onload=()=>res({name:f.name,type:f.type,data:String(r.result).split(',')[1]});r.onerror=()=>rej(new Error('อ่านไฟล์ไม่ได้'));r.readAsDataURL(f);return}
+    const img=new Image(),u=URL.createObjectURL(f);
+    img.onload=()=>{const k=Math.min(1,1600/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);res({name:f.name.replace(/\.\w+$/,'')+'.jpg',type:'image/jpeg',data:c.toDataURL('image/jpeg',.82).split(',')[1]})};
+    img.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('เปิดรูปไม่ได้'))};img.src=u;
+  });
+}
+(async()=>{if(PIN){try{await reload();return}catch(e){ls.del('wage_pin');PIN=''}}login()})();
+</script></body></html>
