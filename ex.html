@@ -85,8 +85,10 @@ a{color:var(--blue)}
 @media (prefers-reduced-motion:reduce){.busy{animation:none}}
 </style></head><body><div class="wrap" id="app"></div>
 <script>
-/* EX Desk · ex-html-2026-11-09-b · ใช้คู่กับ ex_backend.gs ex-2026-11-09-b (+ แท็บค่าแรง) */
-const VERSION='ex-html-2026-11-09-b';
+/* EX Desk · ex-html-2026-11-15-a · ใช้คู่กับ ex_backend.gs ex-2026-11-15-a + parcel.gs parcel-2026-11-15-a
+   (15 Nov 26) + แท็บ 📦 พัสดุ (เห็นเฉพาะชื่อใน PARCEL_EDITORS) · ลิงก์ ex.html?parcel=<เลขใบเสร็จ/เลขพัสดุ> จากปุ่ม ✏️ ในบอท
+   ก่อนหน้า ex-html-2026-11-09-b (+ แท็บค่าแรง) */
+const VERSION='ex-html-2026-11-15-a';
 const API_URL_DEFAULT='https://script.google.com/macros/s/AKfycbzwApo1tdngeEydvZKc9XMQ34RxcR5xJhdkD9NyZBBTaDD4tUElgkO_tATR2OPJEc7fNQ/exec';   // URL /exec ของ EX (Apps Script) · เปลี่ยนได้ที่ ⚙️
 const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
 const ss={get:k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}},del:k=>{try{sessionStorage.removeItem(k)}catch(e){}}};
@@ -153,6 +155,7 @@ const months=()=>{const s=new Set(D.bills.map(b=>b.d.slice(0,7)).filter(Boolean)
 /* ---------- main ---------- */
 function render(){
   if(!D)return renderLogin();
+  if(tab==='parcel'&&!(ME&&ME.parcel))tab='queue';
   if(!cutWho)cutWho=people()[0]||'';
   const nq=D.bills.filter(x=>mine(x)&&x.st==='รอตรวจ').length;
   const ng=D.goods.filter(g=>g.st!=='ของถึงแล้ว').length;
@@ -162,9 +165,9 @@ function render(){
    <button id="rf">↻ ดึงข้อมูลล่าสุด</button><button id="cfgb" aria-label="ตั้งค่า">⚙️</button><button id="out">ออก</button></div></header>
    <div class="who-bar" role="group" aria-label="เลือกคน">${['',...people()].map(p=>`<button class="${who===p?'on':''}" data-who="${esc(p)}">${esc(p||'ทุกคน')}</button>`).join('')}</div>
    <section class="kpis">${kpis()}</section>
-   <nav class="tabs" id="tabs">${[['queue','รอตรวจ',nq],['cut','ตัดยอดเบิก'],['rounds','ประวัติรอบเบิก'],['goods','สินค้ารอเข้า',ng],['wage','ค่าแรง',nw],['all','บิลทั้งหมด'],['sum','สรุป']]
+   <nav class="tabs" id="tabs">${[['queue','รอตรวจ',nq],['cut','ตัดยอดเบิก'],['rounds','ประวัติรอบเบิก'],['goods','สินค้ารอเข้า',ng],['wage','ค่าแรง',nw],['all','บิลทั้งหมด'],['sum','สรุป'],...(ME&&ME.parcel?[['parcel','📦 พัสดุ']]:[])]
      .map(([k,l,n])=>`<button data-t="${k}" class="${tab===k?'on':''}">${l}${n?`<span class="n">${n}</span>`:''}</button>`).join('')}</nav>
-   <main id="view">${({queue:vQueue,cut:vCut,rounds:vRounds,goods:vGoods,wage:vWage,all:vAll,sum:vSum})[tab]()}</main>`;
+   <main id="view">${({queue:vQueue,cut:vCut,rounds:vRounds,goods:vGoods,wage:vWage,all:vAll,sum:vSum,parcel:vParcel})[tab]()}</main>`;
 }
 function kpis(){
   const L=D.bills.filter(x=>live(x)&&mine(x)&&x.d.slice(0,7)===month);
@@ -544,6 +547,130 @@ function printWG(id){
    <div class="foot"><span>EX · Mewtoy Expense · ${esc(c.id)}</span><span>${k==='ต้นฉบับ'?'ต้นฉบับ — บัญชีเก็บ':'สำเนา — ลูกน้องเก็บ'}</span></div></section>`;
   openDoc('ใบสำคัญจ่ายค่าแรง '+c.id,`<div class="page">${half('ต้นฉบับ')}${half('สำเนา')}</div>`);
 }
+
+/* ---------- พัสดุ (15 Nov 26) — ดู/แก้/ยกเลิกกล่อง · แก้ POS + EX ให้พร้อมกัน ---------- */
+let PD=null,pdLoading=false,pf={q:'',type:'',flag:false,cx:false},pfrom='',pto='';
+const PQ=(()=>{try{return new URLSearchParams(location.search).get('parcel')||''}catch(e){return ''}})();
+if(PQ){tab='parcel';pf.q=PQ}
+const pTypeTag=r=>r.type==='ร้านเครือ'?`<span class="pill p-goods">🤝 ${esc(r.grp)}</span> `:r.type==='บริษัท'?`<span class="pill p-rb">🏢 งานบริษัท</span> `:'';
+const chl=(c,n)=>c&&n?c+(/:$/.test(c)?' ':' · ')+n:(c||n||'');
+const pNeed=r=>r.st!=='ยกเลิก'&&((!r.code&&!r.type)||r.posErr);
+async function loadParcels(){
+  if(pdLoading)return;pdLoading=true;
+  try{PD=await api('p_list',{from:pfrom,to:pto});if(!pfrom)pfrom=PD.from;if(!pto)pto=PD.to}
+  catch(e){PD={rows:[],err:e.message};toast(e.message,true)}
+  finally{pdLoading=false}
+  if(tab==='parcel')render();
+}
+function vParcel(){
+  if(!PD){loadParcels();return '<div class="panel"><div class="empty">กำลังโหลดพัสดุ…</div></div>'}
+  if(PD.err)return `<div class="panel"><div class="empty">${esc(PD.err)}</div></div>`;
+  const q=pf.q.trim().toLowerCase();
+  const L=PD.rows.filter(r=>(pf.cx||r.st!=='ยกเลิก')&&(!pf.type||(pf.type==='ลูกค้า'?(r.type==='ลูกค้า'||(!r.type&&r.code)):r.type===pf.type))&&(!pf.flag||pNeed(r))
+    &&(!q||[r.code,r.cname,r.trk,r.rcpt,r.rno,r.chn,r.grp,r.exp,r.id,r.pos].join(' ').toLowerCase().includes(q)));
+  const nNeed=PD.rows.filter(pNeed).length;
+  const pills=[['','ทั้งหมด'],['ลูกค้า','ลูกค้า'],['ร้านเครือ','🤝 ร้านเครือ'],['บริษัท','🏢 งานบริษัท']].map(([k,l])=>`<button class="sm ${pf.type===k?'pri':''}" data-pc-type="${k}">${l}</button>`).join('');
+  const rows=L.map(r=>{
+    const who=r.code?`<b>${esc(r.code)} ${esc(r.cname)}</b>`:r.type==='ร้านเครือ'?`<b>${esc(r.rcpt)}</b>`:r.type==='บริษัท'?`<b>${esc(r.rcpt)}</b> · ${esc(r.grp)}`:`<b style="color:var(--warn)">⚠️ ยังไม่ระบุ</b>`;
+    const cl=chl(r.ch,r.chn);
+    const pos=r.posErr?`<span style="color:var(--red)">${esc(r.posTx.join(', '))} ❌</span> <button class="sm" data-pc-retry="${r.id}">ลองส่งเข้า POS อีกครั้ง</button>`
+      :r.posTx.length?`<span style="color:${r.posOk?'var(--acc)':'var(--mute)'}">${esc(r.posTx.join(', '))}${r.posOk?' ✅':/↩️/.test(r.pos)?' ↩️':' (ยังไม่ส่งเข้า POS)'}</span>`:'<span style="color:var(--mute)">—</span>';
+    const exc=r.exp?`${esc(r.exp)}<br><small style="color:var(--mute)">${r.expAmt==null?'':m(r.expAmt)} ${esc(r.expSt)}${r.expLock?' · 🔒'+esc(r.expLock):''}</small>`:'<small style="color:var(--mute)">'+(r.mode==='test'?'ทดสอบ':'—')+'</small>';
+    return `<tr style="${r.st==='ยกเลิก'?'opacity:.5;text-decoration:line-through':''}">
+      <td>${fd(r.d)}<br><small style="color:var(--mute)">${esc(r.id)}</small></td>
+      <td style="white-space:normal;min-width:220px">${pTypeTag(r)}${who}${cl?`<br><small>💬 ${esc(cl)}</small>`:''}<br><small style="color:var(--mute)">ใบเสร็จ: ${esc(r.rcpt)}</small>${r.edit?`<br><small style="color:var(--mute)">✏️ ${esc(r.edit)}</small>`:''}</td>
+      <td>${r.link?`<a href="${esc(r.link)}" target="_blank" rel="noopener">${esc(r.trk)}</a>`:esc(r.trk)}</td>
+      <td class="n">${m(r.fee)}</td><td style="white-space:normal">${pos}</td><td>${exc}</td>
+      <td>${r.st==='ยกเลิก'?'<span class="pill p-no">ยกเลิก</span>':`<button class="sm pri" data-pc-edit="${r.id}">✏️ แก้</button>`}</td></tr>`}).join('');
+  return `<div class="panel"><div class="bar">
+     <input type="date" id="pcfrom" value="${esc(pfrom)}" aria-label="ตั้งแต่"><input type="date" id="pcto" value="${esc(pto)}" aria-label="ถึง">
+     <input id="pcq" placeholder="🔎 รหัส / เลขพัสดุ / ชื่อ / ใบเสร็จ" value="${esc(pf.q)}" style="min-width:200px">
+     ${pills}<button class="sm ${pf.flag?'pri':''}" data-pc-flag="1">⚠️ ต้องตรวจ${nNeed?` (${nNeed})`:''}</button>
+     <label style="font-size:12.5px;display:flex;gap:4px;align-items:center"><input type="checkbox" id="pccx" ${pf.cx?'checked':''}>แสดงที่ยกเลิก</label>
+     <span class="sp"></span><button class="sm" id="pcrf">↻ โหลดพัสดุใหม่</button></div>
+   <div class="hint" style="padding-top:8px">แท็บ ${esc(PD.tab||'')} · ${PD.posLive?'แก้แล้ว POS เปลี่ยนตามทันที':'PARCEL_POS ปิด — ไม่แตะ POS'} · แก้ค่าส่ง/ยกเลิก → ยอด EX เปลี่ยนตาม (ล็อก 🔒 ถ้าอยู่ในรอบเบิกแล้ว)</div>
+   <div class="tw"><table class="mt"><thead><tr><th>วันที่</th><th>ลูกค้า / ผู้รับ</th><th>เลขพัสดุ</th><th class="n">ค่าส่ง</th><th>บิล POS</th><th>EX</th><th></th></tr></thead>
+   <tbody>${rows||'<tr><td colspan="7"><div class="empty">ไม่มีพัสดุตามตัวกรอง</div></td></tr>'}</tbody></table></div></div>`;
+}
+async function pAct(action,payload,msg){
+  try{const r=await api(action,payload);toast(msg);PD=null;await loadParcels();return r}catch(e){toast(e.message,true);return null}
+}
+async function parcelEditor(id){
+  const r=PD.rows.find(x=>x.id===id);if(!r)return;
+  const E={type:r.type||(r.code?'ลูกค้า':''),code:r.code,cname:r.cname,ch:r.ch,chn:r.chn,grp:r.grp,trk:r.trk,fee:String(r.fee),reason:'',
+    pick:new Set(r.posOk?r.posTx:[]),touched:false,res:[],wait:[],q:'',topic:''};
+  const el=document.createElement('div');el.className='modal';el.setAttribute('role','dialog');el.setAttribute('aria-label','แก้พัสดุ '+id);
+  document.body.append(el);
+  const loadWait=async code=>{if(!code){E.wait=[];return}try{const res=await api('p_cust',{q:code});const c=res.find(x=>x.code===code);E.wait=c?c.wait:[]}catch(e){E.wait=[]}};
+  await loadWait(E.code);
+  let steps=null,mode='';
+  const grab=()=>{const v=s=>{const x=el.querySelector(s);return x?x.value:undefined};
+    if(v('#pe-trk')!==undefined)E.trk=v('#pe-trk').trim().toUpperCase();if(v('#pe-fee')!==undefined)E.fee=v('#pe-fee');
+    if(v('#pe-reason')!==undefined)E.reason=v('#pe-reason');if(v('#pe-q')!==undefined)E.q=v('#pe-q');
+    if(v('#pe-grp')!==undefined)E.grp=v('#pe-grp');if(v('#pe-ch')!==undefined)E.ch=v('#pe-ch');if(v('#pe-chn')!==undefined)E.chn=v('#pe-chn');
+    if(v('#pe-topic')!==undefined){E.topic=v('#pe-topic');if(E.topic!=='__other')E.grp=E.topic}if(v('#pe-other')!==undefined&&E.topic==='__other')E.grp=v('#pe-other')};
+  const change=()=>{const c={type:E.type};
+    if(E.type==='ลูกค้า'){c.code=E.code;if(E.touched||E.code!==r.code)c.posPick=[...E.pick]}
+    if(E.type==='ร้านเครือ'){c.grp=E.grp;c.ch=E.ch;c.chn=E.chn}
+    if(E.type==='บริษัท')c.grp=E.grp;
+    if(E.trk!==r.trk)c.trk=E.trk;if(Number(E.fee)!==r.fee)c.fee=Number(E.fee);return c};
+  const draw=()=>{
+    const bills=[...new Set([...(r.code===E.code?r.posTx:[]),...E.wait.map(w=>w.tx)])];
+    const typeSeg=[['ลูกค้า','ลูกค้า POS'],['ร้านเครือ','🤝 ร้านเครือ'],['บริษัท','🏢 งานบริษัท'],['','ไม่ระบุ']].map(([k,l])=>`<button data-et="${k}" class="${E.type===k?'on':''}">${l}</button>`).join('');
+    const topics=PD.topics||[];const isOther=E.type==='บริษัท'&&E.grp&&!topics.includes(E.grp);
+    el.innerHTML=`<div class="in">
+     <div style="display:flex;justify-content:space-between;gap:8px"><b>แก้กล่อง ${esc(r.id)}</b><button class="sm" id="pe-x" aria-label="ปิด">✕</button></div>
+     <small style="color:var(--mute)">${esc(r.car)} ${esc(r.trk)} · ใบเสร็จ ${esc(r.rno||'-')} · ผู้รับบนใบเสร็จ: ${esc(r.rcpt)}</small>
+     <div class="f"><label>ประเภทผู้รับ</label><div class="seg">${typeSeg}</div></div>
+     ${E.type==='ลูกค้า'?`<div class="f"><label for="pe-q">ลูกค้า: ${E.code?`<b style="color:var(--ink)">${esc(E.code)} ${esc(E.cname)}</b>${chl(E.ch,E.chn)?' · 💬 '+esc(chl(E.ch,E.chn)):''}`:'ยังไม่เลือก'}</label>
+        <div style="display:flex;gap:6px"><input id="pe-q" placeholder="ค้นรหัส / ชื่อ / ชื่อ FB / เบอร์" value="${esc(E.q)}" style="flex:1"><button class="sm" id="pe-find">🔎 ค้นหา</button></div>
+        ${E.res.map(c=>`<div class="cand"><input type="radio" name="pe-c" value="${esc(c.code)}" ${c.code===E.code?'checked':''} aria-label="${esc(c.code)}"><div><b>${esc(c.code)} ${esc(c.name)}</b><small>${esc(chl(c.ch,c.nameCh))}${c.tel?' · '+esc(c.tel):''}</small></div><small>${c.wait.length?'บิลรอส่ง '+c.wait.length:'ไม่มีบิลรอส่ง'}</small></div>`).join('')}</div>
+       <div class="f"><label>บิล POS ของกล่องนี้ (ติ๊ก = ส่งแล้ว + เลขพัสดุนี้)</label>${bills.length?bills.map(t=>{const w=E.wait.find(x=>x.tx===t);return `<label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" data-eb="${esc(t)}" ${E.pick.has(t)?'checked':''}>${esc(t)}${w?` <small style="color:var(--mute)">${fd(w.d)} · รอ ${w.days} วัน</small>`:r.posOk&&r.posTx.includes(t)?' <small style="color:var(--acc)">ส่งแล้ว</small>':''}</label>`}).join(''):'<small style="color:var(--mute)">ไม่มีบิลรอจัดส่ง</small>'}</div>`:''}
+     ${E.type==='ร้านเครือ'?`<div class="three"><div class="f"><label for="pe-grp">ร้าน</label><select id="pe-grp"><option value="">— เลือก —</option>${(PD.partners||[]).map(p=>`<option ${p===E.grp?'selected':''}>${esc(p)}</option>`).join('')}</select></div>
+        <div class="f"><label for="pe-ch">ช่องทาง</label><select id="pe-ch"><option value="">ไม่ระบุ</option>${(PD.chList||[]).map(c=>`<option ${c===E.ch?'selected':''}>${esc(c)}</option>`).join('')}</select></div>
+        <div class="f"><label for="pe-chn">ชื่อในช่องทาง</label><input id="pe-chn" value="${esc(E.chn)}"></div></div>`:''}
+     ${E.type==='บริษัท'?`<div class="two"><div class="f"><label for="pe-topic">เรื่อง</label><select id="pe-topic"><option value="">— เลือก —</option>${topics.map(t=>`<option ${t===E.grp?'selected':''}>${esc(t)}</option>`).join('')}<option value="__other" ${isOther||E.topic==='__other'?'selected':''}>อื่นๆ (พิมพ์)</option></select></div>
+        ${isOther||E.topic==='__other'?`<div class="f"><label for="pe-other">เรื่องอื่นๆ</label><input id="pe-other" value="${esc(isOther?E.grp:'')}"></div>`:''}</div>`:''}
+     <div class="two"><div class="f"><label for="pe-trk">เลขพัสดุ</label><input id="pe-trk" value="${esc(E.trk)}"></div>
+       <div class="f"><label for="pe-fee">ค่าส่ง${r.expLock?' (🔒 '+esc(r.expLock)+' แก้ไม่ได้)':''}</label><input id="pe-fee" type="number" step="0.01" min="0" value="${esc(E.fee)}" ${r.expLock?'disabled':''}></div></div>
+     <div class="f"><label for="pe-reason">เหตุผล (บันทึกในประวัติ)</label><input id="pe-reason" value="${esc(E.reason)}" placeholder="เช่น บอทจับคู่ผิดคน"></div>
+     ${steps?`<div class="ocr" style="max-height:none;color:var(--ink);font-size:13px"><b>ผลที่จะเกิด${mode==='cancel'?' (ยกเลิกกล่อง)':''}</b>\n${steps.map(esc).join('\n')}</div>`:''}
+     <div style="display:flex;gap:8px;flex-wrap:wrap">
+       ${steps?`<button class="pri" id="pe-go">${mode==='cancel'?'ยืนยันยกเลิกกล่อง':'ยืนยันบันทึก'}</button><button id="pe-back">กลับไปแก้</button>`
+        :`<button class="pri" id="pe-prev">ตรวจผลก่อนบันทึก</button><button class="bad" id="pe-cx" ${r.expLock?'disabled title="อยู่ในรอบเบิกแล้ว"':''}>ยกเลิกกล่องนี้</button>`}
+       <span style="flex:1"></span><button id="pe-close">ปิด</button></div></div>`;
+    const $e=s=>el.querySelector(s);
+    $e('#pe-x').onclick=$e('#pe-close').onclick=()=>el.remove();
+    el.querySelectorAll('[data-et]').forEach(b=>b.onclick=()=>{grab();E.type=b.dataset.et;if(E.type!==r.type){E.grp='';E.ch='';E.chn='';E.topic=''}else{E.grp=r.grp;E.ch=r.ch;E.chn=r.chn}steps=null;draw()});
+    if($e('#pe-find')){const find=async()=>{grab();try{E.res=await api('p_cust',{q:E.q})}catch(e){toast(e.message,true)}draw()};$e('#pe-find').onclick=find;$e('#pe-q').onkeydown=e=>{if(e.key==='Enter')find()}}
+    el.querySelectorAll('input[name="pe-c"]').forEach(i=>i.onchange=()=>{grab();const c=E.res.find(x=>x.code===i.value);E.code=c.code;E.cname=c.name;E.ch=c.ch;E.chn=c.nameCh;E.wait=c.wait;E.pick=new Set(c.code===r.code&&r.posOk?r.posTx:(c.wait.length===1?[c.wait[0].tx]:[]));E.touched=true;steps=null;draw()});
+    el.querySelectorAll('[data-eb]').forEach(i=>i.onchange=()=>{i.checked?E.pick.add(i.dataset.eb):E.pick.delete(i.dataset.eb);E.touched=true;steps=null});
+    if($e('#pe-topic'))$e('#pe-topic').onchange=()=>{grab();steps=null;draw()};
+    if($e('#pe-prev'))$e('#pe-prev').onclick=async()=>{grab();try{steps=(await api('p_preview',{id,change:change()})).steps;mode='save';draw()}catch(e){toast(e.message,true)}};
+    if($e('#pe-cx'))$e('#pe-cx').onclick=async()=>{grab();try{steps=(await api('p_preview',{id,cancel:true})).steps;mode='cancel';draw()}catch(e){toast(e.message,true)}};
+    if($e('#pe-back'))$e('#pe-back').onclick=()=>{grab();steps=null;draw()};
+    if($e('#pe-go'))$e('#pe-go').onclick=async()=>{grab();const r2=mode==='cancel'?await pAct('p_cancel',{id,reason:E.reason},'ยกเลิก '+id+' แล้ว'):await pAct('p_save',{id,change:change(),reason:E.reason},'บันทึก '+id+' แล้ว');
+      if(r2){if(r2.done&&r2.done.some(x=>x.startsWith('❌')))toast(r2.done.filter(x=>x.startsWith('❌')).join(' · '),true);el.remove()}};
+  };
+  draw();
+  el.addEventListener('click',e=>{if(e.target===el)el.remove()});
+}
+document.addEventListener('click',e=>{
+  const t=e.target,ds=t.dataset||{};
+  if(!D)return;
+  if(t.id==='rf'&&tab==='parcel'){PD=null;return}
+  if(ds.pcType!==undefined){pf.type=ds.pcType;render();return}
+  if(ds.pcFlag){pf.flag=!pf.flag;render();return}
+  if(t.id==='pcrf'){PD=null;render();return}
+  if(ds.pcEdit)return parcelEditor(ds.pcEdit);
+  if(ds.pcRetry)return pAct('p_retry',{id:ds.pcRetry},'ส่งเข้า POS แล้ว');
+});
+document.addEventListener('change',e=>{
+  const t=e.target;if(!D||t.closest('.modal'))return;
+  if(t.id==='pccx'){pf.cx=t.checked;render()}
+  if(t.id==='pcfrom'||t.id==='pcto'){if(t.id==='pcfrom')pfrom=t.value;else pto=t.value;PD=null;render()}
+});
+document.addEventListener('input',e=>{const t=e.target;if(t.id==='pcq'){pf.q=t.value;render();const q=$('#pcq');q.focus();q.setSelectionRange(pf.q.length,pf.q.length)}});
 
 /* ---------- events ---------- */
 document.addEventListener('click',async e=>{
