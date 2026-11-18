@@ -476,7 +476,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.05-c</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.18-a</span>
       </div>
       <div class="flex-1"></div>
 
@@ -16420,7 +16420,8 @@ function parseWSPosExportGrid_(rawGrid) {
     const seq = col.seq !== -1 ? norm(row[col.seq]) : "1";
     if (!/^\d+$/.test(seq)) continue; // แถวรวม/ยอดสุทธิ/การชำระ/หมายเหตุ ไม่มีลำดับ
     const name = norm(row[col.name]);
-    const qty = Number(row[col.qty]) || 0;
+    const qv = wsQtyValue_(row[col.qty]);
+    const qty = qv.ok ? qv.n : 0;
     if (!name || qty <= 0) continue;
     items.push({
       barcode: norm(row[col.barcode]),
@@ -16433,9 +16434,38 @@ function parseWSPosExportGrid_(rawGrid) {
   return items;
 }
 
+/* 2026-11-18 (v2026.11.18-a) — คุณ Top นำเข้าไฟล์พ่อค้าส่งแล้วจำนวนขึ้น 46344/46347
+   (= วันที่ 18/21 Nov 26 ที่ Excel เก็บเป็นตัวเลข) เพราะคอลัมน์ I ของไฟล์นั้นเป็นวันที่
+   แก้: 1) หาคอลัมน์จำนวนจากชื่อหัวตารางก่อน (Order/Get/จำนวน/Qty…) ไม่เจอค่อยใช้ I → E เดิม
+        2) ช่องที่เป็นวันที่ (Date จาก cellDates หรือเลข 40000–60000) ไม่นับเป็นจำนวน
+           → ข้ามไปช่องสำรอง ถ้าไม่มีจำนวนที่ใช้ได้ = ฟ้องเป็นรายการผิด ไม่นำเข้า */
+const WS_QTY_HEADERS_ = ["order", "get", "จำนวน", "qty", "quantity", "pcs", "ชิ้น", "จำนวนชิ้น", "สั่ง"];
+function wsQtyValue_(v) {
+  if (v instanceof Date) return { ok: false, date: true };
+  if (v === "" || v == null) return { ok: false };
+  const n = Number(String(v).replace(/,/g, ""));
+  if (!isFinite(n) || n <= 0) return { ok: false };
+  if (n >= 40000 && n <= 60000) return { ok: false, date: true }; // เลขวันที่ของ Excel (ปี 2009–2064)
+  return { ok: true, n: n };
+}
+function findWSQtyColumns_(headerRow) {
+  const cols = [];
+  const norm = (v) => String(v == null ? "" : v).trim().toLowerCase().replace(/\s+/g, "");
+  const row = (headerRow || []).map(norm);
+  WS_QTY_HEADERS_.forEach((h) => {
+    row.forEach((cell, i) => { if (cell === h && cols.indexOf(i) === -1) cols.push(i); });
+  });
+  return cols;
+}
+
 function parseWSStopListGrid_(rawGrid) {
   const items = [];
+  const badRows = [];
   let serviceFee = 0;
+
+  // คอลัมน์จำนวน: ตามชื่อหัว (แถว 1) ก่อน แล้วต่อด้วย I (Order) → E (Get) แบบเดิม
+  const qtyCols = findWSQtyColumns_(rawGrid[0]);
+  [8, 4].forEach((c) => { if (qtyCols.indexOf(c) === -1) qtyCols.push(c); });
 
   for (let r = 1; r < rawGrid.length; r++) {
     const row = rawGrid[r] || [];
@@ -16451,9 +16481,17 @@ function parseWSStopListGrid_(rawGrid) {
 
     if (!name) continue; // blank filler row between the items and the summary
 
-    const qty = Number(row[8]) || Number(row[4]) || 0; // I (Order), fall back to E (Get)
+    let qty = 0, sawDate = false;
+    for (const c of qtyCols) {
+      const q = wsQtyValue_(row[c]);
+      if (q.ok) { qty = q.n; break; }
+      if (q.date) sawDate = true;
+    }
     const price = Number(row[3]) || 0;
-    if (qty <= 0) continue;
+    if (qty <= 0) {
+      if (sawDate) badRows.push({ row: r + 1, name: name });
+      continue;
+    }
 
     items.push({ barcode, name, qty, price });
   }
@@ -16462,6 +16500,7 @@ function parseWSStopListGrid_(rawGrid) {
     items.push({ barcode: "", name: "ค่าบริการ", qty: 1, price: serviceFee });
   }
 
+  items.badDateRows = badRows;
   return items;
 }
 
@@ -16474,7 +16513,7 @@ function handleWSImportFile_(file) {
   reader.onload = function (evt) {
     try {
       const data = new Uint8Array(evt.target.result);
-      const workbook = XLSX.read(data, { type: "array" });
+      const workbook = XLSX.read(data, { type: "array", cellDates: true }); // ช่องวันที่ → Date (กันอ่านเป็นจำนวน)
       const sheetName = workbook.SheetNames.includes("รวม") ? "รวม" : workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
       const rawGrid = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true });
@@ -16491,6 +16530,21 @@ function handleWSImportFile_(file) {
         throw new Error(posItems
           ? "ไฟล์ Excel จาก POS นี้ไม่มีรายการสินค้า"
           : 'ไม่พบรายการสินค้าในชีต "' + sheetName + '" — ตรวจสอบว่าเป็นไฟล์ Stop list ตามรูปแบบเดิมหรือไม่');
+      }
+
+      // 2026-11-18: ช่องจำนวนเป็นวันที่ → ไม่นำเข้าเลย บอกแถวที่ต้องแก้
+      const badDate = (items.badDateRows || []);
+      if (badDate.length) {
+        throw new Error("คอลัมน์จำนวนเป็นวันที่ " + badDate.length + " แถว (เช่น แถว " +
+          badDate.slice(0, 5).map((b) => b.row + " " + b.name).join(", ") +
+          ") — ใส่จำนวนชิ้นในคอลัมน์ Order/Get/จำนวน แล้วนำเข้าใหม่ (ยังไม่ได้ใส่อะไรลงบิล)");
+      }
+      // จำนวนเกิน 1,000 ชิ้นต่อรายการ = ไม่นำเข้าเลย
+      const huge = items.filter((it) => it.qty > 1000);
+      if (huge.length) {
+        throw new Error("จำนวนเกิน 1,000 ชิ้น " + huge.length + " รายการ (เช่น " +
+          huge.slice(0, 3).map((it) => it.name + " " + it.qty + " ชิ้น").join(", ") +
+          ") — ตรวจคอลัมน์จำนวนในไฟล์ (ยังไม่ได้ใส่อะไรลงบิล)");
       }
 
       // กันจำนวน/ราคาสลับ: ตัวเลขดูผิดปกติ → ถามก่อนใส่บิล
