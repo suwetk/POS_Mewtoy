@@ -476,7 +476,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.18-a</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.20-a</span>
       </div>
       <div class="flex-1"></div>
 
@@ -1594,6 +1594,8 @@
         <div class="flex flex-wrap gap-1.5 mb-3" id="poStatusFilterPills">
           <button data-po-status="all" class="po-status-filter-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">ทั้งหมด</button>
           <button data-po-status="รอสินค้า" class="po-status-filter-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">⏳ รอสินค้า</button>
+          <button data-po-status="__paidFull" class="po-status-filter-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">🟢 จ่ายครบ รอของ</button>
+          <button data-po-status="__waitDue" class="po-status-filter-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">🟡 รอของ ค้างจ่าย</button>
           <button data-po-status="แจ้งยอดแล้ว รอโอน" class="po-status-filter-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">💬 แจ้งยอด/รอโอน</button>
           <button data-po-status="เสร็จสิ้น" class="po-status-filter-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">🏁 เสร็จสิ้น</button>
           <button data-po-status="__awaitPickup" class="po-status-filter-btn text-xs font-semibold px-3 py-1.5 rounded-full transition">📦 ชำระแล้ว รอรับ</button>
@@ -2924,6 +2926,42 @@
     </div>
   </div>
 
+  <!-- 💳 แก้ / ลบ การชำระ WS — v2026.11.20-a (mockup_ws_payment_edit.html) · PIN Master ทุกครั้ง -->
+  <div id="wsPayEditModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 flex flex-col gap-3 max-h-[90vh] overflow-y-auto">
+      <h3 class="font-semibold text-gray-800 text-lg">💳 แก้การชำระ <span id="wpeInvoiceDesc" class="text-sm text-gray-500 font-normal"></span></h3>
+      <div id="wpeList" class="flex flex-col gap-2"></div>
+      <div id="wpeForm" class="hidden flex flex-col gap-2 border-t pt-3">
+        <div class="text-sm font-semibold text-indigo-700">แก้รายการ <span id="wpeFormId"></span></div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">วิธีรับเงิน</label>
+          <div id="wpeMethods" class="flex flex-wrap gap-1.5"></div>
+        </div>
+        <div id="wpeBankRow">
+          <label class="block text-xs text-gray-500 mb-1">บัญชีที่รับโอน</label>
+          <select id="wpeBank" class="w-full border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-white"></select>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div><label class="block text-xs text-gray-500 mb-1">วันที่รับเงิน</label><input id="wpeDate" type="date" class="w-full border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm"></div>
+          <div><label class="block text-xs text-gray-500 mb-1">จำนวนเงิน</label><input id="wpeAmount" type="number" min="0" step="0.01" class="w-full border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm text-right"></div>
+        </div>
+        <div><label class="block text-xs text-gray-500 mb-1">เหตุผล (บังคับ)</label><input id="wpeReason" type="text" class="w-full border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm" placeholder="เช่น เลือกบัญชีผิด ลูกค้าโอนเข้า SCB"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">PIN ผู้อนุมัติ (Master)</label><input id="wpePin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" class="w-40 border-2 border-gray-200 rounded-lg px-2.5 py-1.5 text-sm"></div>
+        <div id="wpeDiff" class="bg-gray-50 rounded-lg px-3 py-2 text-xs"></div>
+        <div id="wpeDelConfirm" class="hidden bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-700"></div>
+        <p id="wpeError" class="text-sm text-red-500 hidden"></p>
+        <div class="flex gap-2 justify-between flex-wrap">
+          <button id="wpeDeleteBtn" type="button" class="px-3 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-sm">🗑 ลบรายการนี้</button>
+          <div class="flex gap-2">
+            <button id="wpeBackBtn" type="button" class="px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium text-sm">กลับ</button>
+            <button id="wpeSaveBtn" type="button" class="px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm">บันทึกการแก้</button>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end"><button id="wpeCloseBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ปิด</button></div>
+    </div>
+  </div>
+
   <!-- ยกเลิกบิลขายส่ง — exact same PIN-approval pattern as poCancelModal. -->
   <div id="wsVoidModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-5 flex flex-col gap-3">
@@ -3815,6 +3853,30 @@
           <div class="border rounded-lg px-3 py-2"><div class="text-xs text-gray-500">ค้าง <span id="reportShipOverdueDays">3</span> วันขึ้นไป</div><div id="reportShipOverdue" class="text-xl font-bold tabular-nums text-red-700">0</div></div>
           <div class="border rounded-lg px-3 py-2"><div class="text-xs text-gray-500">รอเลขพัสดุ</div><div id="reportShipTrack" class="text-xl font-bold tabular-nums text-amber-700">0</div></div>
         </div>
+      </div>
+
+      <!-- v2026.11.19-a: ติดตามของจอง (summary.poFollow — backend 2026-11-19-a-pofollow) -->
+      <div id="reportPoFollowCard" class="hidden bg-white rounded-xl shadow p-4">
+        <h3 class="font-semibold text-gray-700 mb-2">🔔 ติดตามของจอง</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <button type="button" data-pof="paid" class="pof-btn text-left border rounded-lg px-3 py-2 hover:bg-emerald-50">
+            <div class="text-xs text-gray-500">🟢 จ่ายครบ รอของ</div>
+            <div id="pofPaidVal" class="text-xl font-bold tabular-nums text-emerald-700">0</div>
+            <div id="pofPaidSub" class="text-[11px] text-gray-400"></div>
+          </button>
+          <button type="button" data-pof="arrived" class="pof-btn text-left border rounded-lg px-3 py-2 hover:bg-amber-50">
+            <div class="text-xs text-gray-500">📦 ของเข้าแล้ว ยังไม่แจ้งลูกค้า</div>
+            <div id="pofArrVal" class="text-xl font-bold tabular-nums text-amber-700">0</div>
+            <div id="pofArrSub" class="text-[11px] text-gray-400"></div>
+          </button>
+          <button type="button" data-pof="invoiced" class="pof-btn text-left border rounded-lg px-3 py-2 hover:bg-red-50">
+            <div class="text-xs text-gray-500">💬 แจ้งยอดแล้ว ยังไม่ปิดบิล ≥ <span id="pofInvDays">7</span> วัน</div>
+            <div id="pofInvVal" class="text-xl font-bold tabular-nums text-red-700">0</div>
+            <div id="pofInvSub" class="text-[11px] text-gray-400"></div>
+          </button>
+        </div>
+        <div id="pofList" class="text-sm mt-2"></div>
+        <p class="text-[11px] text-gray-400 mt-1">ชำระครบแล้วแต่ค้างรับ ดูในการ์ด 📦 รับของจองวันนี้ ด้านล่าง</p>
       </div>
 
       <div id="reportPickupCard" class="hidden bg-white rounded-xl shadow p-4">
@@ -5902,7 +5964,8 @@ function addOrIncrementCartItem(barcode, name, price, qtyDelta) {
 function collectAmount(item) {
   switch (item.type) {
     case "pre":
-      return Number(item.deposit) || 0; // only the deposit is collected today — the rest is due later
+      // 2026-11-19 (v2026.11.19-a): ราคาจอง/มัดจำของแถว Pre เป็น "ต่อชิ้น" แล้ว (เดิมเป็นยอดรวมทั้งแถว)
+      return (Number(item.deposit) || 0) * (Number(item.qty) || 0); // only the deposit is collected today — the rest is due later
     case "rec":
       // "Rec (กรอกเอง)" แบบพิมพ์เอง (ไม่มี lineId): ทั้ง "Pre-Order Price" และ
       // "มัดจำที่รับไปแล้ว" ที่แคชเชียร์กรอก เป็นยอด "ต่อ 1 ชิ้น" ทั้งคู่ — ต้อง
@@ -5972,6 +6035,7 @@ function refreshQtyDependents(id) {
     // Price column ข้างบนขยับแล้ว (2026-10, per Wing: เพิ่มจำนวนแล้วยอดไม่คำนวณ)
     const todayCollect = row.querySelector('[data-readout="todayCollect"]');
     if (todayCollect) todayCollect.textContent = formatMoney(collectAmount(item));
+    refreshPreSum_(row, item);
 
     // "branch" rows show a "= xx THB" hint only once qty > 1 (see
     // cartRowHtml) — qty can cross that threshold either way, so
@@ -6039,6 +6103,29 @@ function calculateGrandTotal() {
 // per Wing: could only ever get one digit into "Pre-Order Price" before
 // focus jumped away). See typeFieldsHtml()'s readout()/field() helpers and
 // cartRowHtml()'s "row-price-display" cell for the other half of this.
+// แถว Pre (v2026.11.19-a): บรรทัดรวม + ป้ายสถานะการจ่าย — คำนวณจากราคา/มัดจำต่อชิ้น × จำนวน
+function prePayState_(agreed, deposit) {
+  agreed = Number(agreed) || 0; deposit = Number(deposit) || 0;
+  if (agreed > 0 && deposit >= agreed) return { cls: "bg-emerald-100 text-emerald-800", text: "จ่ายครบ · รอของ", full: true };
+  if (deposit > 0) return { cls: "bg-amber-100 text-amber-800", text: "มัดจำแล้ว", full: false };
+  return { cls: "bg-red-100 text-red-700", text: "ยังไม่มัดจำ", full: false };
+}
+function preSumHtml_(item) {
+  const q = Number(item.qty) || 0, a = Number(item.agreed) || 0, d = Number(item.deposit) || 0;
+  const st = prePayState_(a, d);
+  const due = Math.max(a - d, 0) * q;
+  return `<span>รวม <b>${q}</b> ชิ้น</span>` +
+    `<span>ราคาจองรวม <b>${formatMoney(a * q)}</b></span>` +
+    `<span>รับวันนี้ <b>${formatMoney(d * q)}</b></span>` +
+    `<span>ค้างจ่ายตอนรับ <b class="${due > 0 ? "text-amber-700" : "text-emerald-700"}">${formatMoney(due)}</b></span>` +
+    `<span class="font-bold rounded-full px-2 ${st.cls}">${st.text}</span>`;
+}
+function refreshPreSum_(row, item) {
+  if (!row || !item || item.type !== "pre") return;
+  const box = row.querySelector("[data-pre-sum]");
+  if (box) box.innerHTML = preSumHtml_(item);
+}
+
 function refreshRowDisplay(id) {
   const item = cart.find((i) => i.id === id);
   if (!item) return;
@@ -6054,6 +6141,7 @@ function refreshRowDisplay(id) {
     if (balanceDue) balanceDue.textContent = formatMoney(collectAmount(item));
     const todayCollect = row.querySelector('[data-readout="todayCollect"]');
     if (todayCollect) todayCollect.textContent = formatMoney(collectAmount(item));
+    refreshPreSum_(row, item);
   }
   renderGrandTotal();
 }
@@ -6082,6 +6170,18 @@ function renderCart() {
     });
     tbody.querySelectorAll(".row-type-select").forEach((sel) => {
       sel.addEventListener("change", () => setRowType(Number(sel.getAttribute("data-id")), sel.value));
+    });
+    tbody.querySelectorAll(".pre-quick-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = Number(btn.getAttribute("data-id"));
+        const item = cart.find((i) => i.id === id);
+        if (!item) return;
+        item.deposit = btn.getAttribute("data-q") === "full" ? (Number(item.agreed) || 0) : 100;
+        const row = btn.closest("tr");
+        const depInput = row && row.querySelector('.cart-edit-input[data-field="deposit"]');
+        if (depInput) depInput.value = item.deposit;
+        refreshRowDisplay(id);
+      });
     });
     tbody.querySelectorAll(".row-remark-check").forEach((cb) => {
       cb.addEventListener("change", () => toggleRowRemark(Number(cb.getAttribute("data-id")), cb.checked));
@@ -6221,9 +6321,17 @@ function typeFieldsHtml(item) {
     // เองอัปเดตเฉพาะตอนมี data-rerender เท่านั้น — Pre-Order Price ไม่เกี่ยวกับ
     // ยอดเลย (collectAmount ของ "pre" ใช้แค่ deposit) แค่ลืมติด flag ให้ deposit)
     return `<div class="mt-1.5 p-2 rounded-lg bg-white/70 border border-dashed border-amber-300 flex flex-wrap gap-3">
-      ${field("Pre-Order Price", "agreed", item.agreed, 'data-rerender')}
-      ${field("ค่ามัดจำ (วันนี้)", "deposit", item.deposit, 'data-rerender')}
+      ${field("ราคาจอง / ชิ้น", "agreed", item.agreed, 'data-rerender')}
+      ${field("มัดจำวันนี้ / ชิ้น", "deposit", item.deposit, 'data-rerender')}
+      <div class="flex flex-col gap-0.5">
+        <label class="text-[10px] font-semibold text-gray-500">&nbsp;</label>
+        <div class="flex gap-1">
+          <button type="button" class="pre-quick-btn text-[11px] font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded px-2 py-1" data-id="${item.id}" data-q="full">จ่ายเต็ม</button>
+          <button type="button" class="pre-quick-btn text-[11px] font-semibold bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded px-2 py-1" data-id="${item.id}" data-q="100">มัดจำ 100</button>
+        </div>
+      </div>
       ${Number(item.price) > 0 && Number(item.price) !== Number(item.agreed) ? readout("ราคาหน้าร้าน (อ้างอิง)", item.price) : ""}
+      <div class="w-full flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-600 bg-white rounded border border-gray-200 px-2 py-1" data-pre-sum="${item.id}">${preSumHtml_(item)}</div>
     </div>`;
   }
   if (item.type === "rec" && item.lineId) {
@@ -7447,7 +7555,7 @@ function buildOneBillPayload() {
   // cart no longer collects a per-row deposit method — so this bill-level
   // choice (transfer if any transfer was entered, else cash) is what gets
   // recorded for every "Pre" row's deposit in this bill.
-  const preDepositSum = preRows.reduce((s, i) => s + (Number(i.deposit) || 0), 0);
+  const preDepositSum = preRows.reduce((s, i) => s + collectAmount(i), 0); // มัดจำต่อชิ้น × จำนวน
   const bookDepositMethod = activeMethods.has("transfer") ? "transfer" : "cash";
   let cashForSales = cashApplied;
   let transferForSales = transferApplied;
@@ -7469,8 +7577,9 @@ function buildOneBillPayload() {
     bookLines: preRows.map((i) => ({
       itemName: i.name,
       qty: i.qty,
-      agreedTotal: i.agreed,
-      depositAmount: i.deposit,
+      // แถว Pre ใส่ต่อชิ้น (v2026.11.19-a) → ส่งยอดรวมทั้งแถวให้หลังบ้านเหมือนเดิม (หลังบ้านแยก 1 ชิ้น/รายการเอง)
+      agreedTotal: Math.round((Number(i.agreed) || 0) * (Number(i.qty) || 0) * 100) / 100,
+      depositAmount: Math.round((Number(i.deposit) || 0) * (Number(i.qty) || 0) * 100) / 100,
       depositMethod: bookDepositMethod,
       expectedArrivalNote: i.remarkOn ? i.remark : "",
       itemBarcode: i.barcode || ""
@@ -7515,7 +7624,7 @@ function validateCartForSubmit() {
       return "กรุณาใส่ชื่อสินค้าให้ครบทุกแถวที่เป็น Pre";
     }
     if (item.type === "pre" && !((Number(item.agreed) || 0) > 0)) {
-      return 'รายการ "' + item.name + '" (Pre) ต้องระบุ Pre-Order Price มากกว่า 0';
+      return 'รายการ "' + item.name + '" (Pre) ต้องระบุราคาจอง / ชิ้น มากกว่า 0';
     }
   }
   return null;
@@ -9509,6 +9618,7 @@ function renderDailySummary(summary) {
 
   reportPrePoCards = summary.prePoCards || {}; // รูปใบจองให้ลูกค้า (2026-10-20)
   renderReportPickupCard_(summary);
+  renderReportPoFollowCard_(summary);
   renderReportShipCard_(summary);
   renderReportBillsList(summary.bills || [], summary.billCount || 0, summary.itemCount || 0, summary.preRows || []);
 
@@ -9560,6 +9670,64 @@ function renderReportPickupCard_(summary) {
         <td class="py-1.5 pr-3 whitespace-nowrap">${escapeHtml(o.customerName)}</td>
         <td class="py-1.5 text-gray-700">${escapeHtml(o.itemName)} ×${o.qty}</td>
       </tr>`).join("")}</tbody></table>${overdue.length > show.length ? `<p class="text-xs text-gray-400 mt-1">และอีก ${overdue.length - show.length} รายการ — ดูทั้งหมดที่หน้า ⏳ ค้างรับ</p>` : ""}`;
+}
+
+// v2026.11.19-a: การ์ด 🔔 ติดตามของจอง — นับเป็นคน (ลูกค้า) + ชิ้น, กดการ์ดดูรายชื่อ
+let pofLastSummary = null;
+function pofGroup_(lines) {
+  const m = new Map();
+  (lines || []).forEach((l) => {
+    const k = (l.customerCode || "") + "|" + (l.customerName || "");
+    if (!m.has(k)) m.set(k, { name: l.customerName || "ลูกค้าขาจร", code: l.customerCode || "", items: [], due: 0, days: 0 });
+    const g = m.get(k);
+    g.items.push(l); g.due += Number(l.due) || 0;
+    g.days = Math.max(g.days, Number(l.daysSince != null ? l.daysSince : l.daysWaiting) || 0);
+  });
+  return Array.from(m.values());
+}
+function renderReportPoFollowCard_(summary) {
+  const card = document.getElementById("reportPoFollowCard");
+  if (!card) return;
+  const f = summary && summary.poFollow;
+  if (!f) { card.classList.add("hidden"); return; } // backend เก่า
+  pofLastSummary = f;
+  card.classList.remove("hidden");
+  const paid = pofGroup_(f.paidFullWaiting), arr = pofGroup_(f.arrivedNotNotified), inv = pofGroup_(f.invoicedOverdue);
+  const pcs = (ls) => (ls || []).reduce((s, l) => s + (Number(l.qty) || 1), 0);
+  const money = (ls) => (ls || []).reduce((s, l) => s + (Number(l.depositAmount) || 0), 0);
+  document.getElementById("pofPaidVal").textContent = pcs(f.paidFullWaiting) + " ชิ้น";
+  document.getElementById("pofPaidSub").textContent = paid.length + " คน · เงินรับไว้แล้ว " + formatMoney(money(f.paidFullWaiting));
+  document.getElementById("pofArrVal").textContent = arr.length + " คน";
+  document.getElementById("pofArrSub").textContent = arr.length ? arr.slice(0, 2).map((g) => g.name).join(", ") + (arr.length > 2 ? " …" : "") : "ไม่มี";
+  document.getElementById("pofInvDays").textContent = String(f.invoicedOverdueDays || 7);
+  document.getElementById("pofInvVal").textContent = inv.length + " คน";
+  document.getElementById("pofInvSub").textContent = inv.length ? inv.slice(0, 2).map((g) => g.name + " " + g.days + " วัน").join(", ") + (inv.length > 2 ? " …" : "") : "ไม่มี";
+  document.getElementById("pofList").innerHTML = "";
+}
+function showPoFollowList_(kind) {
+  const f = pofLastSummary; if (!f) return;
+  const src = kind === "paid" ? f.paidFullWaiting : kind === "arrived" ? f.arrivedNotNotified : f.invoicedOverdue;
+  const groups = pofGroup_(src);
+  const box = document.getElementById("pofList");
+  if (box.dataset.kind === kind && box.innerHTML) { box.innerHTML = ""; box.dataset.kind = ""; return; }
+  box.dataset.kind = kind;
+  box.innerHTML = groups.length ? `<table class="w-full"><tbody>${groups.map((g) => `
+      <tr class="border-t border-gray-100 align-top">
+        <td class="py-1.5 pr-3 whitespace-nowrap">${escapeHtml(g.name)}${g.code ? ` <span class="text-[10px] text-gray-400">${escapeHtml(g.code)}</span>` : ""}</td>
+        <td class="py-1.5 pr-3 text-gray-700">${g.items.map((i) => escapeHtml(i.itemName) + " ×" + (i.qty || 1)).join(", ")}</td>
+        <td class="py-1.5 pr-3 text-right whitespace-nowrap ${g.due > 0 ? "text-amber-700" : "text-emerald-700"}">${g.due > 0 ? "ค้าง " + formatMoney(g.due) : "จ่ายครบ"}</td>
+        <td class="py-1.5 text-xs text-gray-400 whitespace-nowrap">${kind === "paid" ? "" : g.days + " วัน"}</td>
+      </tr>`).join("")}</tbody></table>
+      <button type="button" id="pofOpenBtn" class="mt-2 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold px-3 py-1.5 rounded-lg">${kind === "arrived" ? "เปิดหน้า 🚚 ของเข้ารอบนี้ →" : "เปิดหน้า Pre-Order →"}</button>`
+    : '<p class="text-gray-400 text-sm">ไม่มีรายการ</p>';
+  const ob = document.getElementById("pofOpenBtn");
+  if (ob) ob.addEventListener("click", () => {
+    const tabBtn = document.querySelector('.tab-btn[data-tab="preorder"]');
+    if (tabBtn) tabBtn.click();
+    if (kind === "arrived") { switchPreOrderView("arrival"); return; }
+    preOrderStatusFilter = kind === "paid" ? "__paidFull" : "แจ้งยอดแล้ว รอโอน";
+    switchPreOrderView("po");
+  });
 }
 
 function openPickupOverdueFromReport_() {
@@ -12902,6 +13070,20 @@ function preOrderLineActionButtons(line) {
    (backend เก็บประวัติใน PreOrderPickupLog). ดู handleSetPreOrderPickup_. */
 const PICKUP_OVERDUE_DAYS_UI = 7;
 
+// v2026.11.19-a: ใบจองที่ยัง "รอสินค้า" แต่มัดจำ ≥ ราคาจองแล้ว = จ่ายครบ รอของ (ไม่มีคอลัมน์ใหม่ คำนวณเอา)
+function poIsPaidFullWaiting_(l) {
+  return !!l && l.status === PO_STATUS_WAITING_LABEL && (Number(l.agreedTotal) || 0) > 0 &&
+    (Number(l.depositAmount) || 0) >= (Number(l.agreedTotal) || 0);
+}
+function poPaidFullTag_(l) {
+  if (poIsPaidFullWaiting_(l)) return '<div class="mt-1"><span class="inline-block text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">🟢 จ่ายครบ · รอของ</span></div>';
+  if (l && l.status === PO_STATUS_WAITING_LABEL) {
+    const due = Math.max((Number(l.agreedTotal) || 0) - (Number(l.depositAmount) || 0), 0);
+    if (due > 0) return '<div class="mt-1 text-[11px] text-amber-700">ค้างจ่าย ' + formatMoney(due) + '</div>';
+  }
+  return "";
+}
+
 function poIsAwaitingPickup_(l) {
   return l && l.status === PO_STATUS_DONE_LABEL && !l.pickedUpAt;
 }
@@ -13358,7 +13540,10 @@ function renderPreOrderPoList() {
 
   const filtered = lastLoadedPreOrders.filter((l) =>
     preOrderStatusFilter === "all" ||
-    (preOrderStatusFilter === "__awaitPickup" ? poIsAwaitingPickup_(l) : l.status === preOrderStatusFilter));
+    (preOrderStatusFilter === "__awaitPickup" ? poIsAwaitingPickup_(l)
+      : preOrderStatusFilter === "__paidFull" ? poIsPaidFullWaiting_(l)
+      : preOrderStatusFilter === "__waitDue" ? (l.status === PO_STATUS_WAITING_LABEL && !poIsPaidFullWaiting_(l))
+      : l.status === preOrderStatusFilter));
 
   // Group by PO ID so every item opened together stays visually together,
   // even though each item's own status/actions are independent.
@@ -13444,7 +13629,7 @@ function renderPreOrderPoList() {
                 <div class="text-gray-700 flex items-center flex-wrap gap-x-1.5 gap-y-1">${storewdBarcodeChip_(l.itemBarcode)}<span class="min-w-0">${escapeHtml(l.itemName)}</span><span class="text-gray-400 text-xs">x${l.qty}</span></div>
                 <div class="text-[11px] text-gray-400 mt-0.5">${escapeHtml(preOrderDepositSummaryText(l))}</div>
               </td>
-              <td class="py-2 text-center align-middle">${preOrderStatusBadge(l.status)}${poPickupStatusLine_(l)}</td>
+              <td class="py-2 text-center align-middle">${preOrderStatusBadge(l.status)}${poPaidFullTag_(l)}${poPickupStatusLine_(l)}</td>
               <td class="py-2 align-middle"><div class="flex justify-center">${preOrderLineActionButtons(l)}</div></td>
             </tr>`;
         })
@@ -13537,7 +13722,7 @@ function renderPreOrderCustomerView() {
                 <div class="text-[11px] text-gray-400 font-normal">${escapeHtml(preOrderDepositSummaryText(line))}</div>
               </td>
               <td class="py-2 text-center">${line.qty}</td>
-              <td class="py-2 text-center">${preOrderStatusBadge(line.status)}${poPickupStatusLine_(line)}</td>
+              <td class="py-2 text-center">${preOrderStatusBadge(line.status)}${poPaidFullTag_(line)}${poPickupStatusLine_(line)}</td>
               <td class="py-2 text-right font-semibold ${isOpen ? "text-amber-600" : "text-gray-300"}">${isOpen ? formatMoney(remain) : "-"}</td>
               <td class="py-2 text-gray-500 text-xs">${escapeHtml(line.expectedArrivalNote || "-")}</td>
             </tr>`;
@@ -13664,6 +13849,19 @@ function renderPreOrderNotifyChecklist() {
 // buildPreOrderInvoiceMessage above — the backend never generates or
 // knows about this text, it just stores numbers.
 function buildPreOrderCombinedNotifyMessage(selectedLines, fee) {
+  // v2026.11.19-a: ทุกรายการจ่ายครบแล้ว → ข้อความให้มารับ ไม่มียอดโอน
+  const allPaid = selectedLines.every((l) => Math.max((Number(l.agreedTotal) || 0) - (Number(l.depositAmount) || 0), 0) === 0);
+  if (allPaid) {
+    const raw = String((selectedLines[0] && selectedLines[0].customerName) || "ลูกค้า").trim();
+    const name = /^(คุณ|K\.|Khun)/i.test(raw) ? raw : "คุณ" + raw;
+    const byItem = new Map(); // ใบจองแยก 1 ชิ้น/รายการ → รวมชื่อซ้ำเป็น x2
+    selectedLines.forEach((l) => byItem.set(l.itemName, (byItem.get(l.itemName) || 0) + (Number(l.qty) || 1)));
+    return "สวัสดีครับ" + name + "\n" +
+      Array.from(byItem.entries()).map(([n, q]) => n + (q > 1 ? " x" + q : "")).join("\n") +
+      "\nที่จองไว้ ของเข้าแล้วครับ\nชำระครบแล้ว มารับที่ร้าน Mewtoy ได้เลยครับ" +
+      (fee > 0 ? "\nถ้าต้องการจัดส่ง ค่าส่ง " + formatMoney(fee) + " บาท" : "") +
+      "\n\nขอบคุณครับ 🙏";
+  }
   const itemBlocks = selectedLines
     .map((l) => {
       const remain = Math.max(l.agreedTotal - l.depositAmount, 0);
@@ -13772,7 +13970,42 @@ async function confirmPreOrderCustomerNotify() {
         throw new Error(((result && result.message) || "แจ้งยอดไม่สำเร็จ") + " (" + line.itemName + ")");
       }
     }
-    showToast("แจ้งยอดรวม " + selected.length + " รายการเรียบร้อยแล้ว", "success");
+    // v2026.11.19-a: มาจาก "ของเข้ารอบนี้" + รายการจ่ายครบแล้ว (ค้าง 0) → ปิดใบจองเป็น
+    // เสร็จสิ้น · ยังไม่รับ ทันที (fulfillPreOrderItems เดิม, รับหน้าร้าน, ไม่ติ๊กรับ, เงินเพิ่ม 0)
+    // ไปโผล่ในแท็บ ⏳ ค้างรับ / 📦 ลูกค้ามารับของ กลุ่มชำระแล้ว รอรับ
+    let closedMsg = "";
+    if (preOrderNotifyBatchId) {
+      const paidLines = selected.filter((l) => Math.max((Number(l.agreedTotal) || 0) - (Number(l.depositAmount) || 0), 0) === 0);
+      const closable = [], noBarcode = [];
+      paidLines.forEach((l) => {
+        const bc = String(l.itemBarcode || l.realBarcode || "").trim();
+        if (bc) closable.push({ lineId: l.lineId, realBarcode: bc }); else noBarcode.push(l.itemName);
+      });
+      if (closable.length) {
+        const r2 = await fetch(scriptUrl, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            action: "fulfillPreOrderItems",
+            pin: currentStaff ? currentStaff.pin : "",
+            branch: getBranchCode(),
+            lines: closable,
+            deliveryMethod: "pickup",
+            deliveryFee: 0,
+            pickedUpNow: false,
+            pickupSource: "arrival-paidfull",
+            cashPaid: 0, transferPaid: 0, cardPaid: 0, copayPaid: 0
+          })
+        });
+        const res2 = await r2.json();
+        if (!res2 || res2.status !== "success") {
+          throw new Error("แจ้งแล้ว แต่ปิดใบจองที่จ่ายครบไม่สำเร็จ: " + ((res2 && res2.message) || "") + " — ปิดบิลเองที่หน้า Pre-Order ได้");
+        }
+        closedMsg = " · จ่ายครบ " + closable.length + " รายการ → เสร็จสิ้น รอลูกค้ามารับ";
+      }
+      if (noBarcode.length) closedMsg += " · ไม่มีบาร์โค้ด ยังไม่ปิด: " + noBarcode.join(", ");
+    }
+    showToast("แจ้งยอดรวม " + selected.length + " รายการเรียบร้อยแล้ว" + closedMsg, "success");
     // If this notify was one step of the "ของเข้ารอบนี้" queue, mark that
     // customer done and refresh the queue list BEFORE closing clears the
     // index below.
@@ -13877,7 +14110,7 @@ function renderPreOrderProductView() {
             <td class="py-1.5">${escapeHtml(l.customerName || "-")}</td>
             <td class="py-1.5 text-center">${l.qty}</td>
             <td class="py-1.5">${escapeHtml((l.openedAt || "").slice(0, 10))}</td>
-            <td class="py-1.5">${preOrderStatusBadge(l.status)}${poPickupStatusLine_(l)}</td>
+            <td class="py-1.5">${preOrderStatusBadge(l.status)}${poPaidFullTag_(l)}${poPickupStatusLine_(l)}</td>
           </tr>`
         )
         .join("");
@@ -15874,20 +16107,24 @@ function buildArrivalQueue() {
   const groups = new Map();
   matches.forEach((line) => {
     // Same normalized-code grouping key as renderPreOrderCustomerView above.
-    const key = normalizeCustomerCode(line.customerCode) + "|" + (line.customerName || "") + "|" + (line.customerPhone || "");
+    // v2026.11.19-a: แยกคนเดียวกันเป็น 2 กลุ่ม — จ่ายครบแล้ว (แจ้งให้มารับ) / ต้องจ่ายเพิ่ม (แจ้งยอด)
+    const paidFull = poIsPaidFullWaiting_(line);
+    const key = (paidFull ? "F|" : "D|") + normalizeCustomerCode(line.customerCode) + "|" + (line.customerName || "") + "|" + (line.customerPhone || "");
     if (!groups.has(key)) {
       groups.set(key, {
         key: key,
         customerName: line.customerName || "ลูกค้าขาจร",
         customerPhone: line.customerPhone || "",
         customerCode: line.customerCode || "",
+        paidFull: paidFull,
         lines: [],
         status: "pending"
       });
     }
     groups.get(key).lines.push(line);
   });
-  return Array.from(groups.values());
+  // จ่ายครบขึ้นก่อน
+  return Array.from(groups.values()).sort((a, b) => (b.paidFull ? 1 : 0) - (a.paidFull ? 1 : 0));
 }
 
 async function summarizeArrival() {
@@ -15919,7 +16156,14 @@ async function summarizeArrival() {
     const response = await fetch(scriptUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "startArrivalBatch", pin: currentStaff ? currentStaff.pin : "", branch: getBranchCode() })
+      body: JSON.stringify({
+        action: "startArrivalBatch", pin: currentStaff ? currentStaff.pin : "", branch: getBranchCode(),
+        // v2026.11.19-a: จดว่าของอะไรเข้ารอบนี้ (ชีต PreOrderArrivals) → Report "ของเข้าแล้ว ยังไม่แจ้ง"
+        items: arrivalDeclaredProducts.map((name) => {
+          const ln = lastLoadedPreOrders.find((l) => (l.itemName || "").trim() === name && l.itemBarcode);
+          return { itemName: name, itemBarcode: ln ? ln.itemBarcode : "" };
+        })
+      })
     });
     const result = await response.json();
     if (!result || result.status !== "success") {
@@ -15946,8 +16190,19 @@ function renderArrivalQueue() {
   document.getElementById("arrivalQueueSummaryText").textContent =
     "พบลูกค้าที่เกี่ยวข้อง " + arrivalQueue.length + " คน (จัดการแล้ว " + doneCount + "/" + arrivalQueue.length + ")";
 
+  let lastSection = null;
   document.getElementById("arrivalQueueList").innerHTML = arrivalQueue
     .map((g, idx) => {
+      const sectionKey = g.paidFull ? "F" : "D";
+      let sectionHead = "";
+      if (sectionKey !== lastSection) {
+        lastSection = sectionKey;
+        const n = arrivalQueue.filter((x) => !!x.paidFull === !!g.paidFull).length;
+        sectionHead = g.paidFull
+          ? `<div class="mt-1 text-sm font-semibold text-emerald-800"><span class="bg-emerald-100 rounded-full px-2 py-0.5">🟢 จ่ายครบแล้ว</span> แจ้งให้มารับได้เลย · ${n} คน <span class="text-xs font-normal text-gray-500">— กดแจ้งแล้ว = ปิดใบจองเป็น "เสร็จสิ้น · ยังไม่รับ" ให้เอง</span></div>`
+          : `<div class="mt-2 text-sm font-semibold text-amber-800"><span class="bg-amber-100 rounded-full px-2 py-0.5">🟡 ต้องจ่ายเพิ่ม</span> แจ้งยอดก่อน · ${n} คน</div>`;
+      }
+      const dueSum = g.lines.reduce((s, l) => s + Math.max((Number(l.agreedTotal) || 0) - (Number(l.depositAmount) || 0), 0), 0);
       const itemsPreview = g.lines
         .map((l) => escapeHtml(l.itemName) + (l.qty > 1 ? " x" + l.qty : ""))
         .join(", ");
@@ -15957,7 +16212,9 @@ function renderArrivalQueue() {
           : g.status === "skipped"
           ? '<span class="text-xs font-semibold text-gray-400 flex-shrink-0">⏭ ข้ามไว้</span>'
           : '<span class="text-xs font-semibold text-amber-600 flex-shrink-0">⏳ ยังไม่แจ้ง</span>';
-      const notifyLabel = g.status === "pending" ? "🔔 แจ้งยอดลูกค้านี้" : "🔔 แจ้งยอดอีกครั้ง";
+      const notifyLabel = g.paidFull
+        ? (g.status === "pending" ? "🔔 แจ้งให้มารับ" : "🔔 แจ้งอีกครั้ง")
+        : (g.status === "pending" ? "🔔 แจ้งยอดลูกค้านี้" : "🔔 แจ้งยอดอีกครั้ง");
       const notifyBtnCls =
         g.status === "pending"
           ? "bg-emerald-700 hover:bg-emerald-800 text-white"
@@ -15966,14 +16223,14 @@ function renderArrivalQueue() {
         g.status === "pending"
           ? `<button type="button" class="arrival-skip-btn text-xs text-gray-400 hover:text-gray-600 font-medium px-2 py-1.5" data-idx="${idx}">ข้าม</button>`
           : "";
-      return `
+      return sectionHead + `
       <div class="flex items-center gap-3 border-2 rounded-lg px-3 py-2.5 ${
         g.status === "pending" ? "border-amber-200 bg-amber-50" : "border-gray-100"
       }">
         <div class="flex-1 min-w-0">
           <div class="font-semibold text-gray-700">${escapeHtml(g.customerName)} <span class="text-xs text-gray-400 font-normal">${escapeHtml(g.customerPhone)}</span></div>
           ${customerCodeBadgeHtml(g.customerCode)}
-          <div class="text-xs text-gray-500 truncate">${itemsPreview}</div>
+          <div class="text-xs text-gray-500 truncate">${itemsPreview} · <span class="${dueSum > 0 ? "text-amber-700 font-semibold" : "text-emerald-700 font-semibold"}">ค้างจ่าย ${formatMoney(dueSum)}</span></div>
         </div>
         ${badge}
         <div class="flex gap-1.5 flex-shrink-0">
@@ -16029,6 +16286,7 @@ function setupPreOrderTab() {
   setupPreOrderViewTabs();
   setupPoPickupView_();
   { const b = document.getElementById("reportPickupOpenBtn"); if (b) b.addEventListener("click", openPickupOverdueFromReport_); }
+  document.querySelectorAll("#reportPoFollowCard .pof-btn").forEach((b) => b.addEventListener("click", () => showPoFollowList_(b.dataset.pof)));
   setupPreOrderStatusFilterPills();
   setupPreOrderSortToggle_();
   setupPreOrderCustomerSearch();
@@ -17209,7 +17467,8 @@ function wsPaymentSummaryText(invoice) {
   const history = invoice.paymentHistory || [];
   if (history.length === 0) return "ยังไม่ได้รับชำระ";
   const parts = history.map(
-    (p) => (p.paidAt || "").slice(5, 10) + " " + formatMoney(p.amount) + " " + wsPaymentMethodLabel(p.method)
+    (p) => (p.paidAt || "").slice(5, 10) + " " + formatMoney(p.amount) + " " + wsPaymentMethodLabel(p.method) +
+      (p.bankAccount ? " · " + p.bankAccount : "") + (p.editedAt ? " ✏️" : "") // v2026.11.20-a
   );
   return "รับแล้วรวม " + formatMoney(invoice.amountPaid) + " (" + parts.join(" · ") + ")";
 }
@@ -17232,6 +17491,7 @@ function wsInvoiceActionButtons(invoice) {
   return `
     <div class="flex flex-col gap-1.5">
       ${canPay ? `<button type="button" class="ws-payment-btn text-xs bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold px-3 py-1.5 rounded-lg w-full" data-invoice-id="${escapeHtml(invoice.invoiceId)}">💰 รับชำระ</button>` : ""}
+      ${(invoice.paymentHistory || []).length ? `<button type="button" class="ws-payedit-btn text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-3 py-1.5 rounded-lg w-full" data-invoice-id="${escapeHtml(invoice.invoiceId)}">💳 แก้การชำระ (${invoice.paymentHistory.length})</button>` : ""}
       ${canEdit ? `<button type="button" class="ws-edit-btn text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold px-3 py-1.5 rounded-lg w-full" data-invoice-id="${escapeHtml(invoice.invoiceId)}">✏️ แก้ไขบิล</button>` : ""}
       ${printBtnHtml}
       <button type="button" class="ws-void-btn text-xs bg-red-50 hover:bg-red-100 text-red-600 font-semibold px-3 py-1.5 rounded-lg w-full" data-invoice-id="${escapeHtml(invoice.invoiceId)}">✕ ยกเลิกบิล</button>
@@ -17239,6 +17499,12 @@ function wsInvoiceActionButtons(invoice) {
 }
 
 function wireWSActionButtons(container) {
+  container.querySelectorAll(".ws-payedit-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const invoice = lastLoadedWSInvoices.find((i) => i.invoiceId === btn.getAttribute("data-invoice-id"));
+      if (invoice) openWSPayEditModal_(invoice);
+    });
+  });
   container.querySelectorAll(".ws-payment-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const invoice = lastLoadedWSInvoices.find((i) => i.invoiceId === btn.getAttribute("data-invoice-id"));
@@ -17406,6 +17672,7 @@ function renderWSBalanceView() {
               <td class="py-2 text-center">${wsStatusBadge(invoice.status)}</td>
               <td class="py-2 text-center">
                 <button type="button" class="ws-balance-payment-btn text-xs bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold px-3 py-1.5 rounded-lg" data-invoice-id="${escapeHtml(invoice.invoiceId)}">💰 รับชำระ</button>
+                ${(invoice.paymentHistory || []).length ? `<button type="button" class="ws-payedit-btn text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-3 py-1.5 rounded-lg mt-1" data-invoice-id="${escapeHtml(invoice.invoiceId)}">💳 แก้การชำระ</button>` : ""}
               </td>
             </tr>`
         )
@@ -17437,6 +17704,12 @@ function renderWSBalanceView() {
     btn.addEventListener("click", () => {
       const invoice = lastLoadedWSInvoices.find((i) => i.invoiceId === btn.getAttribute("data-invoice-id"));
       if (invoice) openWSPaymentModal(invoice);
+    });
+  });
+  container.querySelectorAll(".ws-payedit-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const invoice = lastLoadedWSInvoices.find((i) => i.invoiceId === btn.getAttribute("data-invoice-id"));
+      if (invoice) openWSPayEditModal_(invoice);
     });
   });
 }
@@ -18034,6 +18307,155 @@ async function submitWSPayment() {
   }
 }
 
+/* ---------------- 💳 แก้ / ลบ การชำระ WS (v2026.11.20-a) ----------------
+   backend 2026-11-20-a-wspayedit: editWSPayment / deleteWSPayment (approverPin = Master ทุกครั้ง)
+   ยอดรับแล้ว/ค้าง/สถานะบิล คิดใหม่ฝั่งหลังบ้าน · Report อ่าน WSPayments → เปลี่ยนตามเอง */
+let wpeState = null; // { invoice, pay, method, deleting }
+const WPE_METHODS = [["cash", "💵 เงินสด"], ["tt", "🏦 โอน"], ["credit", "💳 บัตร"]];
+function wpeNormMethod_(m) { return m === "transfer" ? "tt" : m; }
+function wpeIsTransfer_(m) { return m === "tt" || m === "transfer"; }
+function openWSPayEditModal_(invoice) {
+  wpeState = { invoice: invoice, pay: null, method: "cash", deleting: false };
+  document.getElementById("wpeInvoiceDesc").textContent = invoice.invoiceId + " — " + (invoice.customerName || "-");
+  renderWpeList_();
+  document.getElementById("wpeForm").classList.add("hidden");
+  document.getElementById("wsPayEditModal").classList.remove("hidden");
+  if (!wsBankAccountsCache.length) loadWSBankAccounts();
+}
+function closeWSPayEditModal_() {
+  wpeState = null;
+  document.getElementById("wpePin").value = "";
+  document.getElementById("wsPayEditModal").classList.add("hidden");
+}
+function renderWpeList_() {
+  const inv = wpeState.invoice;
+  const list = (inv.paymentHistory || []);
+  document.getElementById("wpeList").innerHTML = list.length ? list.map((p, i) => `
+    <div class="flex items-center gap-2 border-2 rounded-lg px-3 py-2 ${wpeState.pay && wpeState.pay.paymentId === p.paymentId ? "border-indigo-300 bg-indigo-50" : "border-gray-100"}">
+      <div class="flex-1 min-w-0 text-sm">
+        <div><b class="tabular-nums">${formatMoney(p.amount)}</b> · ${escapeHtml(wsPaymentMethodLabel(p.method))}${p.bankAccount ? " · " + escapeHtml(p.bankAccount) : ""}</div>
+        <div class="text-[11px] text-gray-400">${escapeHtml(p.paymentId || "-")} · ${escapeHtml(String(p.paidAt || "").slice(0, 16).replace("T", " "))} · รับโดย ${escapeHtml(p.receivedBy || "-")}</div>
+        ${p.editedAt ? `<div class="text-[11px] text-indigo-700">✏️ แก้ ${escapeHtml(String(p.editedAt).slice(0, 10))} · ${escapeHtml(p.editedBy)} · อนุมัติ ${escapeHtml(p.editApprovedBy)} · ${escapeHtml(p.editReason)}</div>` : ""}
+      </div>
+      ${p.paymentId ? `<button type="button" class="wpe-pick text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-3 py-1.5 rounded-lg" data-i="${i}">✏️ แก้</button>`
+        : '<span class="text-[11px] text-gray-400">รีเฟรชก่อน</span>'}
+    </div>`).join("") : '<p class="text-sm text-gray-400">บิลนี้ยังไม่มีรายการรับเงิน</p>';
+  document.querySelectorAll("#wpeList .wpe-pick").forEach((b) => b.addEventListener("click", () => wpeOpenForm_(list[Number(b.dataset.i)])));
+}
+function wpeBankIdForLabel_(label) {
+  const m = String(label || "").match(/\(([^)]*)\)\s*$/);
+  const no = m ? m[1].trim() : "";
+  const a = no && wsBankAccountsCache.find((x) => String(x.accountNo || "").trim() === no);
+  return a ? a.id : "";
+}
+function wpeOpenForm_(pay) {
+  wpeState.pay = pay; wpeState.deleting = false;
+  const m = wpeNormMethod_(pay.method);
+  wpeState.method = WPE_METHODS.some(([k]) => k === m) ? m : "keep";
+  document.getElementById("wpeFormId").textContent = pay.paymentId;
+  document.getElementById("wpeBank").innerHTML = buildWSBankAccountOptionsHtml_(wpeBankIdForLabel_(pay.bankAccount));
+  document.getElementById("wpeDate").value = String(pay.paidAt || "").slice(0, 10);
+  document.getElementById("wpeAmount").value = pay.amount;
+  document.getElementById("wpeReason").value = "";
+  document.getElementById("wpePin").value = "";
+  document.getElementById("wpeError").classList.add("hidden");
+  document.getElementById("wpeDelConfirm").classList.add("hidden");
+  document.getElementById("wpeDeleteBtn").textContent = "🗑 ลบรายการนี้";
+  document.getElementById("wpeSaveBtn").classList.remove("hidden");
+  document.getElementById("wpeForm").classList.remove("hidden");
+  renderWpeList_(); renderWpeForm_();
+}
+function wpeBankLabelSelected_() {
+  const sel = document.getElementById("wpeBank");
+  const opt = sel.options[sel.selectedIndex];
+  return sel.value && opt ? opt.textContent.replace(" — ", " - ") : "(บัญชีค่าเริ่มต้นของร้าน)";
+}
+function renderWpeForm_() {
+  const s = wpeState; if (!s || !s.pay) return;
+  const p = s.pay;
+  const opts = WPE_METHODS.slice();
+  if (s.method === "keep" || !WPE_METHODS.some(([k]) => k === wpeNormMethod_(p.method))) opts.push(["keep", "คงเดิม: " + wsPaymentMethodLabel(p.method)]);
+  document.getElementById("wpeMethods").innerHTML = opts.map(([k, l]) =>
+    `<button type="button" data-m="${k}" class="wpe-m border-2 rounded-lg px-3 py-1 text-xs font-semibold ${s.method === k ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-gray-200 text-gray-600"}">${escapeHtml(l)}</button>`).join("");
+  document.querySelectorAll("#wpeMethods .wpe-m").forEach((b) => b.addEventListener("click", () => { s.method = b.dataset.m; renderWpeForm_(); }));
+  const isT = s.method === "keep" ? wpeIsTransfer_(p.method) : wpeIsTransfer_(s.method);
+  document.getElementById("wpeBankRow").classList.toggle("hidden", !isT);
+  // ตรวจก่อนบันทึก
+  const newAmt = Number(document.getElementById("wpeAmount").value) || 0;
+  const newMethodLabel = s.method === "keep" ? wsPaymentMethodLabel(p.method) : wsPaymentMethodLabel(s.method);
+  const newBank = isT ? wpeBankLabelSelected_() : "-";
+  const newDate = document.getElementById("wpeDate").value;
+  const rows = [
+    ["วิธีรับเงิน", wsPaymentMethodLabel(p.method), newMethodLabel],
+    ["บัญชี", p.bankAccount || "-", newBank],
+    ["วันที่", String(p.paidAt || "").slice(0, 10), newDate || String(p.paidAt || "").slice(0, 10)],
+    ["จำนวนเงิน", formatMoney(p.amount), formatMoney(newAmt)]
+  ];
+  const inv = s.invoice;
+  const newPaid = (Number(inv.amountPaid) || 0) - (Number(p.amount) || 0) + newAmt;
+  document.getElementById("wpeDiff").innerHTML = '<div class="font-semibold mb-1">ตรวจก่อนบันทึก</div>' + rows.map(([k, a, b]) =>
+    `<div><span class="text-gray-400 inline-block w-20">${k}</span>${a === b ? escapeHtml(a) : `<s class="text-red-500">${escapeHtml(a)}</s> → <b class="text-emerald-700">${escapeHtml(b)}</b>`}</div>`).join("") +
+    (newAmt !== Number(p.amount) ? `<div class="mt-1 text-gray-600">ยอดรับแล้ว ${formatMoney(inv.amountPaid)} → ${formatMoney(newPaid)} · ค้าง ${formatMoney(Math.max(inv.grandTotal - newPaid, 0))}${newPaid > inv.grandTotal + 0.01 ? ' <b class="text-red-600">เกินยอดบิล</b>' : ""}</div>` : "");
+}
+function wpeError_(msg) { const e = document.getElementById("wpeError"); e.textContent = msg; e.classList.toggle("hidden", !msg); }
+async function wpeSubmit_(action) {
+  const s = wpeState; if (!s || !s.pay) return;
+  const reason = document.getElementById("wpeReason").value.trim();
+  const approverPin = document.getElementById("wpePin").value.trim();
+  if (!reason) return wpeError_("กรุณาใส่เหตุผล");
+  if (!approverPin) return wpeError_("กรุณาใส่ PIN ผู้อนุมัติ (Master)");
+  const body = {
+    action: action, pin: currentStaff ? currentStaff.pin : "", approverPin: approverPin, branch: getBranchCode(),
+    invoiceId: s.invoice.invoiceId, paymentId: s.pay.paymentId, reason: reason
+  };
+  if (action === "editWSPayment") {
+    const amount = Number(document.getElementById("wpeAmount").value) || 0;
+    if (!(amount > 0)) return wpeError_("จำนวนเงินต้องมากกว่า 0 (ถ้าจะเอาออกทั้งรายการ กดลบ)");
+    const isT = s.method === "keep" ? wpeIsTransfer_(s.pay.method) : wpeIsTransfer_(s.method);
+    Object.assign(body, { method: s.method, amount: amount, paidDate: document.getElementById("wpeDate").value,
+      bankAccountId: isT ? document.getElementById("wpeBank").value : "" });
+  }
+  const btn = document.getElementById(action === "editWSPayment" ? "wpeSaveBtn" : "wpeDeleteBtn");
+  const html = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+  wpeError_("");
+  try {
+    const r = await fetch(getAppsScriptUrl(), { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(body) });
+    const res = await r.json();
+    if (!res || res.status !== "success") throw new Error((res && res.message) || "บันทึกไม่สำเร็จ");
+    showToast(res.message + " · สถานะบิล: " + (res.statusLabel || "-") + " · ค้าง " + formatMoney(res.amountDue || 0), "success");
+    closeWSPayEditModal_();
+    loadWSInvoices();
+  } catch (err) {
+    console.error(err);
+    wpeError_(err.message);
+  } finally {
+    btn.disabled = false; btn.innerHTML = html;
+  }
+}
+function setupWSPayEditModal_() {
+  document.getElementById("wpeCloseBtn").addEventListener("click", closeWSPayEditModal_);
+  document.getElementById("wpeBackBtn").addEventListener("click", () => { wpeState.pay = null; document.getElementById("wpeForm").classList.add("hidden"); renderWpeList_(); });
+  document.getElementById("wsPayEditModal").addEventListener("click", (e) => { if (e.target.id === "wsPayEditModal") closeWSPayEditModal_(); });
+  ["wpeAmount", "wpeDate", "wpeBank"].forEach((id) => document.getElementById(id).addEventListener("input", renderWpeForm_));
+  document.getElementById("wpeBank").addEventListener("change", renderWpeForm_);
+  document.getElementById("wpeSaveBtn").addEventListener("click", () => wpeSubmit_("editWSPayment"));
+  document.getElementById("wpeDeleteBtn").addEventListener("click", () => {
+    const s = wpeState; if (!s || !s.pay) return;
+    if (!s.deleting) { // กดครั้งแรก = ถามยืนยัน
+      s.deleting = true;
+      const inv = s.invoice;
+      const newPaid = Math.max((Number(inv.amountPaid) || 0) - (Number(s.pay.amount) || 0), 0);
+      const box = document.getElementById("wpeDelConfirm");
+      box.innerHTML = `ลบรายการรับเงิน <b>${escapeHtml(s.pay.paymentId)}</b> ${formatMoney(s.pay.amount)} บาท ออกจากบิล<br>ยอดรับแล้ว ${formatMoney(inv.amountPaid)} → ${formatMoney(newPaid)} · ค้าง ${formatMoney(Math.max(inv.grandTotal - newPaid, 0))} · Report วันนั้นจะหักออก<br>ใส่เหตุผล + PIN Master แล้วกด "ยืนยันลบ"`;
+      box.classList.remove("hidden");
+      document.getElementById("wpeDeleteBtn").textContent = "🗑 ยืนยันลบ";
+      document.getElementById("wpeSaveBtn").classList.add("hidden");
+      return;
+    }
+    wpeSubmit_("deleteWSPayment");
+  });
+}
+
 function setupWSPaymentModal() {
   document.getElementById("wsPaymentCancelBtn").addEventListener("click", closeWSPaymentModal);
   document.getElementById("wsPaymentConfirmBtn").addEventListener("click", submitWSPayment);
@@ -18181,6 +18603,7 @@ function setupWSTab() {
   setupWSBalanceSearch();
   setupWSHistoryView();
   setupWSPaymentModal();
+  setupWSPayEditModal_();
   setupWSVoidModal();
   setupWSEditApprovalModal();
   setupWSPaymentMethodButtons();
