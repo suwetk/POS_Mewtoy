@@ -476,7 +476,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.20-a</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.20-b</span>
       </div>
       <div class="flex-1"></div>
 
@@ -2922,6 +2922,23 @@
       <div class="flex gap-2 justify-end mt-1">
         <button id="wsPaymentCancelBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ยกเลิก</button>
         <button id="wsPaymentConfirmBtn" type="button" class="px-4 py-2 rounded-lg bg-sky-700 hover:bg-sky-800 text-white font-semibold">✅ บันทึกรับชำระ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🔗 ผูกรหัสลูกค้ากับใบจอง — v2026.11.20-b (mockup_po_custcode.html) -->
+  <div id="poLinkCustModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 flex flex-col gap-2">
+      <h3 class="font-semibold text-gray-800 text-lg">🔗 ผูกรหัสลูกค้า · <span id="poLinkCustPoText" class="text-sm text-gray-500 font-normal"></span></h3>
+      <div class="text-xs text-gray-500">ในใบจอง: <span id="poLinkCustNameText" class="font-semibold text-gray-700"></span></div>
+      <label class="block text-xs text-gray-500 mt-1">ค้นลูกค้า (รหัส / ชื่อ / ชื่อ Facebook-LINE / เบอร์) แล้วคลิกเลือก</label>
+      <input id="poLinkCustInput" type="text" autocomplete="off" class="w-full border-2 border-amber-300 bg-amber-50 rounded-lg px-3 py-2 font-medium focus:outline-none focus:border-emerald-500 focus:bg-white">
+      <div class="h-64"></div>
+      <p class="text-[11px] text-gray-400">เลือกแล้วจะใส่รหัสให้ทุกรายการในใบจองนี้ · ชื่อในใบจองไม่เปลี่ยน · เบอร์/ที่อยู่เติมให้เฉพาะช่องที่ว่าง</p>
+      <p id="poLinkCustErr" class="text-sm text-red-500 hidden"></p>
+      <div class="flex justify-between gap-2">
+        <button id="poLinkCustAddBtn" type="button" class="px-3 py-2 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold text-sm">➕ เพิ่มลูกค้าใหม่</button>
+        <button id="poLinkCustCancelBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ปิด</button>
       </div>
     </div>
   </div>
@@ -7657,6 +7674,11 @@ async function submitTransaction() {
     if (!confirm("บิลนี้เลือก 🚚 จัดส่ง แต่ยังไม่มีที่อยู่จัดส่ง\n\nบันทึกไปก่อนแล้วเติมที่อยู่ทีหลังที่หน้า 🚚 จัดส่ง ได้ — บันทึกเลยไหม?")) return;
   }
 
+  // v2026.11.20-b: เปิดจอง (Pre) โดยไม่มีรหัสลูกค้า → เตือน (ไม่บังคับ) กันใบจองไม่มีรหัส
+  if (cart.some((i) => i.type === "pre") && !findCustomerByCode(document.getElementById("customerCodeInput").value.trim())) {
+    if (!confirm("บิลนี้มีการเปิดจอง (Pre) แต่ยังไม่มีรหัสลูกค้า\n\nแนะนำ: พิมพ์ชื่อ/เบอร์ในช่องลูกค้าแล้วเลือกจากรายชื่อ หรือกด ➕ เพิ่มลูกค้าใหม่\n(ผูกรหัสทีหลังได้ที่หน้า Pre-Order ปุ่ม 🔗)\n\nบันทึกต่อโดยไม่มีรหัสไหม?")) return;
+  }
+
   const submitBtn = document.getElementById("submitBtn");
   const originalHtml = submitBtn.innerHTML;
   submitBtn.disabled = true;
@@ -12259,6 +12281,210 @@ function copyTextToClipboard(text, successMsg, failMsg) {
 // โดยไม่ต้องเลือกข้อความเอง — ใช้ซ้ำในทุกจุดที่โชว์ชื่อลูกค้าแบบเด่นๆ (ตามลูกค้า,
 // แจ้งยอดรวม, ของเข้ารอบนี้). Renders nothing for a walk-in customer with no
 // code (never show a copy button with nothing useful to copy).
+/* ================= v2026.11.20-b: รหัสลูกค้าในหน้า Pre-Order (mockup_po_custcode.html) =================
+   มีรหัส → รหัสตัวใหญ่ + ⧉ คัดลอก + 🛒 ไปหน้าขาย (ใส่รหัส + เปิด 📦 ลูกค้ามารับของ)
+   ไม่มีรหัส → ⚠️ + 🔗 ผูกรหัสลูกค้า (backend setPreOrderCustomer — ทุกรายการของ PO นั้น) */
+function poCustCodeTools_(line, compact) {
+  const code = String((line && line.customerCode) || "").trim();
+  if (code) {
+    return `<div class="flex items-center gap-1.5 mt-1 flex-wrap">
+      <span class="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 rounded-md px-1.5">
+        <span class="font-mono font-bold ${compact ? "text-sm" : "text-base"} tracking-wide text-emerald-900">${escapeHtml(code)}</span>
+        <button type="button" class="copy-customer-code-btn text-emerald-500 hover:text-emerald-700" data-code="${escapeHtml(code)}" title="คัดลอกรหัสลูกค้า"><i class="fa-regular fa-copy"></i></button>
+      </span>
+      <button type="button" class="po-go-sale-btn text-[11px] bg-emerald-700 hover:bg-emerald-800 text-white font-semibold px-2 py-0.5 rounded-md" data-code="${escapeHtml(code)}">🛒 ไปหน้าขาย</button>
+    </div>`;
+  }
+  if (!line || !line.poId) return "";
+  return `<div class="flex items-center gap-1.5 mt-1 flex-wrap">
+    <span class="text-[11px] font-bold text-amber-700 bg-amber-50 rounded-full px-2">⚠️ ยังไม่มีรหัสลูกค้า</span>
+    <button type="button" class="po-link-cust-btn text-[11px] bg-amber-100 hover:bg-amber-200 text-amber-800 font-semibold px-2 py-0.5 rounded-md" data-po-id="${escapeHtml(line.poId)}">🔗 ผูกรหัส</button>
+  </div>`;
+}
+
+function goToSaleWithCustomer_(code) {
+  if (editingTransactionId) { showToast("กำลังแก้ไขบิลเก่าอยู่ — บันทึกหรือยกเลิกการแก้ไขก่อน", "error"); return; }
+  if (typeof billSavingBlocked_ === "function" && billSavingBlocked_()) return;
+  if (cartQty_(cart) > 0) {
+    if (backupBills.length >= MAX_BACKUP_BILLS) { showToast("ตะกร้ามีของค้าง และบิลสำรองเต็มแล้ว — ปิดบิลสำรองก่อน", "error"); return; }
+    if (!confirm("ตะกร้ามีของค้างอยู่ — ย้ายไปเป็นบิลสำรอง แล้วเปิดบิลใหม่ให้ลูกค้า " + code + " ไหม?")) return;
+    createBackupBill();
+  }
+  const posTabBtn = document.querySelector('.tab-btn[data-tab="pos"]');
+  if (posTabBtn) posTabBtn.click();
+  const input = document.getElementById("customerCodeInput");
+  input.value = code;
+  lookupCustomerCode();
+  openPickupDeskModal_();
+}
+
+let poLinkCustPoId = null;
+function openPoLinkCustModal_(poId) {
+  const line = lastLoadedPreOrders.find((l) => l.poId === poId);
+  if (!line) return;
+  poLinkCustPoId = poId;
+  document.getElementById("poLinkCustPoText").textContent = poId;
+  document.getElementById("poLinkCustNameText").textContent = (line.customerName || "-") + (line.customerPhone ? " · " + line.customerPhone : "");
+  document.getElementById("poLinkCustErr").classList.add("hidden");
+  const input = document.getElementById("poLinkCustInput");
+  // ตั้งต้นค้นจากเบอร์ (ถ้ามี) ไม่งั้นจากชื่อในใบจอง
+  input.value = line.customerPhone ? normalizePhoneDigits(line.customerPhone) : (line.customerName || "");
+  document.getElementById("poLinkCustModal").classList.remove("hidden");
+  setTimeout(() => { input.focus(); input.dispatchEvent(new Event("input")); }, 30);
+}
+function closePoLinkCustModal_() {
+  poLinkCustPoId = null;
+  custSearchHide_(document.getElementById("poLinkCustInput"));
+  document.getElementById("poLinkCustModal").classList.add("hidden");
+}
+async function submitPoLinkCust_(cust) {
+  if (!poLinkCustPoId || !cust) return;
+  const err = document.getElementById("poLinkCustErr");
+  err.classList.add("hidden");
+  if (!confirm("ผูกรหัส " + cust.code + " (" + (cust.name || "") + ") กับใบจอง " + poLinkCustPoId + " ใช่ไหม?")) return;
+  try {
+    const r = await fetch(getAppsScriptUrl(), { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "setPreOrderCustomer", pin: currentStaff ? currentStaff.pin : "", branch: getBranchCode(), poId: poLinkCustPoId, customerCode: cust.code }) });
+    const res = await r.json();
+    if (!res || res.status !== "success") throw new Error((res && res.message) || "ผูกรหัสไม่สำเร็จ");
+    showToast(res.message, "success");
+    closePoLinkCustModal_();
+    loadPreOrders();
+  } catch (e) {
+    console.error(e);
+    err.textContent = e.message; err.classList.remove("hidden");
+  }
+}
+
+/* ================= v2026.11.20-b: ค้นลูกค้าแบบพิมพ์บางส่วน (mockup_cust_search.html) =================
+   ใช้กับช่องลูกค้า หน้าขาย / เปิดจองใหม่ / WS + ช่องค้นในหน้าต่างผูกรหัส
+   ค้น รหัส · ชื่อ · ชื่อ Facebook/LINE (ตัด FP:/LO:/LP: ออก) · เบอร์บางส่วน · ตัดอีโมจิ/ช่องว่างเกิน
+   ไม่เลือกให้เองถ้าไม่ตรงเป๊ะ (findCustomer เดิมยังทำงานตอน Enter/blur เหมือนเดิม) */
+function custSearchClean_(s) {
+  return String(s || "").normalize("NFC")
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\uFE0F\u200B-\u200D]/gu, "")
+    .replace(/\s+/g, " ").trim().toLowerCase();
+}
+function custSearchSocials_(c) {
+  return String(c.socialName || "").split("/").map((p) => p.trim()).filter(Boolean).map((p) => {
+    const m = p.match(/^(FP|LO|LP)\s*:\s*(.*)$/i);
+    return { ch: m ? m[1].toUpperCase() : "", name: m ? m[2] : p };
+  });
+}
+function custSearchScore_(c, q) {
+  const qd = q.replace(/\D/g, "");
+  const toks = q.split(" ").filter((x) => x.length >= 2);
+  const fields = [c.code, c.name].concat(custSearchSocials_(c).map((s) => s.name)).map(custSearchClean_);
+  let best = 0;
+  fields.forEach((f) => {
+    if (!f) return;
+    if (f === q) best = Math.max(best, 100);
+    else if (f.startsWith(q)) best = Math.max(best, 80);
+    else if (f.includes(q)) best = Math.max(best, 60);
+    else if (q.length >= 4 && f.replace(/\.$/, "").length >= 3 && q.includes(f.replace(/\.$/, ""))) best = Math.max(best, 50); // วางชื่อยาวกว่าที่เก็บ
+    else if (toks.length && toks.filter((x) => f.includes(x)).length >= Math.min(2, toks.length)) best = Math.max(best, 40);
+  });
+  const ph = normalizePhoneDigits(c.phone);
+  if (qd.length >= 3 && qd.length === q.replace(/[\s-]/g, "").length && ph.includes(qd)) best = Math.max(best, qd.length >= 9 ? 100 : 55);
+  return best;
+}
+function custSearchHl_(text, q) {
+  const t = String(text || "");
+  const keys = [q].concat(q.split(" ")).filter((x) => x.length >= 2).sort((a, b) => b.length - a.length);
+  for (const k of keys) {
+    const i = t.toLowerCase().indexOf(k);
+    if (i >= 0) return escapeHtml(t.slice(0, i)) + '<mark class="bg-amber-200 rounded px-0.5">' + escapeHtml(t.slice(i, i + k.length)) + "</mark>" + escapeHtml(t.slice(i + k.length));
+  }
+  return escapeHtml(t);
+}
+function custSearchHide_(input) {
+  const dd = input && input._custDd;
+  if (dd) dd.classList.add("hidden");
+}
+function attachCustomerSearch_(input, opts) {
+  if (!input || input._custDd) return;
+  const wrap = document.createElement("div");
+  wrap.className = "relative";
+  input.parentNode.insertBefore(wrap, input);
+  wrap.appendChild(input);
+  const dd = document.createElement("div");
+  dd.className = "hidden absolute left-0 right-0 z-[120] bg-white border border-gray-200 rounded-lg shadow-xl max-h-80 overflow-y-auto text-left";
+  dd.style.top = "calc(100% + 2px)";
+  wrap.appendChild(dd);
+  input._custDd = dd;
+  let res = [], hi = 0;
+  const pick = (c) => { dd.classList.add("hidden"); opts.onPick(c); };
+  const render = () => {
+    const raw = input.value, q = custSearchClean_(raw);
+    if (q.length < 2 || !customerList.length) { dd.classList.add("hidden"); return; }
+    res = customerList.map((c) => ({ c: c, s: custSearchScore_(c, q) })).filter((x) => x.s > 0)
+      .sort((a, b) => b.s - a.s).slice(0, 8);
+    // ตรงเป๊ะคนเดียวและเป็นรหัส/เบอร์เต็ม → ไม่ต้องโชว์ (findCustomer เดิมจัดการตอน Enter/blur)
+    if (res.length === 1 && res[0].s === 100 && findCustomer(raw)) { dd.classList.add("hidden"); return; }
+    hi = 0;
+    const qd = q.replace(/\D/g, "");
+    dd.innerHTML = `<div class="text-[11px] text-gray-400 px-3 py-1 bg-gray-50 border-b">${res.length ? "พบ " + res.length + " คน · ↑↓ Enter เลือก · Esc ปิด" : 'ไม่พบลูกค้าที่ตรงกับ "' + escapeHtml(raw.trim()) + '"'}</div>` +
+      res.map((x, i) => {
+        const c = x.c, ph = normalizePhoneDigits(c.phone);
+        const tel = ph ? ph.slice(0, 3) + "-xxx-" + ph.slice(-4) : "";
+        const telHtml = qd.length >= 3 && ph.includes(qd) ? '<mark class="bg-amber-200 rounded px-0.5">' + tel + "</mark>" : tel;
+        const soc = custSearchSocials_(c).map((s) =>
+          `<span class="text-[10px] font-bold rounded px-1 ${s.ch === "FP" ? "bg-indigo-100 text-indigo-700" : "bg-green-100 text-green-700"}">${s.ch === "FP" ? "FB" : s.ch ? "LINE" : "ชื่อ"}</span> ${custSearchHl_(s.name, q)}`).join(" · ");
+        return `<div class="cs-it grid gap-2 px-3 py-1.5 border-b border-gray-100 cursor-pointer hover:bg-emerald-50 ${i === hi ? "bg-emerald-50" : ""}" style="grid-template-columns:56px 1fr" data-i="${i}">
+          <div class="font-mono font-bold text-emerald-900 text-sm">${custSearchHl_(c.code, q)}</div>
+          <div class="min-w-0"><div class="font-semibold text-sm text-gray-800">${custSearchHl_(c.name || "-", q)}</div>
+          <div class="text-[11px] text-gray-500 break-words">${[soc, telHtml].filter(Boolean).join(" · ")}</div></div></div>`;
+      }).join("") +
+      (opts.onAddNew ? `<div class="cs-add px-3 py-2 text-sm font-bold text-amber-700 bg-amber-50 cursor-pointer hover:bg-amber-100">➕ เพิ่มลูกค้าใหม่${res.length ? "" : ' — ใส่ชื่อ "' + escapeHtml(raw.trim()) + '" ให้'}</div>` : "");
+    dd.classList.remove("hidden");
+    dd.querySelectorAll(".cs-it").forEach((el) => el.addEventListener("mousedown", (e) => { e.preventDefault(); pick(res[Number(el.dataset.i)].c); }));
+    const add = dd.querySelector(".cs-add");
+    if (add) add.addEventListener("mousedown", (e) => { e.preventDefault(); dd.classList.add("hidden"); opts.onAddNew(raw.trim()); });
+  };
+  input.addEventListener("input", render);
+  input.addEventListener("focus", render);
+  input.addEventListener("blur", () => setTimeout(() => dd.classList.add("hidden"), 150));
+  // capture: ทำงานก่อน Enter เดิมของช่อง (lookup แบบตรงเป๊ะ) เฉพาะตอนรายการเปิดอยู่
+  input.addEventListener("keydown", (e) => {
+    if (dd.classList.contains("hidden") || !res.length) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      hi = (hi + (e.key === "ArrowDown" ? 1 : res.length - 1)) % res.length;
+      dd.querySelectorAll(".cs-it").forEach((el, i) => el.classList.toggle("bg-emerald-50", i === hi));
+    } else if (e.key === "Enter") {
+      e.preventDefault(); e.stopImmediatePropagation(); pick(res[hi].c);
+    } else if (e.key === "Escape") {
+      dd.classList.add("hidden");
+    }
+  }, true);
+}
+function setupCustomerSearchBoxes_() {
+  Object.keys(QA_CUST_TARGETS).forEach((key) => {
+    const t = QA_CUST_TARGETS[key];
+    const input = document.getElementById(t.code);
+    attachCustomerSearch_(input, {
+      onPick: (c) => { input.value = c.code; t.lookup(); },
+      onAddNew: () => qaCustOpen_(key === "ws" ? "ws" : "c", key)
+    });
+  });
+  attachCustomerSearch_(document.getElementById("poLinkCustInput"), { onPick: (c) => submitPoLinkCust_(c) });
+  document.getElementById("poLinkCustCancelBtn").addEventListener("click", closePoLinkCustModal_);
+  document.getElementById("poLinkCustAddBtn").addEventListener("click", () => {
+    showToast("เพิ่มลูกค้าใหม่ที่หน้าขาย (➕ เพิ่ม › ลูกค้าปกติ) แล้วกลับมากด 🔗 ผูกรหัสอีกครั้ง", "success");
+    const nm = document.getElementById("poLinkCustInput").value.trim();
+    closePoLinkCustModal_();
+    qaCustOpen_("c", null);
+    if (nm) document.getElementById("qaCustName").value = nm;
+  });
+  document.getElementById("poLinkCustModal").addEventListener("click", (e) => { if (e.target.id === "poLinkCustModal") closePoLinkCustModal_(); });
+  document.body.addEventListener("click", (e) => {
+    const g = e.target.closest(".po-go-sale-btn");
+    if (g) { goToSaleWithCustomer_(g.getAttribute("data-code")); return; }
+    const l = e.target.closest(".po-link-cust-btn");
+    if (l) openPoLinkCustModal_(l.getAttribute("data-po-id"));
+  });
+}
+
 function customerCodeBadgeHtml(code) {
   const trimmed = String(code || "").trim();
   if (!trimmed) return "";
@@ -12942,6 +13168,9 @@ async function submitNewPreOrder() {
     showToast("กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ", "error");
     return;
   }
+  // v2026.11.20-b: ไม่มีรหัสลูกค้า → เตือน (ไม่บังคับ)
+  if (!findCustomerByCode(document.getElementById("poCustomerCodeInput").value.trim()) &&
+      !confirm("ใบจองนี้ยังไม่มีรหัสลูกค้า — ผูกรหัสทีหลังได้ที่ปุ่ม 🔗 ในหน้า Pre-Order\n\nบันทึกต่อไหม?")) return;
 
   const btn = document.getElementById("poSubmitBtn");
   const originalHtml = btn.innerHTML;
@@ -13331,7 +13560,7 @@ function renderPoPickupView_() {
       </tr></thead><tbody>${rows.map((l) => `
         <tr class="border-t border-gray-100 align-top">
           <td class="py-2 px-3 whitespace-nowrap">${poPkDaysHtml_(l.daysWaiting)}</td>
-          <td class="py-2 px-3"><div class="font-medium text-gray-800">${escapeHtml(l.customerName)}</div><div class="text-[11px] text-gray-400">${escapeHtml([l.customerCode, l.customerPhone].filter(Boolean).join(" · "))}</div></td>
+          <td class="py-2 px-3"><div class="font-medium text-gray-800">${escapeHtml(l.customerName)}</div><div class="text-[11px] text-gray-400">${escapeHtml(l.customerPhone || "")}</div>${poCustCodeTools_(l, true)}</td>
           <td class="py-2 px-3">${escapeHtml(l.itemName)} <span class="text-gray-400 text-xs">×${l.qty}</span>${l.deliveryMethod === "delivery" ? ' <span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-1.5 py-0.5 rounded-full">จัดส่ง</span>' : ""}</td>
           <td class="py-2 px-3 whitespace-nowrap"><span class="bg-amber-200 text-amber-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full">${escapeHtml(l.branch)}</span> <span class="text-xs text-gray-500">${escapeHtml(l.poId)}</span></td>
           <td class="py-2 px-3 whitespace-nowrap text-xs">${escapeHtml(poShortDate_(l.fulfilledAt))}${l.pickedUpAt ? `<div class="text-emerald-700">รับ ${escapeHtml(poShortDate_(l.pickedUpAt))}</div>` : ""}</td>
@@ -13620,6 +13849,7 @@ function renderPreOrderPoList() {
             <td rowspan="${lines.length}" class="py-2 pr-3 align-top bg-emerald-50/30 break-words">
               <div class="font-medium text-gray-700">${escapeHtml(first.customerName || "-")}</div>
               <div class="text-[11px] text-gray-400">${escapeHtml(first.customerPhone || "")}</div>
+              ${poCustCodeTools_(first)}
             </td>`
             : "";
           return `
@@ -14107,7 +14337,7 @@ function renderPreOrderProductView() {
         .map(
           (l) => `
           <tr class="border-b last:border-b-0">
-            <td class="py-1.5">${escapeHtml(l.customerName || "-")}</td>
+            <td class="py-1.5">${escapeHtml(l.customerName || "-")}${poCustCodeTools_(l, true)}</td>
             <td class="py-1.5 text-center">${l.qty}</td>
             <td class="py-1.5">${escapeHtml((l.openedAt || "").slice(0, 10))}</td>
             <td class="py-1.5">${preOrderStatusBadge(l.status)}${poPaidFullTag_(l)}${poPickupStatusLine_(l)}</td>
@@ -23735,6 +23965,7 @@ async function init() {
   setupBranchIndicator();
   setupNavSync_();
   setupQuickAdd_();
+  setupCustomerSearchBoxes_(); // v2026.11.20-b ค้นลูกค้าแบบพิมพ์บางส่วน + ผูกรหัสใบจอง
   setupEventPrice_();
   setupWsAll_();
   setupByRoomTab();
