@@ -85,10 +85,14 @@ a{color:var(--blue)}
 @media (prefers-reduced-motion:reduce){.busy{animation:none}}
 </style></head><body><div class="wrap" id="app"></div>
 <script>
-/* EX Desk · ex-html-2026-11-15-a · ใช้คู่กับ ex_backend.gs ex-2026-11-15-a + parcel.gs parcel-2026-11-15-a
+/* EX Desk · ex-html-2026-11-23-a · ใช้คู่กับ ex_backend.gs ex-2026-11-23-a + parcel.gs parcel-2026-11-15-a
+   (23 Nov 26) ใบสำคัญจ่ายแยกเลขตามหมวด (ค่าขนส่ง / ค่าใช้จ่ายอื่นๆ / สินค้า) · หน้าหลักฐานแนบ (รูป/PDF จากบอท 6 ช่อง/หน้า
+   ใบเสร็จ SPX ตัดเงื่อนไข+QR ท้ายใบ · ขึ้นหน้าใหม่เมื่อเปลี่ยนหมวด) · กด "จ่ายแล้ว" → สร้าง PDF ชุดเต็มอัปเข้า Drive บัญชีอัตโนมัติ
+   (รอบเบิก + ใบค่าแรง WG) · ปุ่ม 📤 อัปซ้ำ · เลือกชื่อไฟล์วันที่ขึ้นต้น/ท้าย
+   ก่อนหน้า ex-html-2026-11-15-a
    (15 Nov 26) + แท็บ 📦 พัสดุ (เห็นเฉพาะชื่อใน PARCEL_EDITORS) · ลิงก์ ex.html?parcel=<เลขใบเสร็จ/เลขพัสดุ> จากปุ่ม ✏️ ในบอท
    ก่อนหน้า ex-html-2026-11-09-b (+ แท็บค่าแรง) */
-const VERSION='ex-html-2026-11-15-a';
+const VERSION='ex-html-2026-11-23-a';
 const API_URL_DEFAULT='https://script.google.com/macros/s/AKfycbzwApo1tdngeEydvZKc9XMQ34RxcR5xJhdkD9NyZBBTaDD4tUElgkO_tATR2OPJEc7fNQ/exec';   // URL /exec ของ EX (Apps Script) · เปลี่ยนได้ที่ ⚙️
 const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
 const ss={get:k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}},del:k=>{try{sessionStorage.removeItem(k)}catch(e){}}};
@@ -219,11 +223,19 @@ function vCut(){
 }
 function vRounds(){
   const L=D.rounds.filter(r=>!who||r.who===who).sort((a,b)=>b.cut.localeCompare(a.cut)||b.id.localeCompare(a.id));
-  return `<div class="panel"><div class="bar"><b>ประวัติรอบเบิก${who?' · '+esc(who):''}</b></div><div class="tw"><table class="mt">
+  const dp=D.docPref||{dateFirst:true};
+  const pcvCell=r=>(r.pcvs||[]).map(e=>`<div style="white-space:nowrap">${esc(e.pcv)} <small style="color:var(--mute)">${esc(e.g)}${e.amt?' · '+m(e.amt):''}</small>${e.url?` <a href="${esc(e.url)}" target="_blank" rel="noopener" title="เปิดไฟล์ใน Drive">📂</a>`:''}</div>`).join('')||'-';
+  return `<div class="panel"><div class="bar"><b>ประวัติรอบเบิก${who?' · '+esc(who):''}</b><span class="sp"></span>
+   <label style="font-size:12.5px">ชื่อไฟล์ใน Drive <select id="docpref" aria-label="ตำแหน่งวันที่ในชื่อไฟล์"><option value="1" ${dp.dateFirst?'selected':''}>วันที่ขึ้นต้น · 2026-11-23_PCV-…</option><option value="0" ${dp.dateFirst?'':'selected'}>วันที่ท้ายชื่อ · PCV-…_2026-11-23</option></select></label>
+   ${dp.folder?`<a class="sm" href="${esc(dp.folder)}" target="_blank" rel="noopener">📂 โฟลเดอร์บัญชี</a>`:''}</div>
+   <div class="hint" style="padding:6px 14px 0">กด "จ่ายแล้ว" → ระบบสร้าง PDF ชุดเต็ม (ใบสำคัญจ่าย + ใบแนบ + หลักฐาน) แยกตามหมวด แล้วอัปเข้า Drive ให้เอง — รอสักครู่อย่าเพิ่งปิดหน้า</div>
+   <div class="tw"><table class="mt">
    <tr><th>เลขรอบ</th><th>ใบสำคัญจ่าย</th><th>คน / ผู้รับเงิน</th><th>ตัดยอดถึง</th><th class="n">บิล</th><th class="n">ยอด</th><th>สถานะ</th><th>วันที่จ่าย</th><th>หมายเหตุ</th><th></th></tr>
-   ${L.map(r=>`<tr><td><a href="#" data-round="${r.id}">${r.id}</a></td><td>${esc(r.pcv||'-')}</td><td>${esc(r.who)}${r.payee?'<br><small style="color:var(--mute)">'+esc(r.payee)+'</small>':''}</td><td>${fd(r.cut)}</td><td class="n">${r.n}</td><td class="n">${m(r.amt)}</td>
+   ${L.map(r=>`<tr><td><a href="#" data-round="${r.id}">${r.id}</a></td><td>${pcvCell(r)}</td><td>${esc(r.who)}${r.payee?'<br><small style="color:var(--mute)">'+esc(r.payee)+'</small>':''}</td><td>${fd(r.cut)}</td><td class="n">${r.n}</td><td class="n">${m(r.amt)}</td>
     <td><span class="pill ${pc(r.st)}">${esc(r.st)}</span></td><td>${fd(r.paid)}</td><td>${esc(r.ref||'-')}</td>
-    <td style="white-space:normal;min-width:260px"><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${r.st!=='ยกเลิก'?`<button class="sm" data-pv="${r.id}">🖨 ใบสำคัญจ่าย</button> `:''}${r.st==='รอจ่าย'?`<input type="date" id="pd-${r.id}" value="${D.now}" aria-label="วันที่จ่าย"> <input id="pr-${r.id}" placeholder="หมายเหตุ (ถ้ามี)" style="width:120px" aria-label="หมายเหตุการจ่าย">
+    <td style="white-space:normal;min-width:260px"><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${r.st!=='ยกเลิก'?(r.pcvs||[]).map(e=>`<button class="sm" data-pv="${r.id}|${esc(e.pcv)}">🖨 ${esc(e.g==='รวม'?'ใบสำคัญจ่าย':e.g)}</button>`).join(' '):''}
+     ${r.st==='จ่ายแล้ว'?`<button class="sm" data-pup="${r.id}" title="สร้าง PDF ใหม่แล้วอัปทับไฟล์เดิม">📤 อัปเข้า Drive</button>`:''}
+     ${r.st==='รอจ่าย'?`<input type="date" id="pd-${r.id}" value="${D.now}" aria-label="วันที่จ่าย"> <input id="pr-${r.id}" placeholder="หมายเหตุ (ถ้ามี)" style="width:120px" aria-label="หมายเหตุการจ่าย">
       <button class="pri sm" data-paid="${r.id}">จ่ายแล้ว</button> <button class="bad sm" data-cancelr="${r.id}">ยกเลิกรอบ</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="10" class="empty">ยังไม่มีรอบเบิก</td></tr>'}
    </table></div></div>`;
 }
@@ -392,6 +404,22 @@ tr.tot td{font-weight:700}
   .page{margin:0;box-shadow:none;page-break-after:always}
 }
 .chk{display:inline-block;width:12px;height:12px;border:1px solid var(--ink)}
+.page.ev{display:flex;flex-direction:column;padding:9mm 10mm 8mm}
+.ev .ph{display:flex;justify-content:space-between;border-bottom:1.5px solid var(--ink);padding-bottom:2.5mm}
+.ev .ph b{font-size:13px}.ev .ph small{display:block;color:var(--mute);font-size:10px}.ev .ph .r{text-align:right}.ev .ph .r b{font-size:16px}.ev .ph .r small{letter-spacing:1.5px}
+.ev .catH{font-weight:700;font-size:11px;background:#111;color:#fff;padding:1mm 3mm;border-radius:1.5mm;margin:2.5mm 0 2mm}
+.ev .grid{flex:1;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:1fr 1fr;gap:3mm;min-height:0}
+.ev .tile{border:1px solid #bbb;border-radius:2mm;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.ev .tile.empty{border:1px dashed #ddd}
+.ev .th{display:flex;gap:4px;align-items:center;background:#f1f3f5;padding:1.2mm 2mm;font-size:9.5px;flex-wrap:wrap}
+.ev .no{background:#111;color:#fff;border-radius:50%;min-width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;padding:0 3px}
+.ev .amt{margin-left:auto;font-weight:700;font-size:11px}
+.ev .img{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:1mm;background:#fafafa}
+.ev .img img{max-width:100%;max-height:100%;object-fit:contain}
+.ev .miss{font-size:10px;color:#888;text-align:center;padding:4mm}
+.ev .tf{font-size:8.5px;color:#444;padding:1mm 2mm;border-top:1px solid #ddd;display:flex;flex-direction:column}
+.ev .tf .src{color:#888}
+.ev .pf{display:flex;justify-content:space-between;font-size:9.5px;color:#555;margin-top:2.5mm;border-top:1px solid #ccc;padding-top:1.5mm}
 td.w{background:#fcfcfc}.flag{font-size:9.5px;color:#555}`;
 function bahtText(n){
   const Dg=['','หนึ่ง','สอง','สาม','สี่','ห้า','หก','เจ็ด','แปด','เก้า'],P=['','สิบ','ร้อย','พัน','หมื่น','แสน'];
@@ -403,19 +431,21 @@ function bahtText(n){
 }
 const mf2=n=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 function co(){const c=(D.lists&&D.lists.company)||{};return {name:c.name||'(ตั้งชื่อบริษัทในแท็บ Lists)',addr:c.addr||'',tax:c.tax?'เลขประจำตัวผู้เสียภาษี '+c.tax:'',source:c.source||'เงินสดย่อย (Petty Cash)'}}
-function openDoc(title,pages){
-  const w=window.open('','_blank');
+function openDoc(title,pages,win){
+  const w=win||window.open('','_blank');
   if(!w){toast('เบราว์เซอร์บล็อกหน้าต่างใหม่ — อนุญาต pop-up แล้วกดอีกครั้ง',true);return}
-  w.document.write(`<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>${esc(title)}</title>
+  w.document.open();w.document.write(`<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>${esc(title)}</title>
    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap"><style>${DOC_CSS}</style></head><body>
    <div class="tool"><button onclick="print()">🖨 พิมพ์ / บันทึก PDF</button><span class="note">${esc(title)}</span></div>${pages}</body></html>`);
   w.document.close();
 }
 function signRow(roles,names){return `<div class="sign">${roles.map((r,k)=>`<div><div class="l"></div>${r}<small>${esc(names[k]||'(.............................)')}</small><small>วันที่ ......../......../........</small></div>`).join('')}</div>`}
-function printVoucher(rid){
-  const r=D.rounds.find(x=>x.id===rid);if(!r)return;
-  const B=D.bills.filter(b=>b.rb===rid).sort((a,b)=>a.d.localeCompare(b.d));
-  const C=co(),tot=B.reduce((s,b)=>s+b.amt,0),no=r.pcv||r.id,payee=r.payee||r.who,date=r.paid||D.now;
+/* (23 Nov 26) ใบสำคัญจ่าย 1 ใบต่อหมวด (e = {g, pcv}) — รอบเก่า g='รวม' = ทุกบิล */
+const gOf=b=>isGoods(b.cat)?'สินค้า':b.cat==='ค่าขนส่ง'?'ค่าขนส่ง':'ค่าใช้จ่ายอื่นๆ';
+function pcvBills(r,e){return D.bills.filter(b=>b.rb===r.id&&(e.g==='รวม'||gOf(b)===e.g)).sort((a,b)=>(isGoods(a.cat)-isGoods(b.cat))||a.cat.localeCompare(b.cat)||a.d.localeCompare(b.d)||a.id.localeCompare(b.id))}
+function voucherHtml(r,e,evN){
+  const B=pcvBills(r,e);
+  const C=co(),tot=B.reduce((s,b)=>s+b.amt,0),no=e.pcv||r.pcv||r.id,payee=r.payee||r.who,date=r.paid||D.now;
   const exp=B.filter(b=>!isGoods(b.cat)),gd=B.filter(b=>isGoods(b.cat));
   const byCat={};exp.forEach(b=>(byCat[b.cat]=byCat[b.cat]||[]).push(b));
   const rng=bs=>{const d=bs.map(b=>b.d).sort();return fd(d[0])+(d.length>1&&d[0]!==d[d.length-1]?' – '+fd(d[d.length-1]):'')};
@@ -429,12 +459,12 @@ function printVoucher(rid){
      <div class="top"><div class="co"><b>${esc(C.name)}</b><div>${esc(C.addr)}</div><div>${esc(C.tax)}</div></div>
       <div class="ttl"><h1>ใบสำคัญจ่าย</h1><div class="en">PAYMENT VOUCHER · เงินสดย่อย</div><span class="stamp">${kind}</span></div></div>
      <div class="meta"><div><span>จ่ายให้</span><b>${esc(payee)}</b></div><div><span>เลขที่</span><b>${esc(no)}</b></div>
-      <div><span>เรื่อง</span>เบิกคืนค่าใช้จ่ายที่สำรองจ่าย (บิลถึง ${fd(r.cut)}) · รอบ ${esc(r.id)}</div><div><span>วันที่</span>${fd(date)}</div></div>
+      <div><span>เรื่อง</span>เบิกคืนค่าใช้จ่ายที่สำรองจ่าย${e.g&&e.g!=='รวม'?' — '+esc(e.g):''} (บิลถึง ${fd(r.cut)}) · รอบ ${esc(r.id)}</div><div><span>วันที่</span>${fd(date)}</div></div>
      <table><thead><tr><th class="c" style="width:7%">ลำดับ</th><th>ประเภท / รายการ</th><th class="c" style="width:13%">จำนวน</th><th class="c" style="width:22%">วันที่บิล</th><th class="n" style="width:17%">จำนวนเงิน (บาท)</th></tr></thead>
      <tbody>${rows}<tr class="tot"><td colspan="4" class="n">รวมทั้งสิ้น</td><td class="n">${mf2(tot)}</td></tr></tbody></table>
      <div class="words">(ตัวอักษร) ${bahtText(tot)}</div>
      <div class="pay"><span><span class="box">✓</span>จ่ายจาก ${esc(C.source)}</span><span>วันที่จ่าย ${r.paid?fd(r.paid):'..............'}</span>${r.ref?`<span>หมายเหตุ ${esc(r.ref)}</span>`:''}
-      <span style="color:#555">เอกสารแนบ: ใบเสร็จ/หลักฐาน ${B.length} ฉบับ (ดูใบแนบ)</span></div>
+      <span style="color:#555">เอกสารแนบ: ใบเสร็จ/หลักฐาน ${B.length} ฉบับ (ดูใบแนบ${evN?' + หลักฐาน '+evN+' หน้า':''})</span></div>
      ${signRow(['ผู้จัดทำ','ผู้ตรวจสอบ','ผู้อนุมัติ','ผู้รับเงิน'],[r.by,'','',payee])}
      <div class="foot"><span>EX · Mewtoy Expense · ${esc(no)} · ${esc(r.id)}</span><span>${kind==='ต้นฉบับ'?'ต้นฉบับ — บัญชีเก็บ':'สำเนา — ผู้รับเงินเก็บ'}</span></div></section>`};
   const att=`<div class="page" style="display:block"><section class="half" style="height:auto">
@@ -443,11 +473,97 @@ function printVoucher(rid){
    <table style="margin-top:8px"><thead><tr><th class="c" style="width:6%">ลำดับ</th><th style="width:15%">เลขบิล</th><th class="c" style="width:11%">วันที่บิล</th><th style="width:17%">ประเภท</th><th>รายละเอียด</th><th style="width:11%">ช่องทางจ่าย</th><th class="n" style="width:13%">จำนวนเงิน</th></tr></thead>
    <tbody>${B.map((b,i)=>`<tr><td class="c">${i+1}</td><td>${b.id}</td><td class="c">${fd(b.d)}</td><td>${esc(b.cat)}</td><td>${esc(b.desc)}${goodsOf(b.id).length?'<div class="flag">'+goodsOf(b.id).map(g=>esc(g.name)+' ×'+g.qty+(g.gr?' · '+esc(g.gr):'')).join(' · ')+'</div>':''}</td><td>${esc(b.paym||'-')}</td><td class="n">${mf2(b.amt)}</td></tr>`).join('')}
    <tr class="tot"><td colspan="6" class="n">รวม ${B.length} บิล</td><td class="n">${mf2(tot)}</td></tr></tbody></table>
-   <div style="font-size:10.5px;color:#555;margin-top:6px">หลักฐาน (รูป/PDF บิล) เก็บใน Drive โฟลเดอร์ Mewtoy_Expense_Bills · เปิดดูได้จาก EX Desk ตามเลขบิล</div>
+   <div style="font-size:10.5px;color:#555;margin-top:6px">${evN?'หลักฐาน (รูป/PDF บิล) แนบท้ายเอกสารนี้ '+evN+' หน้า · ลำดับตรงกับตารางนี้ · ':''}ไฟล์ต้นฉบับเก็บใน Drive โฟลเดอร์ Mewtoy_Expense_Bills</div>
    <div class="sign" style="margin-top:28px;grid-template-columns:repeat(2,1fr);max-width:60%"><div><div class="l"></div>ผู้จัดทำ<small>${esc(r.by)}</small></div><div><div class="l"></div>ผู้ตรวจสอบ<small>(.............................)</small></div></div>
   </section></div>`;
-  openDoc('ใบสำคัญจ่าย '+no,`<div class="page">${half('ต้นฉบับ')}${half('สำเนา')}</div>${att}`);
+  return {no,B,tot,title:'ใบสำคัญจ่าย '+no+(e.g&&e.g!=='รวม'?' '+e.g:''),html:`<div class="page">${half('ต้นฉบับ')}${half('สำเนา')}</div>${att}`};
 }
+/** เอกสารเต็มของ 1 ใบสำคัญจ่าย = ใบสำคัญจ่าย + ใบแนบ + หลักฐาน */
+async function voucherDoc(rid,no){
+  const r=D.rounds.find(x=>x.id===rid);if(!r)throw new Error('ไม่พบรอบ '+rid);
+  const e=(r.pcvs||[]).find(x=>x.pcv===no)||{g:'รวม',pcv:no||r.pcv};
+  const B=pcvBills(r,e);
+  const ev=await evidenceHtml(B,{no:e.pcv,sub:'หลักฐานประกอบใบสำคัญจ่าย '+e.pcv+' · รอบ '+r.id+' · จ่ายให้ '+(r.payee||r.who)});
+  const v=voucherHtml(r,e,ev.n);
+  return {title:v.title,html:v.html+ev.html,no:v.no,group:e.g==='รวม'?'รวม (ก่อนแยกหมวด)':e.g,amt:v.tot,date:r.paid};
+}
+async function printVoucher(rid,no){
+  const w=window.open('','_blank');
+  if(!w){toast('เบราว์เซอร์บล็อกหน้าต่างใหม่ — อนุญาต pop-up แล้วกดอีกครั้ง',true);return}
+  w.document.write('<p style="font:16px sans-serif;padding:20px">กำลังเตรียมเอกสาร + รูปบิล…</p>');
+  try{const d=await voucherDoc(rid,no);openDoc(d.title,d.html,w)}catch(err){w.close();toast(err.message,true)}
+}
+/* ---------- หลักฐานแนบ: รูป/PDF จากบอท 6 ช่อง/หน้า (23 Nov 26) ---------- */
+const imgCache={};
+async function billImages(ids){
+  const need=ids.filter(id=>!imgCache[id]);
+  for(let i=0;i<need.length;i+=12){const res=await api('billImages',{ids:need.slice(i,i+12)});res.forEach(x=>imgCache[x.id]=x)}
+  return ids.map(id=>imgCache[id]||{id,files:[]});
+}
+function loadImg(src){return new Promise((ok,no)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=()=>no(new Error('รูปเสีย'));im.src=src})}
+/** ใบเสร็จ SPX (สูง > 3 เท่าของกว้าง + รู้จำนวนกล่อง) → ตัดส่วนเงื่อนไข/QR ท้ายใบ */
+async function prepImg(f,boxes){
+  const src='data:'+(f.mime||'image/jpeg')+';base64,'+f.data;
+  if(!(f.pdf&&boxes>0))return src;
+  try{const im=await loadImg(src);if(im.height/im.width<3)return src;
+    const frac=Math.min(1,(360+(boxes-1)*92+28)/708),h=Math.round(im.height*frac);
+    const c=document.createElement('canvas');c.width=im.width;c.height=h;c.getContext('2d').drawImage(im,0,0,im.width,h,0,0,im.width,h);
+    return c.toDataURL('image/jpeg',.9)}catch(e){return src}
+}
+async function evidenceHtml(B,ctx){
+  if(!B.length)return {html:'',n:0};
+  const data=await billImages(B.map(b=>b.id));
+  const C=co(),tiles=[];
+  for(let i=0;i<B.length;i++){const b=B[i],x=data[i],files=(x.files||[]).length?x.files:[{err:'ไม่มีไฟล์แนบ'}];
+    for(let k=0;k<files.length;k++){const f=files[k];
+      const img=f.data?await prepImg(f,x.boxes):'';
+      tiles.push({cat:b.cat,html:`<div class="tile"><div class="th"><span class="no">${i+1}</span><b>${esc(b.id)}</b><span>${fd(b.d)}</span><span class="amt">${k?'(ต่อ)':mf2(b.amt)}</span></div>
+        <div class="img">${img?`<img src="${img}" alt="">`:`<div class="miss">${esc(f.err||'ไม่มีภาพ')}${f.url?'<br>'+esc(f.url):''}</div>`}</div>
+        <div class="tf"><span>${esc(b.cat)} · ${esc(b.desc)}</span><span class="src">${f.pdf?'PDF':'รูป'} · ${esc(b.who)}${files.length>1?' · ไฟล์ '+(k+1)+'/'+files.length:''}</span></div></div>`,b,first:!k})}}
+  // เปลี่ยนหมวด = ขึ้นหน้าใหม่ · หน้าละ 6 ช่อง
+  const pages=[];let cur=null;
+  tiles.forEach(t=>{if(!cur||cur.cat!==t.cat||cur.t.length===6){cur={cat:t.cat,t:[]};pages.push(cur)}cur.t.push(t)});
+  const N=pages.length;
+  const html=pages.map((p,pi)=>{const bs=p.t.filter(t=>t.first).map(t=>t.b);const catB=B.filter(b=>b.cat===p.cat);
+    return `<div class="page ev"><div class="ph"><div><b>${esc(C.name)}</b><small>${esc(ctx.sub)}</small></div><div class="r"><b>หลักฐานแนบ</b><small>EVIDENCE · หน้า ${pi+1}/${N}</small></div></div>
+    <div class="catH">${esc(p.cat)} · ${catB.length} บิล · ${mf2(catB.reduce((s,b)=>s+b.amt,0))} บาท</div>
+    <div class="grid">${p.t.map(t=>t.html).join('')}${'<div class="tile empty"></div>'.repeat(6-p.t.length)}</div>
+    <div class="pf"><span>หน้านี้ ${bs.length} บิล${p.t.length!==bs.length?' ('+p.t.length+' รูป)':''} · รวม ${mf2(bs.reduce((s,b)=>s+b.amt,0))} บาท · ลำดับตรงกับใบแนบรายการบิล</span><span>EX · Mewtoy Expense · ${esc(ctx.no)}</span></div></div>`}).join('');
+  return {html,n:N};
+}
+/* ---------- PDF เข้า Drive บัญชี (23 Nov 26) ---------- */
+function loadJs(src){return new Promise((ok,no)=>{if(document.querySelector('script[src="'+src+'"]'))return ok();const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>no(new Error('โหลดตัวสร้าง PDF ไม่ได้ (เช็กอินเทอร์เน็ต)'));document.head.append(s)})}
+async function htmlToPdf(title,html){
+  await loadJs('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+  await loadJs('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  const fr=document.createElement('iframe');fr.style.cssText='position:fixed;left:-10000px;top:0;width:820px;height:1200px;border:0';document.body.append(fr);
+  try{const d=fr.contentDocument;d.open();d.write(`<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>${esc(title)}</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap"><style>${DOC_CSS}
+      html,body{background:#fff}.page{margin:0;box-shadow:none}</style></head><body>${html}</body></html>`);d.close();
+    await new Promise(ok=>setTimeout(ok,300));try{await d.fonts.ready}catch(e){}
+    await Promise.all([...d.images].map(im=>im.complete?0:new Promise(ok=>{im.onload=im.onerror=ok})));
+    const pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4',compress:true});
+    const pages=[...d.querySelectorAll('.page')];
+    for(let i=0;i<pages.length;i++){const cv=await window.html2canvas(pages[i],{scale:2,backgroundColor:'#ffffff',logging:false});
+      if(i)pdf.addPage();pdf.addImage(cv.toDataURL('image/jpeg',.85),'JPEG',0,0,210,297)}
+    return pdf.output('datauristring').split(',')[1];
+  }finally{fr.remove()}
+}
+let upBusy=false;
+async function uploadDocs(list){
+  if(upBusy){toast('กำลังอัปอยู่ รอสักครู่',true);return}
+  upBusy=true;let ok=0;
+  try{for(let i=0;i<list.length;i++){const it=list[i];
+      toast(`กำลังสร้าง PDF ${i+1}/${list.length} · ${it.label}`);
+      try{const d=await it.make();if(!d.date)throw new Error('ยังไม่มีวันที่จ่าย');
+        const b64=await htmlToPdf(d.title,d.html);
+        const r=await api('saveDoc',{kind:it.kind,ref:it.ref,no:d.no,group:d.group,date:d.date,amt:d.amt,b64});ok++;
+        toast('📂 อัปแล้ว '+r.name)}catch(err){toast(it.label+' อัปไม่สำเร็จ: '+err.message,true)}}
+  }finally{upBusy=false}
+  if(ok){try{await reload()}catch(e){}}
+}
+function uploadRound(rid){const r=D.rounds.find(x=>x.id===rid);if(!r)return;
+  return uploadDocs((r.pcvs||[]).map(e=>({kind:'pcv',ref:rid,label:e.pcv+' '+e.g,make:()=>voucherDoc(rid,e.pcv)})))}
+
 function printGR(gr){
   const I=D.goods.filter(g=>g.gr===gr);if(!I.length)return;
   const C=co(),bills=Object.fromEntries(D.bills.map(b=>[b.id,b]));
@@ -524,11 +640,10 @@ function vWage(){
     ${waitBills.length?`<div class="panel"><div class="bar"><b>บิลลูกน้องรอตรวจ ${waitBills.length} ใบ</b></div>${waitBills.map(x=>row(x,'q')).join('')}</div>`:''}
     <div class="panel"><div class="bar"><b>ใบเบิกค่าแรง · ${esc(w.nick)}</b></div><div class="tw"><table class="mt"><tr><th>เลขที่</th><th>ช่วง</th><th class="n">วัน</th><th class="n">รวม</th><th>สถานะ</th><th></th></tr>
      ${claims.map(c=>`<tr><td>${c.id}</td><td>${fd(c.from)} – ${fd(c.to)}</td><td class="n">${c.days}</td><td class="n">${m(c.total)}</td><td><span class="pill ${pc(c.st)}">${esc(c.st)}${c.paid?' '+fd(c.paid):''}</span></td>
-      <td style="white-space:normal;min-width:240px"><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${c.st!=='ยกเลิก'?`<button class="sm" data-wgp="${c.id}">🖨 ใบสำคัญจ่าย</button>`:''}${c.st==='รอจ่าย'?`<input type="date" id="wpd-${c.id}" value="${D.now}" aria-label="วันที่จ่าย"><button class="pri sm" data-wgpay="${c.id}">จ่ายแล้ว</button><button class="bad sm" data-wgx="${c.id}">ยกเลิก</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="6" class="empty">ยังไม่มีใบเบิก</td></tr>'}</table></div></div></div></div>`;
+      <td style="white-space:normal;min-width:240px"><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${c.st!=='ยกเลิก'?`<button class="sm" data-wgp="${c.id}">🖨 ใบสำคัญจ่าย</button>`:''}${c.st==='จ่ายแล้ว'?`<button class="sm" data-wup="${c.id}" title="สร้าง PDF ใหม่แล้วอัปทับไฟล์เดิม">📤 อัปเข้า Drive</button>`:''}${c.st==='รอจ่าย'?`<input type="date" id="wpd-${c.id}" value="${D.now}" aria-label="วันที่จ่าย"><button class="pri sm" data-wgpay="${c.id}">จ่ายแล้ว</button><button class="bad sm" data-wgx="${c.id}">ยกเลิก</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="6" class="empty">ยังไม่มีใบเบิก</td></tr>'}</table></div></div></div></div>`;
 }
-function printWG(id){
-  const c=(D.wages||[]).find(x=>x.id===id);if(!c)return;
-  const C=co(),bills=D.bills.filter(b=>c.billIds.includes(b.id)).sort((a,b)=>a.d.localeCompare(b.d));
+function wgHtml(c,evN){
+  const C=co(),bills=D.bills.filter(b=>c.billIds.includes(b.id)).sort((a,b)=>a.cat.localeCompare(b.cat)||a.d.localeCompare(b.d));
   const dl=c.dayList.slice().sort(),byM={};dl.forEach(d=>(byM[d.slice(0,7)]=byM[d.slice(0,7)]||[]).push(+d.slice(8)));
   const dtxt=Object.entries(byM).map(([k,v])=>v.join(', ')+' '+fm(k)).join(' · ');
   let i=1;const rows=`<tr><td class="c">${i}</td><td>ค่าแรงรายวัน ${c.days} วัน × ${mf2(c.rate)}<div class="flag">${esc(dtxt)}</div></td><td class="c">${fd(c.from)} – ${fd(c.to)}</td><td class="n">${mf2(c.wage)}</td></tr>`+
@@ -542,11 +657,24 @@ function printWG(id){
    <table><thead><tr><th class="c" style="width:7%">ลำดับ</th><th>รายการ</th><th class="c" style="width:24%">วันที่</th><th class="n" style="width:17%">จำนวนเงิน (บาท)</th></tr></thead>
    <tbody>${rows}<tr class="tot"><td colspan="3" class="n">รวมทั้งสิ้น</td><td class="n">${mf2(c.total)}</td></tr></tbody></table>
    <div class="words">(ตัวอักษร) ${bahtText(c.total)}</div>
-   <div class="pay"><span><span class="box">✓</span>จ่ายจาก ${esc(C.source)}</span><span>วันที่จ่าย ${c.paid?fd(c.paid):'..............'}</span><span style="color:#555">ลูกจ้างชั่วคราว ไม่อยู่ในระบบเงินเดือน · รูปบิลอยู่ใน EX</span></div>
+   <div class="pay"><span><span class="box">✓</span>จ่ายจาก ${esc(C.source)}</span><span>วันที่จ่าย ${c.paid?fd(c.paid):'..............'}</span><span style="color:#555">ลูกจ้างชั่วคราว ไม่อยู่ในระบบเงินเดือน${evN?' · หลักฐานบิลแนบท้าย '+evN+' หน้า':''}</span></div>
    ${signRow(['ผู้จัดทำ','ผู้อนุมัติ','ผู้รับเงิน'],[c.by,'',c.nick]).replace('class="sign"','class="sign" style="grid-template-columns:repeat(3,1fr)"')}
    <div class="foot"><span>EX · Mewtoy Expense · ${esc(c.id)}</span><span>${k==='ต้นฉบับ'?'ต้นฉบับ — บัญชีเก็บ':'สำเนา — ลูกน้องเก็บ'}</span></div></section>`;
-  openDoc('ใบสำคัญจ่ายค่าแรง '+c.id,`<div class="page">${half('ต้นฉบับ')}${half('สำเนา')}</div>`);
+  return `<div class="page">${half('ต้นฉบับ')}${half('สำเนา')}</div>`;
 }
+async function wgDoc(id){
+  const c=(D.wages||[]).find(x=>x.id===id);if(!c)throw new Error('ไม่พบ '+id);
+  const B=D.bills.filter(b=>c.billIds.includes(b.id)).sort((a,b)=>a.cat.localeCompare(b.cat)||a.d.localeCompare(b.d));
+  const ev=await evidenceHtml(B,{no:c.id,sub:'หลักฐานประกอบใบสำคัญจ่ายค่าแรง '+c.id+' · '+c.nick});
+  return {title:'ใบสำคัญจ่ายค่าแรง '+c.id,html:wgHtml(c,ev.n)+ev.html,no:c.id,group:'ค่าแรง',amt:c.total,date:c.paid};
+}
+async function printWG(id){
+  const w=window.open('','_blank');
+  if(!w){toast('เบราว์เซอร์บล็อกหน้าต่างใหม่ — อนุญาต pop-up แล้วกดอีกครั้ง',true);return}
+  w.document.write('<p style="font:16px sans-serif;padding:20px">กำลังเตรียมเอกสาร…</p>');
+  try{const d=await wgDoc(id);openDoc(d.title,d.html,w)}catch(err){w.close();toast(err.message,true)}
+}
+function uploadWG(id){return uploadDocs([{kind:'wg',ref:id,label:id+' ค่าแรง',make:()=>wgDoc(id)}])}
 
 /* ---------- พัสดุ (15 Nov 26) — ดู/แก้/ยกเลิกกล่อง · แก้ POS + EX ให้พร้อมกัน ---------- */
 let PD=null,pdLoading=false,pf={q:'',type:'',flag:false,cx:false},pfrom='',pto='';
@@ -670,6 +798,8 @@ document.addEventListener('change',e=>{
   if(t.id==='pccx'){pf.cx=t.checked;render()}
   if(t.id==='pcfrom'||t.id==='pcto'){if(t.id==='pcfrom')pfrom=t.value;else pto=t.value;PD=null;render()}
 });
+document.addEventListener('change',async e=>{const t=e.target;if(t.id!=='docpref'||!D)return;   // (23 Nov 26) ตำแหน่งวันที่ในชื่อไฟล์
+  try{D.docPref=await api('setDocPref',{dateFirst:t.value==='1'});toast('ตั้งชื่อไฟล์: '+(D.docPref.dateFirst?'วันที่ขึ้นต้น':'วันที่ท้ายชื่อ'))}catch(err){toast(err.message,true)}});
 document.addEventListener('input',e=>{const t=e.target;if(t.id==='pcq'){pf.q=t.value;render();const q=$('#pcq');q.focus();q.setSelectionRange(pf.q.length,pf.q.length)}});
 
 /* ---------- events ---------- */
@@ -688,8 +818,10 @@ document.addEventListener('click',async e=>{
     const ids=D.bills.filter(x=>x.who===cutWho&&x.pay==='ส่วนตัว'&&x.st==='อนุมัติ'&&!x.rb&&x.d<=cutDate&&!eligibility(x)&&!ex.has(x.id)).map(x=>x.id);
     if(!confirm(`ตัดยอด ${cutWho} ถึง ${fd(cutDate)} · ${ids.length} บิล ?`))return;
     const r=await act('cutRound',{who:cutWho,cutDate,ids,payee:payee||buyers()[0]},r=>'สร้างรอบ '+r.id+' · ใบสำคัญจ่าย '+r.pcv+' · '+m(r.amt)+' บาท');if(r){ex.clear();tab='rounds';render()}return}
-  if(ds.paid){const id=ds.paid;return act('payRound',{id,paidDate:$('#pd-'+id).value,ref:$('#pr-'+id).value},id+' จ่ายแล้ว')}
-  if(ds.pv)return printVoucher(ds.pv);
+  if(ds.paid){const id=ds.paid;const r=await act('payRound',{id,paidDate:$('#pd-'+id).value,ref:$('#pr-'+id).value},id+' จ่ายแล้ว');if(r)uploadRound(id);return}
+  if(ds.pv){const [rid,no]=ds.pv.split('|');return printVoucher(rid,no)}
+  if(ds.pup)return uploadRound(ds.pup);
+  if(ds.wup)return uploadWG(ds.wup);
   if(ds.wm){wmode=ds.wm;render();return}
   if(ds.wq){wmode='range';const dow=new Date(D.now+'T00:00:00').getDay(),mon=addD(D.now,-((dow+6)%7));
     if(ds.wq==='week'){wfrom=addD(mon,-7);wto=addD(mon,-1)}else if(ds.wq==='this'){wfrom=mon;wto=D.now}else{const ym=D.now.slice(0,7);const pm=addD(ym+'-01',-1);wfrom=pm.slice(0,7)+'-01';wto=pm}
@@ -702,7 +834,7 @@ document.addEventListener('click',async e=>{
   if(t.id==='wdon')return act('wageDay',{code:wk,date:$('#wdadd').value,on:true},'ลงวันทำงานแล้ว');
   if(ds.wdoff){if(!confirm('ลบวันทำงาน '+fd(ds.wdoff)+' ?'))return;return act('wageDay',{code:wk,date:ds.wdoff,on:false},'ลบวันทำงานแล้ว')}
   if(ds.wgp)return printWG(ds.wgp);
-  if(ds.wgpay)return act('wagePay',{id:ds.wgpay,paidDate:$('#wpd-'+ds.wgpay).value},ds.wgpay+' จ่ายแล้ว');
+  if(ds.wgpay){const id=ds.wgpay;const r=await act('wagePay',{id,paidDate:$('#wpd-'+id).value},id+' จ่ายแล้ว');if(r)uploadWG(id);return}
   if(ds.wgx){if(!confirm('ยกเลิกใบเบิก '+ds.wgx+' ? วันทำงานและบิลจะกลับไปรอเบิก'))return;return act('wageCancel',{id:ds.wgx},ds.wgx+' ยกเลิกแล้ว')}
   if(ds.grp)return printGR(ds.grp);
   if(ds.cancelr){if(!confirm('ยกเลิกรอบ '+ds.cancelr+' ? บิลจะกลับไปรอตัดยอด (เลขใบสำคัญจ่ายของรอบนี้จะไม่ถูกใช้ซ้ำ)'))return;return act('cancelRound',{id:ds.cancelr},ds.cancelr+' ยกเลิกแล้ว')}
