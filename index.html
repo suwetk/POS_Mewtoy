@@ -476,7 +476,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.20-b</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.24-a</span>
       </div>
       <div class="flex-1"></div>
 
@@ -10849,7 +10849,7 @@ function renderReportBillsTable_() {
           <div class="flex items-baseline gap-1">
             <span class="text-gray-400 flex-shrink-0 text-right" style="font-size:.7em;width:1.1em">${ii + 1}.</span>
             ${recTag}
-            <span class="flex-1 min-w-0 text-gray-900 font-medium whitespace-nowrap overflow-hidden text-ellipsis" title="${escapeHtml(barcode + " " + (it.name || ""))}">${barcode ? `<span class="text-blue-700 font-semibold font-mono mr-1.5" style="font-size:.88em">${escapeHtml(barcode)}</span>` : ""}${escapeHtml(it.name || "")}</span>
+            <span class="flex-1 min-w-0 text-gray-900 font-medium whitespace-nowrap overflow-hidden text-ellipsis" title="${escapeHtml(barcode + " " + (it.name || ""))}">${barcode ? bcCopyBtn_(barcode, "sm") + " " : ""}${escapeHtml(it.name || "")}</span>
             <span class="flex-shrink-0 ${qty > 1 ? "bg-orange-600 text-white" : "bg-gray-100 text-gray-500"} font-bold rounded-full text-center" style="font-size:.75em;min-width:1.8em;padding:0 .35em">${qty}</span>
             <span class="flex-shrink-0 text-gray-400 text-right" style="font-size:.78em;width:3.7em">${formatMoneySmart_(it.price)}</span>
             <span class="flex-shrink-0 text-gray-800 font-semibold text-right" style="font-size:.85em;width:4em">${formatMoneySmart_(lineTotal)}</span>
@@ -17199,7 +17199,7 @@ function renderWSDraftItems() {
         </td>
         <td class="py-2 pr-1.5">
           <div class="flex items-start gap-2 flex-wrap">
-            ${item.barcode ? `<span class="inline-block bg-slate-100 border border-slate-300 text-slate-700 font-mono text-lg font-bold px-2 py-1 rounded leading-none flex-shrink-0 mt-0.5">${escapeHtml(item.barcode)}</span>` : ""}
+            ${item.barcode ? bcCopyBtn_(item.barcode, "lg") + " " : ""}
             <textarea rows="2" data-idx="${idx}" data-field="name"
                    placeholder="พิมพ์ชื่อสินค้า..." title="${nameTitle}"
                    class="ws-draft-edit-input flex-1 min-w-[140px] resize-none overflow-hidden bg-transparent border border-transparent hover:border-gray-200
@@ -19200,7 +19200,7 @@ function renderStockFreeScanRows() {
   tbody.innerHTML = stockFreeItems.length
     ? stockFreeItems.map((r, idx) =>
         '<tr class="border-b last:border-b-0">' +
-        '<td class="py-2"><span class="bg-slate-100 border border-slate-300 text-slate-700 font-mono text-[13px] font-semibold px-1.5 py-0.5 rounded">' + escapeHtml(r.barcode) + '</span></td>' +
+        '<td class="py-2">' + bcCopyBtn_(r.barcode, "md") + ' </td>' +
         '<td class="py-2 font-medium text-gray-700">' + escapeHtml(r.name) + '</td>' +
         '<td class="py-2 text-center">' +
           '<div class="inline-flex items-center gap-2">' +
@@ -19291,7 +19291,7 @@ function renderStockTransferDraftRows() {
     ? stockTransferDraftItems.map((r, idx) =>
         '<tr class="border-b last:border-b-0">' +
         '<td class="py-2 font-medium text-gray-700">' +
-          '<span class="bg-slate-100 border border-slate-300 text-slate-700 font-mono text-[12px] font-semibold px-1.5 py-0.5 rounded mr-1.5">' + escapeHtml(r.barcode) + '</span>' +
+          '' + bcCopyBtn_(r.barcode, "sm") + ' ' +
           escapeHtml(r.name) +
         '</td>' +
         '<td class="py-2 text-center">' +
@@ -19495,7 +19495,7 @@ function renderStockTransferReceiveRows() {
         return (
           '<tr class="border-b last:border-b-0">' +
           '<td class="py-2 font-medium text-gray-700">' +
-            '<span class="bg-slate-100 border border-slate-300 text-slate-700 font-mono text-[12px] font-semibold px-1.5 py-0.5 rounded mr-1.5">' + escapeHtml(l.barcode) + '</span>' +
+            '' + bcCopyBtn_(l.barcode, "sm") + ' ' +
             escapeHtml(l.name) +
           '</td>' +
           '<td class="py-2 text-center text-gray-500">' + l.qtySent + '</td>' +
@@ -19594,7 +19594,7 @@ function renderStockLocationAssignRows() {
   document.getElementById("stockLocationAssignRows").innerHTML = rows.length
     ? rows.map(([barcode, item]) =>
         '<tr class="border-b last:border-b-0">' +
-        '<td class="py-2"><span class="bg-slate-100 border border-slate-300 text-slate-700 font-mono text-[13px] font-semibold px-1.5 py-0.5 rounded">' + escapeHtml(barcode) + '</span></td>' +
+        '<td class="py-2">' + bcCopyBtn_(barcode, "md") + ' </td>' +
         '<td class="py-2 font-medium text-gray-700">' + escapeHtml(item.name) + '</td>' +
         '<td class="py-2 text-center font-semibold text-gray-700">' + item.qty + '</td>' +
         '</tr>'
@@ -19704,7 +19704,7 @@ function renderStockOnHandRows(filterText) {
           : "ยังไม่ระบุชั้น";
         return (
           '<tr class="border-b last:border-b-0">' +
-          '<td class="py-2"><span class="bg-slate-100 border border-slate-300 text-slate-700 font-mono text-[13px] font-semibold px-1.5 py-0.5 rounded">' + escapeHtml(it.barcode) + '</span></td>' +
+          '<td class="py-2">' + bcCopyBtn_(it.barcode, "md") + ' </td>' +
           '<td class="py-2 font-medium text-gray-700">' + escapeHtml(it.name) + '</td>' +
           '<td class="py-2 text-gray-500 text-xs">' + escapeHtml(locText) + '</td>' +
           '<td class="py-2 text-right font-semibold text-gray-700">' + it.qty + '</td>' +
@@ -19948,9 +19948,54 @@ async function loadStorewdBranchStatus() {
 // to tell items apart at a glance. No-barcode items (a hand-typed
 // request never matched to a real product) get a muted "ไม่มีบาร์โค้ด"
 // chip instead of silently having nothing there.
+/* v2026.11.24-a: บาร์โค้ดแบบปุ่มกดคัดลอก (mockup_barcode_copy.html แบบ A)
+   คลิกครั้งเดียว = คัดลอกเฉพาะเลขบาร์โค้ด → เขียว + "คัดลอกแล้ว ✓" · มีเว้นวรรคจริงต่อท้าย (ใส่ที่จุดเรียก)
+   ใช้ทุกจุดที่แสดงบาร์โค้ดคู่ชื่อ: Report, WS, Pre-Order, ใบเบิก, ตะกร้า/รับของจอง · ตัวจับคลิกอยู่ setupBarcodeCopy_() */
+function bcCopyBtn_(barcode, size) {
+  const bc = String(barcode || "");
+  const sz = { sm: "text-[12px] px-1.5", md: "text-[13px] px-1.5 py-0.5", lg: "text-lg font-bold px-2 py-0.5 leading-none", pill: "text-sm sm:text-base font-bold px-2 py-0.5" }[size] || "text-[12px] px-1.5";
+  return `<button type="button" class="bc-copy-btn inline-flex items-center gap-1 align-baseline font-mono font-semibold text-blue-800 bg-blue-50 border border-blue-200 hover:bg-blue-100 hover:border-blue-300 rounded-md whitespace-nowrap flex-shrink-0 transition-colors ${sz}" data-bc="${escapeHtml(bc)}" title="คลิกเพื่อคัดลอกบาร์โค้ด" tabindex="0">${escapeHtml(bc)}<i class="fa-regular fa-copy opacity-50" style="font-size:.75em"></i></button>`;
+}
+function setupBarcodeCopy_() {
+  const tip = document.createElement("div");
+  tip.id = "bcCopyTip";
+  tip.textContent = "คัดลอกแล้ว ✓";
+  tip.style.cssText = "position:fixed;z-index:200;background:#166534;color:#fff;font-size:12px;font-weight:600;border-radius:6px;padding:3px 9px;pointer-events:none;opacity:0;transition:opacity .15s";
+  document.body.appendChild(tip);
+  const done = (btn) => {
+    btn.classList.add("bg-green-100", "border-green-300", "text-green-800");
+    const r = btn.getBoundingClientRect();
+    tip.style.left = Math.max(8, r.left) + "px";
+    tip.style.top = Math.max(8, r.top - 30) + "px";
+    tip.style.opacity = "1";
+    clearTimeout(btn._bcT);
+    btn._bcT = setTimeout(() => { btn.classList.remove("bg-green-100", "border-green-300", "text-green-800"); tip.style.opacity = "0"; }, 1200);
+  };
+  // capture: กันคลิกไปโดนแถว/checkbox/label ที่ครอบอยู่
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest && e.target.closest(".bc-copy-btn");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const bc = btn.getAttribute("data-bc") || "";
+    const fallback = () => {
+      const ta = document.createElement("textarea");
+      ta.value = bc; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); } catch (err) {}
+      ta.remove();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(bc).catch(fallback);
+    else fallback();
+    done(btn);
+    // ปุ่มในตะกร้า: คืนโฟกัสให้ช่องยิงบาร์โค้ด
+    if (btn.closest("#cartTableBody") && typeof refocusScanInput === "function") refocusScanInput();
+  }, true);
+}
+
 function storewdBarcodeChip_(barcode) {
   return barcode
-    ? `<span class="bg-slate-100 border border-slate-300 text-slate-700 font-mono text-[12px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap">${escapeHtml(barcode)}</span>`
+    ? bcCopyBtn_(barcode, "sm") + " "
     : `<span class="bg-gray-50 border border-dashed border-gray-300 text-gray-400 text-[11px] px-1.5 py-0.5 rounded whitespace-nowrap">ไม่มีบาร์โค้ด</span>`;
 }
 
@@ -19964,7 +20009,7 @@ function storewdBarcodeChip_(barcode) {
 // for the Store Withdrawal / WS draft screens, which Wing didn't ask to change.
 function bigBarcodePill_(barcode) {
   return barcode
-    ? `<span class="font-mono text-sm sm:text-base font-bold text-sky-800 bg-sky-50 border border-sky-300 rounded-md px-2 py-0.5 whitespace-nowrap">${escapeHtml(barcode)}</span>`
+    ? bcCopyBtn_(barcode, "pill") + " "
     : `<span class="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-dashed border-amber-300 rounded-md px-1.5 py-0.5 whitespace-nowrap">ไม่มีบาร์โค้ด</span>`;
 }
 
@@ -23965,6 +24010,7 @@ async function init() {
   setupBranchIndicator();
   setupNavSync_();
   setupQuickAdd_();
+  setupBarcodeCopy_(); // v2026.11.24-a บาร์โค้ดกดคัดลอก
   setupCustomerSearchBoxes_(); // v2026.11.20-b ค้นลูกค้าแบบพิมพ์บางส่วน + ผูกรหัสใบจอง
   setupEventPrice_();
   setupWsAll_();
