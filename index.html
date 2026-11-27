@@ -476,7 +476,7 @@
         <span class="ttl">Retail POS System</span>
         <!-- เลขเวอร์ชันหน้าเว็บ — ไว้เช็กว่าเครื่องนี้โหลดไฟล์ล่าสุดแล้วหรือยัง
              (เปลี่ยนทุกครั้งที่ส่งไฟล์ใหม่) -->
-        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.24-a</span>
+        <span id="appVersionTag" class="navB-ver" title="เวอร์ชันหน้าเว็บ — ถ้าไม่ตรงกับที่แจ้ง ให้กด Ctrl+Shift+R">v2026.11.27-a</span>
       </div>
       <div class="flex-1"></div>
 
@@ -1046,7 +1046,8 @@
           <button type="button" data-ship-view="track" class="ship-view-btn text-sm px-3.5 py-1.5 rounded-full border font-semibold">🔢 รอเลขพัสดุ <span id="shipCntTrack" class="font-extrabold"></span></button>
           <button type="button" data-ship-view="done" class="ship-view-btn text-sm px-3.5 py-1.5 rounded-full border font-semibold">✅ ส่งแล้ว</button>
         </div>
-        <button id="shipReloadBtn" type="button" class="ml-auto text-xs text-gray-500 hover:text-gray-800 px-2 py-1"><i class="fa-solid fa-rotate-right"></i> โหลดใหม่</button>
+        <button id="webOrderOpenBtn" type="button" class="ml-auto text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-700 hover:bg-blue-800 text-white" title="คัดลอกหน้าออเดอร์ LnwShop มาวาง → สร้างบิลสาขา Website">📥 วางออเดอร์เว็บ</button>
+        <button id="shipReloadBtn" type="button" class=" text-xs text-gray-500 hover:text-gray-800 px-2 py-1"><i class="fa-solid fa-rotate-right"></i> โหลดใหม่</button>
       </div>
       <div class="flex gap-3 flex-wrap items-end px-4 py-3 border-b">
         <label class="text-xs font-bold text-gray-500">สาขา<br>
@@ -2922,6 +2923,22 @@
       <div class="flex gap-2 justify-end mt-1">
         <button id="wsPaymentCancelBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ยกเลิก</button>
         <button id="wsPaymentConfirmBtn" type="button" class="px-4 py-2 rounded-lg bg-sky-700 hover:bg-sky-800 text-white font-semibold">✅ บันทึกรับชำระ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 📥 วางออเดอร์เว็บ (LnwShop) — v2026.11.27-a (mockup_web_order_paste.html) -->
+  <div id="webOrderModal" class="fixed inset-0 bg-black/50 z-[110] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl p-5 flex flex-col gap-2 max-h-[92vh] overflow-y-auto">
+      <h3 class="font-semibold text-gray-800 text-lg">📥 วางออเดอร์เว็บ <span class="text-sm font-normal text-gray-500">LnwShop → บิลสาขา Website (รอจัดส่ง)</span></h3>
+      <p class="text-xs text-gray-500">เปิดลิงก์ออเดอร์ (lnw.me/order/…) → กด <b>Ctrl+A</b> แล้ว <b>Ctrl+C</b> → คลิกช่องด้านล่าง กด <b>Ctrl+V</b> → 🔍 อ่านออเดอร์ · ตรวจ/แก้ทุกช่องได้ก่อนบันทึก</p>
+      <textarea id="woRaw" rows="7" class="w-full border-2 border-dashed border-blue-300 bg-blue-50/40 rounded-lg px-3 py-2 text-xs font-mono" placeholder="วางข้อความทั้งหน้าออเดอร์ที่นี่"></textarea>
+      <div class="flex gap-2"><button id="woParseBtn" type="button" class="px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-semibold text-sm">🔍 อ่านออเดอร์</button></div>
+      <div id="woPreview" class="hidden border border-gray-200 rounded-lg p-3"></div>
+      <p id="woErr" class="text-sm text-red-600 hidden"></p>
+      <div class="flex justify-end gap-2">
+        <button id="woCancelBtn" type="button" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium">ปิด</button>
+        <button id="woSaveBtn" type="button" class="px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold">✅ สร้างบิล Website</button>
       </div>
     </div>
   </div>
@@ -19956,6 +19973,340 @@ function bcCopyBtn_(barcode, size) {
   const sz = { sm: "text-[12px] px-1.5", md: "text-[13px] px-1.5 py-0.5", lg: "text-lg font-bold px-2 py-0.5 leading-none", pill: "text-sm sm:text-base font-bold px-2 py-0.5" }[size] || "text-[12px] px-1.5";
   return `<button type="button" class="bc-copy-btn inline-flex items-center gap-1 align-baseline font-mono font-semibold text-blue-800 bg-blue-50 border border-blue-200 hover:bg-blue-100 hover:border-blue-300 rounded-md whitespace-nowrap flex-shrink-0 transition-colors ${sz}" data-bc="${escapeHtml(bc)}" title="คลิกเพื่อคัดลอกบาร์โค้ด" tabindex="0">${escapeHtml(bc)}<i class="fa-regular fa-copy opacity-50" style="font-size:.75em"></i></button>`;
 }
+/* =================================================================
+   📥 วางออเดอร์เว็บ (LnwShop → บิลสาขา Website) — v2026.11.27-a
+   mockup_web_order_paste.html · backend checkWebOrder / saveWebOrder (2026-11-27-a-weborder)
+   พนักงานเปิดหน้าออเดอร์ lnw.me เอง → Ctrl+A, Ctrl+C → วางที่นี่ (ระบบไม่เปิดเว็บ LnwShop เอง)
+   ตัวแยกเดาจากคำนำหน้าทั่วไป (ยังไม่เห็นหน้าจริง) — ทุกช่องแก้ได้ก่อนบันทึก
+   ================================================================= */
+const WO_SHIP_CODES = [["678", "SPX / Shopee Express"], ["789", "EMS / ไปรษณีย์"], ["456", "Grab / อื่นๆ"]];
+let woState = null; // { orderNo, items:[{barcode,name,qty,price,found}], ... }
+
+function woNum_(s) {
+  const n = Number(String(s || "").replace(/[,฿\s]/g, "").replace(/บาท/g, ""));
+  return isFinite(n) ? n : 0;
+}
+function woLabelValue_(lines, re) {
+  // หาค่าหลังคำนำหน้า (บรรทัดเดียวกัน หรือบรรทัดถัดไปถ้าบรรทัดนั้นมีแค่คำนำหน้า)
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(re);
+    if (!m) continue;
+    const rest = lines[i].slice(m.index + m[0].length).replace(/^[\s:：\-]+/, "").trim();
+    if (rest) return { value: rest, idx: i };
+    for (let j = i + 1; j < Math.min(lines.length, i + 3); j++) if (lines[j].trim()) return { value: lines[j].trim(), idx: j };
+  }
+  return null;
+}
+function woAmountAfter_(lines, re) {
+  // จำนวนเงินตัวสุดท้ายที่เจอหลังคำนำหน้า (บรรทัดเดียวกันหรือบรรทัดถัดไป) — ใช้ "ตัวสุดท้ายในเอกสาร"
+  let found = null;
+  for (let i = 0; i < lines.length; i++) {
+    if (!re.test(lines[i])) continue;
+    const cand = [lines[i], lines[i + 1] || ""];
+    for (const c of cand) {
+      const after = c === lines[i] ? c.replace(re, "") : c;
+      const nums = after.match(/-?\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|-?\d+(?:\.\d{1,2})?/g);
+      if (nums && nums.length) { found = woNum_(nums[nums.length - 1]); break; }
+    }
+  }
+  return found;
+}
+function parseWebOrderText_(raw) {
+  const text = String(raw || "").replace(/ /g, " ").replace(/\r/g, "");
+  const lines = text.split("\n").map((l) => l.replace(/\s+/g, " ").trim()).filter((l) => l !== "");
+  const out = { orderNo: "", orderDate: "", name: "", phone: "", address: "", carrier: "", items: [], shipFee: null, discount: null, total: null, payHint: "" };
+
+  // เลขออเดอร์: "#3815" / "เลขที่สั่งซื้อ 3815" / "Order #3815" / ลิงก์ lnw.me/order/<shop>/3815
+  const mUrl = text.match(/lnw\.me\/order\/[A-Za-z0-9_\-]+\/(\d+)/);
+  const mNo = text.match(/(?:รายการสั่งซื้อ|เลขที่(?:การ)?สั่งซื้อ|หมายเลขคำสั่งซื้อ|เลขออเดอร์|ออเดอร์|Order(?:\s*(?:No\.?|ID|Number))?)\s*[:：]?\s*#?\s*(\d{2,10})/i) || text.match(/#\s?(\d{3,10})\b/);
+  out.orderNo = (mUrl && mUrl[1]) || (mNo && mNo[1]) || "";
+
+  const mDate = text.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})(?:\s*(?:เวลา)?\s*(\d{1,2})[:.](\d{2}))?/);
+  if (mDate) {
+    let y = Number(mDate[3]); if (y > 2400) y -= 543; // พ.ศ.
+    const pad = (n) => String(n).padStart(2, "0");
+    out.orderDate = y + "-" + pad(mDate[2]) + "-" + pad(mDate[1]) + (mDate[4] ? "T" + pad(mDate[4]) + ":" + mDate[5] : "");
+  }
+
+  const mPhone = text.match(/(?:\+66|0)\d(?:[\s\-]?\d){7,8}/);
+  if (mPhone) { let d = mPhone[0].replace(/\D/g, ""); if (d.startsWith("66")) d = "0" + d.slice(2); out.phone = d; }
+
+  const nm = woLabelValue_(lines, /(?:ชื่อผู้รับ|ผู้รับ(?:สินค้า)?|ชื่อ\s*-?\s*นามสกุล|ชื่อลูกค้า|ส่งถึง|Recipient|Name)\s*[:：]?/i);
+  if (nm) out.name = nm.value.replace(/(?:\+66|0)\d(?:[\s\-]?\d){7,8}/, "").replace(/(?:เบอร์|โทร|Tel).*$/i, "").trim();
+
+  const ad = woLabelValue_(lines, /(?:ที่อยู่(?:จัดส่ง|ในการจัดส่ง)?|Address)\s*[:：]?/i);
+  if (ad) {
+    const parts = [ad.value];
+    if (!/\b\d{5}\b/.test(ad.value)) {
+      for (let j = ad.idx + 1; j < Math.min(lines.length, ad.idx + 4); j++) {
+        parts.push(lines[j]);
+        if (/\b\d{5}\b/.test(lines[j])) break;
+      }
+    }
+    out.address = parts.join(" ").replace(/(?:\+66|0)\d(?:[\s\-]?\d){7,8}/g, "").replace(/\s+/g, " ").trim();
+  } else {
+    const pl = lines.find((l) => /\b\d{5}\b/.test(l) && /(?:แขวง|เขต|ตำบล|ต\.|อำเภอ|อ\.|จังหวัด|จ\.|กรุงเทพ)/.test(l));
+    if (pl) out.address = pl;
+  }
+
+  const cm = text.match(/SPX|Shopee\s*Express|Kerry|Flash|J&T|EMS|ไปรษณีย์|ลงทะเบียน|Grab|Lalamove|Best\s*Express|Ninja/i);
+  if (cm) out.carrier = cm[0];
+
+  out.shipFee = woAmountAfter_(lines, /(?:ค่า(?:จัด)?ส่ง|ค่าขนส่ง|Shipping(?:\s*fee)?)\s*[:：]?/i);
+  out.discount = woAmountAfter_(lines, /(?:ส่วนลด|Discount|คูปอง)\s*[:：]?/i);
+  out.total = woAmountAfter_(lines, /(?:ยอด(?:รวม)?(?:ทั้งสิ้น|สุทธิ|ชำระ)|รวมทั้งสิ้น|ยอดที่ต้องชำระ|Grand\s*Total|Total)\s*[:：]?/i);
+  const pm = text.match(/(?:ชำระ(?:เงิน)?(?:โดย|ผ่าน)|วิธีชำระ(?:เงิน)?)\s*[:：]?\s*([^\n]{1,40})/);
+  if (pm) out.payHint = pm[1].trim();
+  if (/เก็บเงินปลายทาง|COD/i.test(text)) out.payHint = (out.payHint ? out.payHint + " · " : "") + "COD";
+
+  // สินค้า 1) บาร์โค้ด/รหัสสินค้าที่มีใน Product_ID
+  const used = new Set();
+  lines.forEach((ln, i) => {
+    const toks = ln.match(/\b[A-Za-z]?\d{5,14}\b/g) || [];
+    toks.forEach((tk) => {
+      if (used.has(i + "|" + tk)) return;
+      const p = findByBarcodeExact(tk);
+      if (!p) return;
+      if (out.phone && tk.replace(/\D/g, "") === out.phone) return;
+      used.add(i + "|" + tk);
+      const win = lines.slice(Math.max(0, i - 2), i + 4).join(" \n ");
+      const after = lines.slice(i, i + 4).join(" \n ");
+      let qty = 1;
+      const mq = after.match(/(?:จำนวน|Qty|Quantity)\s*[:：]?\s*(\d{1,4})/i) || after.match(/[x×]\s*(\d{1,4})\b/i) || after.match(/\b(\d{1,4})\s*(?:ชิ้น|pcs|อัน|กล่อง)/i);
+      if (mq) qty = Number(mq[1]) || 1;
+      let price = null;
+      const mp = after.match(/(?:ราคา(?:ต่อชิ้น)?|Price|@)\s*[:：]?\s*฿?\s*([\d,]+(?:\.\d{1,2})?)/i) || win.match(/฿\s*([\d,]+(?:\.\d{1,2})?)/);
+      if (mp) price = woNum_(mp[1]);
+      out.items.push({ barcode: String(p.barcode || tk), name: p.name || "", qty: qty, price: price != null ? price : (Number(p.price) || 0), priceFromText: price != null, found: true });
+    });
+  });
+  // 2) ไม่เจอบาร์โค้ดเลย → หาชื่อสินค้าที่ตรงทั้งชื่อในข้อความ (ชื่อยาวก่อน)
+  if (!out.items.length) {
+    const low = text.toLowerCase();
+    const cands = productList.filter((p) => p.name && p.name.length >= 8 && low.indexOf(p.name.toLowerCase()) !== -1)
+      .sort((a, b) => b.name.length - a.name.length);
+    const taken = [];
+    cands.forEach((p) => {
+      const at = low.indexOf(p.name.toLowerCase());
+      if (taken.some((r) => at < r[1] && at + p.name.length > r[0])) return; // ซ้อนกับชื่อที่ยาวกว่า
+      taken.push([at, at + p.name.length]);
+      const after = text.slice(at, at + p.name.length + 120);
+      const mq = after.match(/(?:จำนวน|Qty)\s*[:：]?\s*(\d{1,4})/i) || after.match(/[x×]\s*(\d{1,4})\b/i);
+      const mp = after.match(/(?:ราคา|Price|฿)\s*[:：]?\s*([\d,]+(?:\.\d{1,2})?)/i);
+      out.items.push({ barcode: String(p.barcode), name: p.name, qty: mq ? Number(mq[1]) || 1 : 1, price: mp ? woNum_(mp[1]) : (Number(p.price) || 0), priceFromText: !!mp, found: true, byName: true });
+    });
+  }
+  // ราคาที่อ่านได้เป็น "ยอดรวมแถว" หรือ "ราคาต่อชิ้น"? เทียบกับยอดรวมทั้งสิ้น: ถ้าตีความเป็นยอดแถวแล้วตรง → หารจำนวน
+  if (out.total != null && out.items.some((it) => it.priceFromText && it.qty > 1)) {
+    const extra = (Number(out.shipFee) || 0) - (Number(out.discount) || 0);
+    const asUnit = out.items.reduce((s, it) => s + it.qty * it.price, 0) + extra;
+    const asLine = out.items.reduce((s, it) => s + (it.priceFromText ? it.price : it.qty * it.price), 0) + extra;
+    if (Math.abs(asUnit - out.total) > 0.01 && Math.abs(asLine - out.total) <= 0.01) {
+      out.items.forEach((it) => { if (it.priceFromText && it.qty > 1) it.price = Math.round(it.price / it.qty * 100) / 100; });
+    }
+  }
+  return out;
+}
+
+function woShipCodeFor_(carrier) {
+  const c = String(carrier || "").toLowerCase();
+  if (/spx|shopee/.test(c)) return "678";
+  if (/ems|ไปรษณีย์|ลงทะเบียน/.test(c)) return "789";
+  if (/grab|lalamove/.test(c)) return "456";
+  return "678";
+}
+
+function openWebOrderModal_() {
+  woState = null;
+  document.getElementById("woRaw").value = "";
+  document.getElementById("woPreview").classList.add("hidden");
+  document.getElementById("woErr").classList.add("hidden");
+  document.getElementById("webOrderModal").classList.remove("hidden");
+  setTimeout(() => document.getElementById("woRaw").focus(), 30);
+}
+function closeWebOrderModal_() {
+  woState = null;
+  document.getElementById("webOrderModal").classList.add("hidden");
+}
+function woErr_(msg) { const e = document.getElementById("woErr"); e.textContent = msg || ""; e.classList.toggle("hidden", !msg); }
+
+async function woParseClick_() {
+  woErr_("");
+  const raw = document.getElementById("woRaw").value;
+  if (!raw.trim()) return woErr_("วางข้อความจากหน้าออเดอร์ก่อน (เปิดลิงก์ออเดอร์ → Ctrl+A → Ctrl+C → วางที่นี่)");
+  if (!productList.length) return woErr_("ยังไม่มีรายการสินค้าในเครื่อง — กด 🔄 อัปเดตข้อมูล › สินค้า ก่อน");
+  const p = parseWebOrderText_(raw);
+  const cust = p.phone ? findCustomer(p.phone) : null;
+  woState = Object.assign(p, {
+    customerCode: cust ? cust.code : "",
+    shipCode: woShipCodeFor_(p.carrier),
+    pay: /COD/.test(p.payHint) ? "cod" : "transfer",
+    useOrderDate: false,
+    dupTx: null
+  });
+  if (cust && !woState.name) woState.name = cust.name || "";
+  if (cust && !woState.address) woState.address = cust.address || "";
+  renderWebOrderPreview_();
+  document.getElementById("woPreview").classList.remove("hidden");
+  // เช็กซ้ำกับหลังบ้าน
+  if (woState.orderNo) {
+    try {
+      const r = await fetch(getAppsScriptUrl(), { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "checkWebOrder", pin: currentStaff ? currentStaff.pin : "", branch: getBranchCode(), webOrderNo: woState.orderNo }) });
+      const res = await r.json();
+      if (woState && res && res.status === "success") { woState.dupTx = res.exists ? res.transactionId : ""; renderWebOrderPreview_(); }
+    } catch (e) { console.error(e); }
+  }
+}
+
+function woCalc_() {
+  const s = woState;
+  const items = s.items.reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
+  const ship = Number(s.shipFee) || 0;
+  const disc = Number(s.discount) || 0;
+  return { items: items, ship: ship, disc: disc, total: Math.round((items + ship - disc) * 100) / 100 };
+}
+
+function renderWebOrderPreview_() {
+  const s = woState; if (!s) return;
+  const c = woCalc_();
+  const box = document.getElementById("woPreview");
+  const dupHtml = !s.orderNo ? '<span class="text-[11px] font-bold rounded-full px-2 bg-red-100 text-red-700">ไม่พบเลขออเดอร์ — ใส่เอง</span>'
+    : s.dupTx === null ? '<span class="text-[11px] text-gray-400">กำลังเช็กว่าเคยนำเข้าไหม…</span>'
+    : s.dupTx ? `<span class="text-[11px] font-bold rounded-full px-2 bg-red-100 text-red-700">นำเข้าแล้ว: ${escapeHtml(s.dupTx)}</span>`
+    : '<span class="text-[11px] font-bold rounded-full px-2 bg-emerald-100 text-emerald-700">ยังไม่เคยนำเข้า</span>';
+  const inp = (id, val, ph, cls) => `<input id="${id}" value="${escapeHtml(val || "")}" placeholder="${ph || ""}" class="wo-in border border-gray-200 rounded-md px-2 py-1 text-sm ${cls || "w-full"}">`;
+  const custTxt = s.customerCode ? (() => { const cu = findCustomerByCode(s.customerCode); return '<span class="text-emerald-700 font-semibold">' + escapeHtml(s.customerCode) + "</span> " + escapeHtml(cu ? cu.name || "" : ""); })()
+    : '<span class="text-amber-700">ไม่พบเบอร์นี้ในรายชื่อลูกค้า — บันทึกแบบไม่มีรหัสได้</span>';
+  const diff = s.total != null ? Math.round((c.total - s.total) * 100) / 100 : null;
+  box.innerHTML = `
+    <div class="grid gap-2" style="grid-template-columns:110px minmax(0,1fr)">
+      <span class="text-xs text-gray-500 pt-1">ออเดอร์เว็บ #</span><div class="flex items-center gap-2 flex-wrap">${inp("woNo", s.orderNo, "เช่น 3815", "w-28")}${dupHtml}${s.orderDate ? `<span class="text-xs text-gray-500">สั่ง ${escapeHtml(s.orderDate.replace("T", " "))}</span>` : ""}</div>
+      <span class="text-xs text-gray-500 pt-1">ชื่อผู้รับ</span><div>${inp("woName", s.name, "ชื่อผู้รับ")}</div>
+      <span class="text-xs text-gray-500 pt-1">เบอร์</span><div class="flex items-center gap-2 flex-wrap">${inp("woPhone", s.phone, "0812345678", "w-36")}<span class="text-xs">${custTxt}</span></div>
+      <span class="text-xs text-gray-500 pt-1">ที่อยู่</span><div><textarea id="woAddr" rows="2" class="wo-in w-full border border-gray-200 rounded-md px-2 py-1 text-sm">${escapeHtml(s.address || "")}</textarea></div>
+    </div>
+    <table class="w-full text-sm mt-2"><thead><tr class="text-xs text-gray-500 border-b"><th class="text-left py-1">บาร์โค้ด</th><th class="text-left">สินค้า</th><th class="text-right">จำนวน</th><th class="text-right">ราคา/ชิ้น</th><th class="text-right">รวม</th><th></th></tr></thead><tbody>
+    ${s.items.map((it, i) => `<tr class="border-b border-gray-100">
+      <td class="py-1">${bcCopyBtn_(it.barcode, "sm")}</td>
+      <td class="pr-2">${escapeHtml(it.name)}${it.byName ? ' <span class="text-[10px] text-amber-700">(จับคู่จากชื่อ)</span>' : ""}${it.priceFromText ? "" : ' <span class="text-[10px] text-amber-700">(ราคาจาก POS — เช็กกับเว็บ)</span>'}</td>
+      <td class="text-right"><input type="number" min="1" data-i="${i}" data-f="qty" value="${it.qty}" class="wo-it w-14 text-right border border-gray-200 rounded px-1"></td>
+      <td class="text-right"><input type="number" min="0" step="0.01" data-i="${i}" data-f="price" value="${it.price}" class="wo-it w-20 text-right border border-gray-200 rounded px-1"></td>
+      <td class="text-right tabular-nums">${formatMoney((Number(it.qty) || 0) * (Number(it.price) || 0))}</td>
+      <td class="text-right"><button type="button" class="wo-del text-red-500 px-1" data-i="${i}" title="ลบแถว">✕</button></td></tr>`).join("")}
+    </tbody></table>
+    <div class="relative mt-1"><input id="woAddQ" placeholder="➕ เพิ่มสินค้า: ยิงบาร์โค้ด หรือพิมพ์ชื่อ แล้ว Enter" class="w-full border border-dashed border-gray-300 rounded-md px-2 py-1 text-sm"><div id="woAddList" class="hidden absolute left-0 right-0 z-[130] bg-white border rounded-md shadow-lg max-h-56 overflow-y-auto"></div></div>
+    <div class="mt-2 text-sm flex flex-col gap-1">
+      <div class="flex justify-between items-center gap-2 flex-wrap"><span>ค่าส่งที่ลูกค้าจ่าย <select id="woShipCode" class="wo-in border border-gray-200 rounded px-1 text-xs">${WO_SHIP_CODES.map(([k, l]) => `<option value="${k}" ${s.shipCode === k ? "selected" : ""}>${k} ${l}</option>`).join("")}</select>${s.carrier ? ' <span class="text-xs text-gray-400">เว็บ: ' + escapeHtml(s.carrier) + "</span>" : ""}</span><input id="woShip" type="number" min="0" step="0.01" value="${s.shipFee != null ? s.shipFee : 0}" class="wo-in w-24 text-right border border-gray-200 rounded px-1"></div>
+      <div class="flex justify-between items-center"><span>ส่วนลด</span><input id="woDisc" type="number" min="0" step="0.01" value="${s.discount != null ? s.discount : 0}" class="wo-in w-24 text-right border border-gray-200 rounded px-1"></div>
+      <div class="flex justify-between font-bold border-t pt-1"><span>ยอดบิล POS</span><span class="tabular-nums">${formatMoney(c.total)}</span></div>
+      <div class="flex justify-between text-xs ${diff === null ? "text-gray-400" : diff === 0 ? "text-emerald-700" : "text-red-600 font-bold"}"><span>ยอดในหน้าเว็บ</span><span>${s.total == null ? "อ่านไม่เจอ — เช็กเอง" : formatMoney(s.total) + (diff === 0 ? " ✓ ตรง" : " · ต่าง " + formatMoney(diff))}</span></div>
+      <div class="flex justify-between items-center gap-2 flex-wrap"><span>รับชำระ ${s.payHint ? '<span class="text-xs text-gray-400">เว็บ: ' + escapeHtml(s.payHint) + "</span>" : ""}</span>
+        <select id="woPay" class="wo-in border border-gray-200 rounded px-1 text-sm"><option value="transfer" ${s.pay === "transfer" ? "selected" : ""}>โอน (บัญชีค่าเริ่มต้นสาขา Website)</option><option value="card" ${s.pay === "card" ? "selected" : ""}>บัตร</option><option value="cash" ${s.pay === "cash" ? "selected" : ""}>เงินสด</option><option value="cod" ${s.pay === "cod" ? "selected" : ""}>COD / ยังไม่ได้รับเงิน</option></select></div>
+      <label class="flex items-center gap-2 text-xs text-gray-600 ${s.orderDate ? "" : "hidden"}"><input id="woUseDate" type="checkbox" ${s.useOrderDate ? "checked" : ""}> ใช้วันที่สั่งซื้อบนเว็บเป็นวันที่บิล (ไม่ติ๊ก = วันนี้)</label>
+      <input id="woNote" placeholder="หมายเหตุ (ไม่บังคับ)" class="wo-in border border-gray-200 rounded-md px-2 py-1 text-sm">
+    </div>`;
+  box.querySelectorAll(".wo-it").forEach((el) => el.addEventListener("change", () => { s.items[Number(el.dataset.i)][el.dataset.f] = Number(el.value) || 0; woSyncInputs_(); renderWebOrderPreview_(); }));
+  box.querySelectorAll(".wo-del").forEach((el) => el.addEventListener("click", () => { woSyncInputs_(); s.items.splice(Number(el.dataset.i), 1); renderWebOrderPreview_(); }));
+  ["woShip", "woDisc"].forEach((id) => document.getElementById(id).addEventListener("change", () => { woSyncInputs_(); renderWebOrderPreview_(); }));
+  document.getElementById("woPhone").addEventListener("change", () => {
+    woSyncInputs_();
+    const cu = s.phone ? findCustomer(s.phone) : null;
+    s.customerCode = cu ? cu.code : "";
+    renderWebOrderPreview_();
+  });
+  const q = document.getElementById("woAddQ"), list = document.getElementById("woAddList");
+  const addP = (p) => { woSyncInputs_(); s.items.push({ barcode: String(p.barcode), name: p.name || "", qty: 1, price: Number(p.price) || 0, priceFromText: false, found: true }); renderWebOrderPreview_(); setTimeout(() => document.getElementById("woAddQ").focus(), 0); };
+  q.addEventListener("input", () => {
+    const v = q.value.trim();
+    const res = v.length >= 2 ? searchProducts(v, 8) : [];
+    list.innerHTML = res.map((p, i) => `<div class="wo-pick px-2 py-1 text-sm cursor-pointer hover:bg-emerald-50" data-i="${i}"><span class="font-mono text-xs text-blue-800">${escapeHtml(p.barcode)}</span> ${escapeHtml(p.name || "")}</div>`).join("");
+    list.classList.toggle("hidden", !res.length);
+    list.querySelectorAll(".wo-pick").forEach((el) => el.addEventListener("mousedown", (e) => { e.preventDefault(); addP(res[Number(el.dataset.i)]); }));
+  });
+  q.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const v = q.value.trim();
+    const p = findByBarcodeExact(v) || (searchProducts(v, 1)[0] || null);
+    if (p) addP(p); else woErr_("ไม่พบสินค้า \"" + v + "\"");
+  });
+}
+
+function woSyncInputs_() {
+  const s = woState; if (!s) return;
+  const g = (id) => { const el = document.getElementById(id); return el ? el.value : null; };
+  if (g("woNo") !== null) s.orderNo = String(g("woNo")).trim();
+  if (g("woName") !== null) s.name = String(g("woName")).trim();
+  if (g("woPhone") !== null) s.phone = String(g("woPhone")).replace(/\D/g, "");
+  if (g("woAddr") !== null) s.address = String(g("woAddr")).trim();
+  if (g("woShip") !== null) s.shipFee = Number(g("woShip")) || 0;
+  if (g("woDisc") !== null) s.discount = Number(g("woDisc")) || 0;
+  if (g("woShipCode") !== null) s.shipCode = g("woShipCode");
+  if (g("woPay") !== null) s.pay = g("woPay");
+  const ud = document.getElementById("woUseDate"); if (ud) s.useOrderDate = ud.checked;
+  if (g("woNote") !== null) s.note = String(g("woNote")).trim();
+}
+
+async function saveWebOrder_() {
+  const s = woState; if (!s) return;
+  woSyncInputs_();
+  woErr_("");
+  if (!s.orderNo) return woErr_("ใส่เลขออเดอร์เว็บก่อน");
+  if (s.dupTx) return woErr_("ออเดอร์ #" + s.orderNo + " นำเข้าแล้ว (" + s.dupTx + ") — ไม่สร้างซ้ำ");
+  if (!s.items.length) return woErr_("ยังไม่มีรายการสินค้า — ยิง/ค้นเพิ่มด้านล่างตาราง");
+  if (s.items.some((it) => !(Number(it.qty) > 0))) return woErr_("จำนวนสินค้าต้องมากกว่า 0");
+  if (!s.name && !s.customerCode) return woErr_("ใส่ชื่อผู้รับก่อน");
+  if (!s.address) return woErr_("ใส่ที่อยู่จัดส่งก่อน");
+  const c = woCalc_();
+  if (s.total != null && Math.round((c.total - s.total) * 100) !== 0 &&
+      !confirm("ยอดบิล POS " + formatMoney(c.total) + " ไม่ตรงกับยอดบนเว็บ " + formatMoney(s.total) + "\n\nบันทึกต่อไหม?")) return;
+  // ส่วนลดทั้งบิล → แถวติดลบ 1 แถว (บิลขายปกติไม่มีช่องส่วนลดท้ายบิล)
+  const items = s.items.map((it) => ({ barcode: it.barcode, name: it.name, qty: Number(it.qty), price: Number(it.price), lineTotal: Math.round(Number(it.qty) * Number(it.price) * 100) / 100, type: "branch" }));
+  if (c.ship > 0) {
+    const sp = findByBarcodeExact(s.shipCode);
+    items.push({ barcode: s.shipCode, name: (sp && sp.name) || "ค่าส่ง", qty: 1, price: c.ship, lineTotal: c.ship, type: "branch" });
+  }
+  if (c.disc > 0) items.push({ barcode: "", name: "ส่วนลดเว็บ", qty: 1, price: -c.disc, lineTotal: -c.disc, type: "branch" });
+  const paid = s.pay === "cod" ? 0 : c.total;
+  const ts = s.useOrderDate && s.orderDate ? new Date(s.orderDate.length > 10 ? s.orderDate : s.orderDate + "T12:00").toISOString() : new Date().toISOString();
+  const payload = {
+    action: "saveWebOrder", pin: currentStaff ? currentStaff.pin : "", branch: "Website",
+    webOrderNo: s.orderNo, timestamp: ts, cashier: currentStaff ? currentStaff.name : "",
+    items: items, grandTotal: c.total,
+    cashPaid: s.pay === "cash" ? paid : 0, transferPaid: s.pay === "transfer" ? paid : 0, cardPaid: s.pay === "card" ? paid : 0, copayPaid: 0, changeGiven: 0,
+    bankAccountId: "",
+    customerCode: s.customerCode || "", customerName: s.name || "", customerPhone: s.phone || "", customerAddress: s.address || "",
+    deliveryMethod: "delivery",
+    remark: ["LnwShop", s.pay === "cod" ? "COD ยังไม่รับเงิน" : "", s.note || ""].filter(Boolean).join(" · ")
+  };
+  const btn = document.getElementById("woSaveBtn");
+  const html = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก…';
+  try {
+    const r = await fetch(getAppsScriptUrl(), { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
+    const res = await r.json();
+    if (!res || res.status !== "success") throw new Error((res && res.message) || "บันทึกไม่สำเร็จ");
+    showToast(res.message + " · อยู่ในคิว 🚚 รอจัดส่ง", "success");
+    closeWebOrderModal_();
+    if (typeof loadShippingQueue === "function") loadShippingQueue();
+  } catch (e) {
+    console.error(e);
+    woErr_(e.message);
+  } finally {
+    btn.disabled = false; btn.innerHTML = html;
+  }
+}
+
+function setupWebOrderPaste_() {
+  const open = document.getElementById("webOrderOpenBtn");
+  if (!open) return;
+  open.addEventListener("click", openWebOrderModal_);
+  document.getElementById("woParseBtn").addEventListener("click", woParseClick_);
+  document.getElementById("woSaveBtn").addEventListener("click", saveWebOrder_);
+  document.getElementById("woCancelBtn").addEventListener("click", closeWebOrderModal_);
+  document.getElementById("webOrderModal").addEventListener("click", (e) => { if (e.target.id === "webOrderModal") closeWebOrderModal_(); });
+}
+
 function setupBarcodeCopy_() {
   const tip = document.createElement("div");
   tip.id = "bcCopyTip";
@@ -24011,6 +24362,7 @@ async function init() {
   setupNavSync_();
   setupQuickAdd_();
   setupBarcodeCopy_(); // v2026.11.24-a บาร์โค้ดกดคัดลอก
+  setupWebOrderPaste_(); // v2026.11.27-a วางออเดอร์เว็บ
   setupCustomerSearchBoxes_(); // v2026.11.20-b ค้นลูกค้าแบบพิมพ์บางส่วน + ผูกรหัสใบจอง
   setupEventPrice_();
   setupWsAll_();
